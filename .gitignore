@@ -1,0 +1,6 @@
+out/
+log/
+.idea/
+*.properties
+target/
+/tmp/
