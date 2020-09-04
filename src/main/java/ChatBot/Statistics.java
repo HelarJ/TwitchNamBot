@@ -131,7 +131,7 @@ public class Statistics implements Runnable{
     }
 
     public void handleCommand(Command cmd){
-        String cmdStr = cmd.getMessage().toLowerCase().replaceAll(String.valueOf(zws1+zws2),"").stripTrailing();
+        String cmdStr = cmd.getMessage().toLowerCase().replaceAll("\uDB40\uDC00","").stripTrailing();
         String msg = cmd.getMessage();
         String name = cmd.getSender();
         if (cmdStr.startsWith("!nammers")){
@@ -209,30 +209,7 @@ public class Statistics implements Runnable{
             this.getFollowList(msg.substring(11).split(" ")[0].toLowerCase(), name);
         }
     }
-    private void convert(String msg, String from){
-        if (isNotAllowed(from, from, "convert")){
-            return;
-        }
-        String numberStr = msg.replaceAll("[^0-9.]+", "");
-        double number;
-        if (numberStr.length()>0){
-            try {
-                number = Double.parseDouble(numberStr);
-            } catch (Exception ignored){
-                return;
-            }
-        } else {
-            return;
-        }
 
-        if (msg.toLowerCase().contains("f")){
-            sendingQueue.add(String.format("@%s, %.2fF is %.2fC", from, number, (number-32.0)*0.5556));
-        } else if (msg.toLowerCase().contains("c")){
-            sendingQueue.add(String.format("@%s, %.2fC is %.2fF%n", from, number, number*1.8+32.0));
-        }
-
-        lastCommandTime = Instant.now();
-    }
     private void choose(String choiceMsg, String from){
         if (isNotAllowed(from, from, "choose")){
             return;
@@ -371,6 +348,30 @@ public class Statistics implements Runnable{
         }
 
 
+    }
+    private void convert(String msg, String from){
+        if (isNotAllowed(from, from, "convert")){
+            return;
+        }
+        String numberStr = msg.replaceAll("[^0-9.]+", "");
+        double number;
+        if (numberStr.length()>0){
+            try {
+                number = Double.parseDouble(numberStr);
+            } catch (Exception ignored){
+                return;
+            }
+        } else {
+            return;
+        }
+
+        if (msg.toLowerCase().contains("f")){
+            sendingQueue.add(String.format("@%s, %.2fF is %.2fC", from, number, (number-32.0)*0.5556));
+        } else if (msg.toLowerCase().contains("c")){
+            sendingQueue.add(String.format("@%s, %.2fC is %.2fF%n", from, number, number*1.8+32.0));
+        }
+
+        lastCommandTime = Instant.now();
     }
 
     private void randomSearch(String from, String msg) {
