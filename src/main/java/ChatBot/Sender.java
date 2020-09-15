@@ -91,7 +91,7 @@ public class Sender implements Runnable{
             bufferedWriter.write(msg);
             bufferedWriter.flush();
             Running.addCommandCount();
-            messageQueue.add(new Command(username.toLowerCase(), uid, lastmessage, true, false));
+            messageQueue.add(new Command(username.toLowerCase(), uid, lastmessage, true, false, lastmessage));
 
         } catch (Exception e){
             Running.getLogger().info("Error sending message: " + msg + " to "+channel+": "+e.getMessage());

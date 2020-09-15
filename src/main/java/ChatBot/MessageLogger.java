@@ -93,8 +93,9 @@ public class MessageLogger implements Runnable {
         String message = command.getMessage();
         boolean subscribed = command.isSubscribed();
         String time = command.getTime();
+        String fullMsg = command.getFullMsg();
         try (Connection conn = DriverManager.getConnection(SQLCredentials);
-             PreparedStatement stmt = conn.prepareStatement("CALL chat_stats.sp_log_message_all(?,?,?,?,?,?,?);")) {
+             PreparedStatement stmt = conn.prepareStatement("CALL chat_stats.sp_log_message_all(?,?,?,?,?,?,?,?);")) {
             stmt.setInt(1, lastid);
             stmt.setString(2, time);
             stmt.setString(3, username);
@@ -102,6 +103,7 @@ public class MessageLogger implements Runnable {
             stmt.setString(5, message);
             stmt.setBoolean(6, online);
             stmt.setBoolean(7, subscribed);
+            stmt.setString(8, fullMsg);
             stmt.executeQuery();
         } catch (SQLException ex) {
             Running.getLogger().severe("SQL ERROR: " + "SQLException: " + ex.getMessage() + ", VendorError: " + ex.getErrorCode() + "\r\n"

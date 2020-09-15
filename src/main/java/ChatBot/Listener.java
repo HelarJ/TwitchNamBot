@@ -83,7 +83,7 @@ public class Listener implements Runnable {
                         outputMSG = outputMSG.replaceAll("\u0001", "");
                         outputMSG = outputMSG.replaceFirst("ACTION", "/me");
                     }
-                    Command command = new Command(name, userid, outputMSG, subscribed, false);
+                    Command command = new Command(name, userid, outputMSG, subscribed, false, output);
 
                     messageQueue.add(command);
                     if (plebsAllowed || command.isSubscribed()){
@@ -116,7 +116,7 @@ public class Listener implements Runnable {
                     String msg = output.substring(output.indexOf(username));
                     msg = msg.substring(msg.indexOf(":") + 1);
                     Running.getLogger().info(String.format("User %s whispered %s.", name, msg));
-                    Command command = new Command(name, "NULL", msg, false, true);
+                    Command command = new Command(name, "NULL", msg, false, true, output);
                     messageQueue.add(command);
                     if (name.toLowerCase().equals(admin.toLowerCase())) {
                         if (msg.equals("/setonline")) {
