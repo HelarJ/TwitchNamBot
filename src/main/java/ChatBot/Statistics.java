@@ -139,6 +139,9 @@ public class Statistics implements Runnable{
         } else if (cmdStr.equalsIgnoreCase("!namping")) {
             Running.getLogger().info(String.format("%s used !namping.", name));
             this.ping(name);
+        } else if (cmdStr.startsWith("!names ")) {
+            Running.getLogger().info(String.format("%s used !names.", name));
+            this.names(name, msg.substring(7).split(" ")[0].replaceAll("@", ""));
         } else if (cmdStr.startsWith("!convert ")) {
             this.convert(name, msg.substring(9));
         } else if (cmdStr.startsWith("!namrefresh")) {
@@ -208,6 +211,45 @@ public class Statistics implements Runnable{
             Running.getLogger().info(String.format("%s used !stalklist.", name));
             this.getFollowList(msg.substring(11).split(" ")[0].toLowerCase(), name);
         }
+    }
+
+    private void names(String from, String username){
+        if (isNotAllowed(from, username, "names")){
+            return;
+        }
+        try (Connection conn = DriverManager.getConnection(SQLCredentials);
+             PreparedStatement stmt = conn.prepareStatement("call chat_stats.sp_get_names(?)")) {
+            stmt.setString(1, username.toLowerCase());
+            ResultSet rs = stmt.executeQuery();
+            StringBuilder names = new StringBuilder("@");
+            names.append(from);
+            names.append(", ");
+            names.append(username);
+            names.append("'s alternate names are: ");
+            int amount = 0;
+            while (rs.next()) {
+                String name = rs.getString("username");
+                if (!name.equalsIgnoreCase(username)){
+                    amount++;
+                    names.append(name);
+                    names.append(", ");
+                }
+            }
+            if (amount >= 1){
+                names = names.reverse();
+                names.deleteCharAt(0);
+                names.deleteCharAt(0);
+                names.reverse();
+                sendingQueue.add(names.toString());
+            } else if (amount == 0){
+                sendingQueue.add("@"+from+", no alternate names found in logs PEEPERS");
+            }
+        } catch (SQLException e) {
+            Running.getLogger().severe("SQL ERROR: " + "SQLException: " + e.getMessage() + ", VendorError: " + e.getErrorCode());
+        } finally {
+            lastCommandTime = Instant.now();
+        }
+
     }
 
     private void choose(String choiceMsg, String from){
