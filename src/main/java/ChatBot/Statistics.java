@@ -225,7 +225,7 @@ public class Statistics implements Runnable{
             names.append(from);
             names.append(", ");
             names.append(username);
-            names.append("'s alternate names are: ");
+            names.append("'s old names are: ");
             int amount = 0;
             while (rs.next()) {
                 String name = rs.getString("username");
@@ -439,14 +439,33 @@ public class Statistics implements Runnable{
         } catch (StringIndexOutOfBoundsException e){
             msg = "";
         }
-        String phrase = msg.split(" ")[0];
+        /*
         if (msg.startsWith("\"")) {
             phrase = msg.substring(1);
             if (phrase.contains("\"")){
                 phrase = phrase.substring(0, phrase.indexOf("\""));
             }
         }
-        phrase = "\""+phrase+"\"";
+        phrase = "\""+phrase+"\"";*/
+        String phrase = msg.replaceAll("\"", "").replaceAll(" \uDB40\uDC00", "");
+        String[] phraseSplit = phrase.split(" ");
+        StringBuilder sb = new StringBuilder();
+        for (String word: phraseSplit){
+            if (word.startsWith("-")){
+                sb.append("-message:");
+                sb.append(word.replaceAll("-", ""));
+            } else {
+                sb.append("message:");
+                sb.append(word);
+            }
+            sb.append(" AND ");
+        }
+        if (sb.length()>5){
+            sb.replace(sb.length()-5, sb.length(), "");
+        } else {
+            sb.append("\"\"");
+        }
+        System.out.println(sb.toString());
 
 
         if (username.toLowerCase().equals(botName)){
@@ -469,7 +488,7 @@ public class Statistics implements Runnable{
             SolrQuery query = new SolrQuery();
             String fullNameStr = getAlts(username);
             query.set("q", fullNameStr);
-            query.set("fq", "message:"+phrase+" AND -message:\"!search\" AND -message:\"!searchuser\" AND -message:\"!rs\"");
+            query.set("fq", sb.toString() + " AND -message:\"!rs\"");
             int seed = ThreadLocalRandom.current().nextInt(0,999999999);
             query.set("sort", "random_"+seed+" asc");
             query.set("rows", 1);
@@ -486,7 +505,7 @@ public class Statistics implements Runnable{
             }
             sendingQueue.add(finalMessage);
 
-        } catch (IOException | SolrServerException e) {
+        } catch (IOException | BaseHttpSolrClient.RemoteSolrException | SolrServerException e) {
             Running.getLogger().warning(e.getMessage());
         } finally {
             lastCommandTime = Instant.now();
@@ -494,6 +513,10 @@ public class Statistics implements Runnable{
     }
 
     public void recordTimeout(String username, String userid, int length) {
+        if (length == 0){
+            tl.addTimeout(username, length);
+            return;
+        }
         Running.addTimeoutCount();
         try (Connection conn = DriverManager.getConnection(SQLCredentials);
              PreparedStatement stmt = conn.prepareStatement("CALL chat_stats.sp_log_timeout(?,?,?,?);")) {

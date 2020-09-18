@@ -86,6 +86,7 @@ public class Listener implements Runnable {
                     Command command = new Command(name, userid, outputMSG, subscribed, false, output);
 
                     messageQueue.add(command);
+                    statistics.recordTimeout(name, userid, 0);
                     if (plebsAllowed || command.isSubscribed()){
                         statisticsQueue.add(command);
                     }
@@ -102,6 +103,7 @@ public class Listener implements Runnable {
                     Running.getLogger().info(String.format("User %s timed out for %ds", name, banTime));
                     if (banTime >= 121059319){
                         statistics.addDisabled("Autoban", name);
+                        messageQueue.add(new Command(name, userid, "User was permanently banned.", false, false, output));
                     }
                     statistics.recordTimeout(name, userid, banTime);
                 } else if (output.contains("USERNOTICE")) {

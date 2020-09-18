@@ -102,7 +102,8 @@ public class TimeoutLogger implements Runnable {
                 return;
             }
         }
-        timeoutQueue.add(new Timeout(username, length));
-
+        if (length>0){
+            timeoutQueue.add(new Timeout(username, length));
+        }
     }
 }
