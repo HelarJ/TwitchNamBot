@@ -21,6 +21,8 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Statistics implements Runnable{
     private final String solrCredentials;
@@ -447,10 +449,13 @@ public class Statistics implements Runnable{
             }
         }
         phrase = "\""+phrase+"\"";*/
-        String phrase = msg.replaceAll("\"", "").replaceAll(" \uDB40\uDC00", "");
-        String[] phraseSplit = phrase.split(" ");
+        String phrase = msg.replaceAll(" \uDB40\uDC00", "");
+        List<String> phraseList = new ArrayList<>();
+        Matcher m = Pattern.compile("([^\"]\\S*|\".+?\")\\s*").matcher(phrase);
+        while (m.find())
+            phraseList.add(m.group(1));
         StringBuilder sb = new StringBuilder();
-        for (String word: phraseSplit){
+        for (String word: phraseList){
             if (word.startsWith("-")){
                 sb.append("-message:");
                 sb.append(word.replaceAll("-", ""));
@@ -488,7 +493,7 @@ public class Statistics implements Runnable{
             SolrQuery query = new SolrQuery();
             String fullNameStr = getAlts(username);
             query.set("q", fullNameStr);
-            query.set("fq", sb.toString() + " AND -message:\"!rs\"");
+            query.set("fq", sb.toString() + " AND -message:\"!rs\" AND -message:\"!searchuser\" AND -message:\"!search\" AND -message:\"!rq\"");
             int seed = ThreadLocalRandom.current().nextInt(0,999999999);
             query.set("sort", "random_"+seed+" asc");
             query.set("rows", 1);
