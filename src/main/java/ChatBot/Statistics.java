@@ -36,6 +36,7 @@ public class Statistics implements Runnable{
     private final HashMap<String, Integer> logCount;
     private final HashMap<String, Integer> spammers = new HashMap<>();
     private final HashMap<String, Instant> banned = new HashMap<>();
+    private final HashMap<String, Instant> superbanned = new HashMap<>();
     private final char zws1 = '\uDB40';
     private final char zws2 = '\uDC00';
     private final String website;
@@ -141,6 +142,9 @@ public class Statistics implements Runnable{
         } else if (cmdStr.equalsIgnoreCase("!namping")) {
             Running.getLogger().info(String.format("%s used !namping.", name));
             this.ping(name);
+        } else if (cmdStr.startsWith("!namban ")) {
+            Running.getLogger().info(String.format("%s used !namban.", name));
+            this.ban(name, msg.substring(8).split(" ")[0]);
         } else if (cmdStr.startsWith("!names ")) {
             Running.getLogger().info(String.format("%s used !names.", name));
             this.names(name, msg.substring(7).split(" ")[0].replaceAll("@", ""));
@@ -148,6 +152,8 @@ public class Statistics implements Runnable{
             this.convert(name, msg.substring(9));
         } else if (cmdStr.startsWith("!namrefresh")) {
             this.refreshLists(name);
+        } else if (cmdStr.startsWith("!namcommands")) {
+            this.namCommands(name);
         } else if (cmdStr.startsWith("!namchoose ")) {
             Running.getLogger().info(String.format("%s used !namchoose.", name));
             this.choose(msg.substring(11), name);
@@ -215,6 +221,23 @@ public class Statistics implements Runnable{
         }
     }
 
+    private void namCommands(String name) {
+        if (isNotAllowed(name, name, "commands")){
+            return;
+        }
+
+        sendingQueue.add("@"+name+", commands for this bot: https://poop.delivery/commands");
+
+        lastCommandTime = Instant.now();
+    }
+
+    private void ban(String from, String username){
+        if (godUsers.contains(from.toLowerCase())){
+            superbanned.put(username, Instant.now());
+            sendingQueue.add("Banned "+username+" from using the bot for 1h.");
+        }
+    }
+
     private void names(String from, String username){
         if (isNotAllowed(from, username, "names")){
             return;
@@ -227,7 +250,7 @@ public class Statistics implements Runnable{
             names.append(from);
             names.append(", ");
             names.append(username);
-            names.append("'s old names are: ");
+            names.append("'s other names are: ");
             int amount = 0;
             while (rs.next()) {
                 String name = rs.getString("username");
@@ -441,14 +464,6 @@ public class Statistics implements Runnable{
         } catch (StringIndexOutOfBoundsException e){
             msg = "";
         }
-        /*
-        if (msg.startsWith("\"")) {
-            phrase = msg.substring(1);
-            if (phrase.contains("\"")){
-                phrase = phrase.substring(0, phrase.indexOf("\""));
-            }
-        }
-        phrase = "\""+phrase+"\"";*/
         String phrase = msg.replaceAll(" \uDB40\uDC00", "");
         List<String> phraseList = new ArrayList<>();
         Matcher m = Pattern.compile("([^\"]\\S*|\".+?\")\\s*").matcher(phrase);
@@ -876,6 +891,16 @@ public class Statistics implements Runnable{
                 banned.remove(from);
             }
         }
+        if (superbanned.containsKey(from)){
+            if (superbanned.get(from).plus(3600, ChronoUnit.SECONDS).isAfter(Instant.now())){
+                Running.getLogger().info("superbanned user "+ from +" attempted to use a command.");
+                return true;
+            } else {
+                superbanned.remove(from);
+            }
+        }
+
+
         if (online && !godUsers.contains(from.toLowerCase())){
             Running.getLogger().info("Attempted to use "+cmdName+" while stream is online");
             return true;

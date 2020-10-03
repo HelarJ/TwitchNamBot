@@ -69,8 +69,9 @@ public class Listener implements Runnable {
                     // @badge-info=subscriber/12;badges=subscriber/12;color=#0000FF;display-name=UserName;emote-only=1;emotes=302047122:0-11;flags=;id=1da7dd50-2ec4-47cf-bb44-5bdc3e46ae1e;mod=0;room-id=121059319;subscriber=1;tmi-sent-ts=1588633605696;turbo=0;user-id=78070039;user-type= :charlielampard!charlielampard@charlielampard.tmi.twitch.tv PRIVMSG #moonmoon :moon2MORMOON
                     String name = output.substring(output.indexOf("!") + 1, output.indexOf("@", output.indexOf("!")));
 
-                    String userid = output.substring(output.indexOf("user-id="));
-                    userid = userid.substring(8, userid.indexOf(";"));
+                    String userid = output.substring(output.indexOf(";user-id="));
+                    userid = userid.substring(9);
+                    userid = userid.substring(0, userid.indexOf(";"));
 
                     String subscriberStr = output.substring(output.indexOf("subscriber="));
                     subscriberStr = subscriberStr.substring(11, subscriberStr.indexOf(";"));
