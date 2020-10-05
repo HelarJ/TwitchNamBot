@@ -148,8 +148,6 @@ public class Statistics implements Runnable{
         } else if (cmdStr.startsWith("!names ")) {
             Running.getLogger().info(String.format("%s used !names.", name));
             this.names(name, msg.substring(7).split(" ")[0].replaceAll("@", ""));
-        } else if (cmdStr.startsWith("!convert ")) {
-            this.convert(name, msg.substring(9));
         } else if (cmdStr.startsWith("!namrefresh")) {
             this.refreshLists(name);
         } else if (cmdStr.startsWith("!namcommands")) {
@@ -196,13 +194,17 @@ public class Statistics implements Runnable{
             } else if (cmdStr.startsWith("!adddisabled ")){
                 this.addDisabled(name, msg.substring(13).split(" ")[0]);
             }
-        } else if (cmdStr.startsWith("!remdisabled")){
+        } else if (cmdStr.startsWith("!remdisabled")) {
             Running.getLogger().info(String.format("%s used !remdisabled.", name));
-            if (cmdStr.equals("!remdisabled")){
+            if (cmdStr.equals("!remdisabled")) {
                 this.removeDisabled(name, name);
-            } else if (cmdStr.startsWith("!remdisabled ")){
+            } else if (cmdStr.startsWith("!remdisabled ")) {
                 this.removeDisabled(name, msg.substring(13).split(" ")[0]);
             }
+
+        } else if (cmdStr.startsWith("!fs ")) {
+            Running.getLogger().info(String.format("%s used !search.", name));
+            this.firstOccurrence(name, msg.substring(4));
         } else if (cmdStr.startsWith("!search ")) {
             Running.getLogger().info(String.format("%s used !search.", name));
             this.search(name, msg.substring(8));
@@ -321,16 +323,7 @@ public class Statistics implements Runnable{
         } catch (StringIndexOutOfBoundsException e){
             msg = "";
         }
-        String phrase = msg.split(" ")[0];
-
-
-        if (msg.startsWith("\"")) {
-            phrase = msg.substring(1);
-            if (phrase.contains("\"")){
-                phrase = phrase.substring(0, phrase.indexOf("\""));
-            }
-        }
-        phrase = "\""+phrase+"\"";
+        String phrase = getSolrPattern(msg);
 
         if (username.toLowerCase().equals(botName)){
             sendingQueue.add("PepeSpin");
@@ -339,28 +332,28 @@ public class Statistics implements Runnable{
 
         lastCommandTime = Instant.now();
         if (!godUsers.contains(from) && (username.contains("*") || username.contains("?") || username.contains("~") || username.contains("{")
-                || username.contains("[") || phrase.contains("{") || phrase.contains("[")
-                || phrase.contains("*") || phrase.contains("?") || phrase.contains("~"))){
+                || username.contains("["))){
             sendingQueue.add("@"+from+", no wildcards allowed NOPERS");
             return;
         }
 
         try (SolrClient solr = new HttpSolrClient.Builder(solrCredentials).build()){
             SolrQuery query = new SolrQuery();
-            query.set("q", "message:"+phrase+" AND username:"+username+" AND -username:"+botName+" AND -message:\"!search\" AND -message:\"!searchuser\" AND -message:\"!rs\"");
-            query.set("fl", "*,ttf(message,"+phrase+")");
+            query.set("q", phrase+" AND username:"+username+" AND -username:"+botName+" AND -message:\"!search\" AND -message:\"!searchuser\" AND -message:\"!rs\"");
+            //query.set("fl", "*,ttf(message,"+phrase+")");
             query.set("rows", 1);
             QueryResponse response = solr.query(query);
             String finalMessage = "@"+from+", no messages found PEEPERS";
             try {
                 SolrDocumentList result = response.getResults();
                 long rowcount = result.getNumFound();
-                finalMessage = "@"+from+", "+username.charAt(0)+zws1+zws2+username.substring(1)+" has used "+phrase+" in "+rowcount+" messages.";
+                finalMessage = "@"+from+", "+username.charAt(0)+zws1+zws2+username.substring(1)+" has used "+getWordList(msg)+" in "+rowcount+" messages.";
                 SolrDocument result1 = response.getResults().get(0);
+                /*
                 long wordcount = (long) result1.get("ttf(message,"+phrase+")");
                 if (wordcount > 0){
                     finalMessage = "@"+from+", "+username.charAt(0)+zws1+zws2+username.substring(1)+" has used "+phrase+" in "+rowcount+" messages. Total count: "+wordcount+".";
-                }
+                }*/
             } catch (IndexOutOfBoundsException ignored){
             }
             sendingQueue.add(finalMessage);
@@ -376,34 +369,24 @@ public class Statistics implements Runnable{
         if (isNotAllowed(from, "nouser", "search")){
             return;
         }
-        String phrase = msg.split(" ")[0];
-        if (phrase == null || phrase.length() == 0){
-            return;
-        }
-        if (msg.startsWith("\"")) {
-            phrase = msg.substring(1);
-            if (phrase.contains("\"")){
-                phrase = phrase.substring(0, phrase.indexOf("\""));
-            }
-        }
-        phrase = "\""+phrase+"\"";
+        String phrase = getSolrPattern(msg);
 
         try (SolrClient solr = new HttpSolrClient.Builder(solrCredentials).build()){
             SolrQuery query = new SolrQuery();
-            query.set("q", "message:"+phrase+" AND -username:"+botName+" AND -message:\"!search\" AND -message:\"!searchuser\" AND -message:\"!rs\"");
-            query.set("fl", "*,ttf(message,"+phrase+")");
+            query.set("q", phrase+" AND -username:"+botName+" AND -message:\"!search\" AND -message:\"!searchuser\" AND -message:\"!rs\"");
+            //query.set("fl", "*,ttf(message,"+phrase+")");
             query.set("rows", 1);
             QueryResponse response = solr.query(query);
             String finalMessage = "@"+from+", no messages found PEEPERS";
             try {
                 SolrDocumentList result = response.getResults();
                 long rowcount = result.getNumFound();
-                finalMessage = "@"+from+" found phrase "+phrase+" in "+rowcount+" rows.";
+                finalMessage = "@"+from+" found "+getWordList(msg)+" in "+rowcount+" rows.";
                 SolrDocument result1 = response.getResults().get(0);
-                long wordcount = (long) result1.get("ttf(message,"+phrase+")");
+                /*long wordcount = (long) result1.get("ttf(message,"+phrase+")");
                 if (wordcount > 0){
-                    finalMessage = "@"+from+" found word "+phrase+" in "+rowcount+" rows. Total count: "+wordcount+".";
-                }
+                    finalMessage = "@"+from+" found word "+msg+" in "+rowcount+" rows. Total count: "+wordcount+".";
+                }*/
             } catch (IndexOutOfBoundsException ignored){
             }
             sendingQueue.add(finalMessage);
@@ -413,32 +396,80 @@ public class Statistics implements Runnable{
         } finally {
             lastCommandTime = Instant.now();
         }
-
-
     }
-    private void convert(String msg, String from){
-        if (isNotAllowed(from, from, "convert")){
+
+    private void firstOccurrence(String from, String msg) {
+        if (isNotAllowed(from, "nouser", "first")){
             return;
         }
-        String numberStr = msg.replaceAll("[^0-9.]+", "");
-        double number;
-        if (numberStr.length()>0){
+        if (!godUsers.contains(from)){
+            return;
+        }
+        String phrase = getSolrPattern(msg);
+
+        try (SolrClient solr = new HttpSolrClient.Builder(solrCredentials).build()){
+            SolrQuery query = new SolrQuery();
+            query.set("q", phrase + " AND -message:\"!rs\" AND -message:\"!searchuser\" AND -message:\"!search\" AND -message:\"!rq\"");
+            query.set("sort", "time asc");
+            query.set("rows", 1);
+            QueryResponse response = solr.query(query);
+            String finalMessage = "@"+from+", no messages found PEEPERS";
             try {
-                number = Double.parseDouble(numberStr);
-            } catch (Exception ignored){
-                return;
+                SolrDocument result = response.getResults().get(0);
+                String message = (String) result.getFirstValue("message");
+                String msgName = (String) result.getFirstValue("username");
+                if (disabled.contains(msgName.toLowerCase())){
+                    msgName = "<redacted>";
+                }
+                Date date = (Date) result.getFirstValue("time");
+                String dateStr = ("["+date.toInstant().toString().replaceAll("T", " ").replaceAll("Z", "]"));
+                finalMessage = String.format("@%s, first occurrence for your query: %s %s: %s", from, dateStr, msgName.substring(0,1)+zws1+zws2+msgName.substring(1), message);
+            } catch (IndexOutOfBoundsException ignored){
             }
+            sendingQueue.add(finalMessage);
+
+        } catch (IOException | BaseHttpSolrClient.RemoteSolrException | SolrServerException e) {
+            Running.getLogger().warning(e.getMessage());
+        } finally {
+            lastCommandTime = Instant.now();
+        }
+    }
+
+    private String getSolrPattern(String msg){
+        String phrase = msg.replaceAll(" \uDB40\uDC00", "");
+        List<String> phraseList = new ArrayList<>();
+        Matcher m = Pattern.compile("([^\"]\\S*|\".+?\")\\s*").matcher(phrase);
+        while (m.find())
+            phraseList.add(m.group(1));
+        StringBuilder sb = new StringBuilder();
+        for (String word: phraseList){
+            if (word.startsWith("-")){
+                sb.append("-message:");
+                sb.append(word.replaceAll("-", ""));
+            } else {
+                sb.append("message:");
+                sb.append(word);
+            }
+            sb.append(" AND ");
+        }
+        if (sb.length()>5){
+            sb.replace(sb.length()-5, sb.length(), "");
         } else {
-            return;
+            sb.append("\"\"");
         }
 
-        if (msg.toLowerCase().contains("f")){
-            sendingQueue.add(String.format("@%s, %.2fF is %.2fC", from, number, (number-32.0)*0.5556));
-        } else if (msg.toLowerCase().contains("c")){
-            sendingQueue.add(String.format("@%s, %.2fC is %.2fF%n", from, number, number*1.8+32.0));
-        }
+        System.out.println(sb.toString());
+        return sb.toString();
+    }
 
-        lastCommandTime = Instant.now();
+    private String getWordList(String msg){
+        String phrase = msg.replaceAll(" \uDB40\uDC00", "");
+        List<String> phraseList = new ArrayList<>();
+        Matcher m = Pattern.compile("([^\"]\\S*|\".+?\")\\s*").matcher(phrase);
+        while (m.find())
+            phraseList.add(m.group(1));
+
+        return phraseList.toString();
     }
 
     private void randomSearch(String from, String msg) {
@@ -464,29 +495,6 @@ public class Statistics implements Runnable{
         } catch (StringIndexOutOfBoundsException e){
             msg = "";
         }
-        String phrase = msg.replaceAll(" \uDB40\uDC00", "");
-        List<String> phraseList = new ArrayList<>();
-        Matcher m = Pattern.compile("([^\"]\\S*|\".+?\")\\s*").matcher(phrase);
-        while (m.find())
-            phraseList.add(m.group(1));
-        StringBuilder sb = new StringBuilder();
-        for (String word: phraseList){
-            if (word.startsWith("-")){
-                sb.append("-message:");
-                sb.append(word.replaceAll("-", ""));
-            } else {
-                sb.append("message:");
-                sb.append(word);
-            }
-            sb.append(" AND ");
-        }
-        if (sb.length()>5){
-            sb.replace(sb.length()-5, sb.length(), "");
-        } else {
-            sb.append("\"\"");
-        }
-        System.out.println(sb.toString());
-
 
         if (username.toLowerCase().equals(botName)){
             sendingQueue.add("PepeSpin");
@@ -508,7 +516,7 @@ public class Statistics implements Runnable{
             SolrQuery query = new SolrQuery();
             String fullNameStr = getAlts(username);
             query.set("q", fullNameStr);
-            query.set("fq", sb.toString() + " AND -message:\"!rs\" AND -message:\"!searchuser\" AND -message:\"!search\" AND -message:\"!rq\"");
+            query.set("fq", getSolrPattern(msg) + " AND -message:\"!rs\" AND -message:\"!searchuser\" AND -message:\"!search\" AND -message:\"!rq\"");
             int seed = ThreadLocalRandom.current().nextInt(0,999999999);
             query.set("sort", "random_"+seed+" asc");
             query.set("rows", 1);
