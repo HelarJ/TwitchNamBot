@@ -197,9 +197,13 @@ public class ApiHandler implements Runnable{
                         mapper = new ObjectMapper();
                         jsonNode = mapper.readTree(result);
                         JsonNode data = jsonNode.get("data");
-                        pagination = jsonNode.get("pagination").get("cursor").asText();
-                        if (pagination == null){
-                            break;
+                        JsonNode paginationNode = jsonNode.get("pagination").get("cursor");
+                        if (paginationNode == null){
+                            if (data == null){
+                                break;
+                            }
+                        } else {
+                            pagination = paginationNode.asText();
                         }
                         int currentsize = data.size();
                         int j = 0;

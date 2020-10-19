@@ -168,9 +168,12 @@ public class Statistics implements Runnable{
         } else if (cmdStr.startsWith("!firstmessage ")) {
             Running.getLogger().info(String.format("%s used !firstMessage.", name));
             this.firstMessage(name, msg.substring(14).split(" ")[0].replaceAll("@", ""));
-        } else if (cmdStr.startsWith("!log ")) {
+        } else if (cmdStr.startsWith("!log ") || cmdStr.startsWith("!logs ")) {
             Running.getLogger().info(String.format("%s used !log.", name));
-            this.getLogs(msg.substring(5).stripTrailing().split(" ")[0].replaceAll("@", ""), name);
+            String[] split = msg.stripTrailing().split(" ");
+            if (split.length>1){
+                this.getLogs(split[1].replaceAll("@", ""), name);
+            }
         } else if (cmdStr.startsWith("!rq")) {
             Running.getLogger().info(String.format("%s used !rq.", name));
             if (cmdStr.equals("!rq")) {
@@ -423,7 +426,7 @@ public class Statistics implements Runnable{
                 }
                 Date date = (Date) result.getFirstValue("time");
                 String dateStr = ("["+date.toInstant().toString().replaceAll("T", " ").replaceAll("Z", "]"));
-                finalMessage = String.format("@%s, first occurrence for your query: %s %s: %s", from, dateStr, msgName.substring(0,1)+zws1+zws2+msgName.substring(1), message);
+                finalMessage = String.format("@%s, first occurrence: %s %s: %s", from, dateStr, msgName.substring(0,1)+zws1+zws2+msgName.substring(1), message);
             } catch (IndexOutOfBoundsException ignored){
             }
             sendingQueue.add(finalMessage);
@@ -437,12 +440,14 @@ public class Statistics implements Runnable{
 
     private String getSolrPattern(String msg){
         String phrase = msg.replaceAll(" \uDB40\uDC00", "");
+        phrase = phrase.replaceAll("[:!()^||&&]", "");
         List<String> phraseList = new ArrayList<>();
         Matcher m = Pattern.compile("([^\"]\\S*|\".+?\")\\s*").matcher(phrase);
         while (m.find())
             phraseList.add(m.group(1));
         StringBuilder sb = new StringBuilder();
         for (String word: phraseList){
+
             if (word.startsWith("-")){
                 sb.append("-message:");
                 sb.append(word.replaceAll("-", ""));
@@ -498,11 +503,6 @@ public class Statistics implements Runnable{
 
         if (username.toLowerCase().equals(botName)){
             sendingQueue.add("PepeSpin");
-            return;
-        }
-        if (disabled.contains(username.toLowerCase())){
-            sendingQueue.add("@"+from+", that user has been removed from the !rs command (either by their own wish or by a mod).");
-            lastCommandTime = Instant.now();
             return;
         }
 
@@ -940,7 +940,7 @@ public class Statistics implements Runnable{
         }
         if (disabled.contains(username.toLowerCase()) && (cmdName.equals("rq") || cmdName.equals("rs") || cmdName.equals("lastmessage")
                 || cmdName.equalsIgnoreCase("firstmessage"))){
-            sendingQueue.add("@"+from+", that user has been removed from the "+cmdName+" command (either by their own wish or by a mod).");
+            sendingQueue.add("@"+from+", that user has been removed from the "+cmdName+" command (either by their own wish or by a mod). Type !adddisabled to remove yourself or !remdisabled to re-enable commands.");
             lastCommandTime = Instant.now();
             return true;
         }
@@ -984,6 +984,7 @@ public class Statistics implements Runnable{
         if (disabled.contains(main)){
             return "username:"+username.toLowerCase();
         }
+
         for (String alt: alts.get(main)){
             if (!disabled.contains(alt)){
                 sb.append(" OR ");

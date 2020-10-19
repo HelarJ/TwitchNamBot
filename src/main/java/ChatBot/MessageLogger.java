@@ -8,6 +8,10 @@ import org.apache.solr.common.SolrInputDocument;
 
 import java.io.IOException;
 import java.sql.*;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -20,6 +24,8 @@ public class MessageLogger implements Runnable {
     private boolean online;
     private int lastid;
     private boolean running = true;
+    private Instant lastCommit = Instant.now();
+    private final List<SolrInputDocument> commitBacklog = new ArrayList<>();
     public void shutdown(){
         running = false;
     }
@@ -110,16 +116,23 @@ public class MessageLogger implements Runnable {
                     + username + " " + userid + " " + message);
         }
 
-        try (SolrClient solr = new HttpSolrClient.Builder(solrCredentials).build()){
-            SolrInputDocument in = new SolrInputDocument();
-            in.addField("id", lastid);
-            in.addField("time", time);
-            in.addField("username", username.toLowerCase());
-            in.addField("message", message);
-            solr.add(in);
-            solr.commit();
-        } catch (IOException | SolrServerException | BaseHttpSolrClient.RemoteSolrException e) {
-            Running.getLogger().severe("Solr error: "+e.getMessage());
+        SolrInputDocument in = new SolrInputDocument();
+        in.addField("id", lastid);
+        in.addField("time", time);
+        in.addField("username", username.toLowerCase());
+        in.addField("message", message);
+        commitBacklog.add(in);
+
+        if (lastCommit.plus(10, ChronoUnit.SECONDS).isBefore(Instant.now())){
+            try (SolrClient solr = new HttpSolrClient.Builder(solrCredentials).build()){
+                solr.add(commitBacklog);
+                solr.commit();
+                commitBacklog.clear();
+            } catch (IOException | SolrServerException | BaseHttpSolrClient.RemoteSolrException e) {
+                Running.getLogger().severe("Solr error: "+e.getMessage());
+            } finally {
+                lastCommit = Instant.now();
+            }
         }
         Running.addMessageCount();
     }
