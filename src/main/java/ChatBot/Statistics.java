@@ -611,8 +611,8 @@ public class Statistics implements Runnable{
             stmt.setString(1, username);
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
-                String convertedTime = convertTime((int) (Instant.now().minus(3,
-                        ChronoUnit.HOURS).minus(rs.getTimestamp("time").getTime(),
+                String convertedTime = convertTime((int) (Instant.now().minus(rs.getTimestamp("time",
+                        Calendar.getInstance(TimeZone.getTimeZone("UTC"))).getTime(),
                         ChronoUnit.MILLIS).toEpochMilli() /1000));
                 String message = rs.getString("message");
                 String finalMessage = String.format("%s's first message %s ago was: %s",
@@ -645,8 +645,8 @@ public class Statistics implements Runnable{
             stmt.setString(1, username);
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
-                String convertedTime = convertTime((int) (Instant.now().minus(3,
-                        ChronoUnit.HOURS).minus(rs.getTimestamp("time").getTime(),
+                String convertedTime = convertTime((int) (Instant.now().minus(rs.getTimestamp("time",
+                        Calendar.getInstance(TimeZone.getTimeZone("UTC"))).getTime(),
                         ChronoUnit.MILLIS).toEpochMilli() /1000));
                 String message = rs.getString("message");
                 String finalMessage = String.format("%s's last message %s ago was: %s",
