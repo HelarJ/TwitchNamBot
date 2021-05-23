@@ -49,4 +49,24 @@ public class Command {
     public boolean isWhisper() {
         return whisper;
     }
+
+    public String getName(){
+        if (message.startsWith("!")){
+            String cmdName = message.toLowerCase().replaceAll("\uDB40\uDC00","").stripTrailing().split(" ")[0].substring(1);
+            if (cmdName.length()>0){
+                return cmdName;
+            }
+        }
+        return null;
+    }
+
+    public String getArguments(){
+        String[] split = message.replaceAll("\uDB40\uDC00","").stripTrailing().split(" ", 2);
+        if (split.length == 2){
+            return split[1];
+        } else {
+            return "";
+        }
+
+    }
 }

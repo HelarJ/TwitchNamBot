@@ -134,116 +134,131 @@ public class Statistics implements Runnable{
     }
 
     public void handleCommand(Command cmd){
-        String cmdStr = cmd.getMessage().toLowerCase().replaceAll("\uDB40\uDC00","").stripTrailing();
-        String msg = cmd.getMessage();
         String name = cmd.getSender();
-        if (cmdStr.startsWith("!nammers")){
-            this.sendTop10to();
-        } else if (cmdStr.equalsIgnoreCase("!namping")) {
-            Running.getLogger().info(String.format("%s used !namping.", name));
-            this.ping(name);
-        } else if (cmdStr.startsWith("!namban ")) {
-            Running.getLogger().info(String.format("%s used !namban.", name));
-            this.ban(name, msg.substring(8).split(" ")[0]);
-        } else if (cmdStr.startsWith("!names ")) {
-            Running.getLogger().info(String.format("%s used !names.", name));
-            this.names(name, msg.substring(7).split(" ")[0].replaceAll("@", ""));
-        } else if (cmdStr.startsWith("!namrefresh")) {
-            this.refreshLists(name);
-        } else if (cmdStr.startsWith("!namcommands")) {
-            this.namCommands(name);
-        } else if (cmdStr.startsWith("!namchoose ")) {
-            Running.getLogger().info(String.format("%s used !namchoose.", name));
-            this.choose(msg.substring(11), name);
-        } else if (cmdStr.startsWith("!nam")){
-            Running.getLogger().info(String.format("%s used !nam.", name));
-            if (cmdStr.equals("!nam")) {
-                this.userNam(name, name);
-            } else if (cmdStr.startsWith("!nam ")){
-                this.userNam(name, msg.substring(5).split(" ")[0]);
-            }
-        } else if (cmdStr.startsWith("!lastmessage ")) {
-            Running.getLogger().info(String.format("%s used !lastmessage.", name));
-            this.lastMessage(name, msg.substring(13).split(" ")[0].replaceAll("@", ""));
-        } else if (cmdStr.startsWith("!firstmessage ")) {
-            Running.getLogger().info(String.format("%s used !firstMessage.", name));
-            this.firstMessage(name, msg.substring(14).split(" ")[0].replaceAll("@", ""));
-        } else if (cmdStr.startsWith("!log ") || cmdStr.startsWith("!logs ")) {
-            Running.getLogger().info(String.format("%s used !log.", name));
-            String[] split = msg.stripTrailing().split(" ");
-            if (split.length>1){
-                this.getLogs(split[1].replaceAll("@", ""), name);
-            }
-        } else if (cmdStr.startsWith("!rq")) {
-            Running.getLogger().info(String.format("%s used !rq.", name));
-            if (cmdStr.equals("!rq")) {
-                this.randomQuote(name, name, null);
-            } else {
-                String year = null;
-                String username = msg.substring(4).split(" ")[0].replaceAll("@", "");
-                int namelen = username.length();
-                if (msg.length()>(namelen+8)){
-                    year = getYear(msg.substring(namelen+5, namelen+9));
-                }
-                this.randomQuote(name, username, year);
-            }
-        } else if (cmdStr.startsWith("!rs ")) {
-                Running.getLogger().info(String.format("%s used !rs.", name));
-                this.randomSearch(name, msg.substring(4).replaceAll("@", ""));
-        } else if (cmdStr.startsWith("!adddisabled")){
-            Running.getLogger().info(String.format("%s used !adddisabled.", name));
-            if (cmdStr.equals("!adddisabled")){
-                this.addDisabled(name, name);
-            } else if (cmdStr.startsWith("!adddisabled ")){
-                this.addDisabled(name, msg.substring(13).split(" ")[0]);
-            }
-        } else if (cmdStr.startsWith("!remdisabled")) {
-            Running.getLogger().info(String.format("%s used !remdisabled.", name));
-            if (cmdStr.equals("!remdisabled")) {
-                this.removeDisabled(name, name);
-            } else if (cmdStr.startsWith("!remdisabled ")) {
-                this.removeDisabled(name, msg.substring(13).split(" ")[0]);
-            }
+        String cmdName = cmd.getName();
 
-        } else if (cmdStr.startsWith("!fs ")) {
-            Running.getLogger().info(String.format("%s used !search.", name));
-            this.firstOccurrence(name, msg.substring(4));
-        } else if (cmdStr.startsWith("!search ")) {
-            Running.getLogger().info(String.format("%s used !search.", name));
-            this.search(name, msg.substring(8));
-        } else if (cmdStr.startsWith("!searchuser ")) {
-            Running.getLogger().info(String.format("%s used !searchuser.", name));
-            this.searchUser(name, msg.substring(12));
-        } else if (cmdStr.startsWith("!addalt ")) {
-            Running.getLogger().info(String.format("%s used !addalt.", name));
-            String[] split = msg.substring(8).split(" ");
-            if (split.length>1){
-                this.addAlt(name, split[0], split[1]);
-            }
-        }  else if (cmdStr.startsWith("!stalklist ")) {
-            Running.getLogger().info(String.format("%s used !stalklist.", name));
-            this.getFollowList(msg.substring(11).split(" ")[0].toLowerCase(), name);
+        if (cmdName == null) return;
+        String argStr = cmd.getArguments();
+        switch (cmdName){
+            case "nammers":
+                sendTop10to();
+                break;
+            case "namping":
+                ping(name);
+                break;
+            case "namban":
+                ban(name, argStr);
+                break;
+            case "names":
+                names(name, argStr);
+                break;
+            case "namrefresh":
+                refreshLists(name);
+                break;
+            case "namcommands":
+                namCommands(name);
+                break;
+            case "namchoose":
+                choose(argStr, name);
+                break;
+            case "nam":
+                userNam(name, argStr);
+                break;
+            case "lastmessage":
+                lastMessage(name, argStr);
+                break;
+            case "firstmessage":
+                firstMessage(name, argStr);
+                break;
+            case "log":
+            case "logs":
+                getLogs(argStr, name);
+                break;
+            case "rq":
+                randomQuote(name, argStr);
+                break;
+            case "rs":
+                randomSearch(name, argStr);
+                break;
+            case "adddisabled":
+                addDisabled(name, argStr);
+                break;
+            case "remdisabled":
+                removeDisabled(name, argStr);
+                break;
+            case "fs":
+                firstOccurrence(name, argStr);
+                break;
+            case "search":
+                search(name, argStr);
+                break;
+            case "searchuser":
+                searchUser(name, argStr);
+                break;
+            case "addalt":
+                addAlt(name, argStr);
+                break;
+            case "stalklist":
+                getFollowList(argStr, name);
+                break;
+            default:
+                return;
+
         }
+        logCommandUse(name, cmdName, argStr);
+
     }
+
+    private void logCommandUse(String from, String command, String arguments){
+        Running.getLogger().info(String.format("%s used %s with arguments [%s].", from, command, arguments));
+    }
+
 
     private void namCommands(String name) {
         if (isNotAllowed(name, name, "commands")){
             return;
         }
-
-        sendingQueue.add("@"+name+", commands for this bot: https://poop.delivery/commands");
+        sendingQueue.add("@"+name+", commands for this bot: "+website.substring(0,website.length()-5)+"/commands");
 
         lastCommandTime = Instant.now();
     }
 
-    private void ban(String from, String username){
+    private void ban(String from, String args){
         if (godUsers.contains(from.toLowerCase())){
+            String username = getArg(args, 0);
+            if (username == null) return;
+            username = cleanName(from, args);
+
             superbanned.put(username, Instant.now());
             sendingQueue.add("Banned "+username+" from using the bot for 1h.");
         }
     }
 
-    private void names(String from, String username){
+    public String cleanName(String from, String name){
+        name = name.replaceFirst("@", "");
+        if (name.equals("me")){
+            return from;
+        }
+        return name;
+    }
+
+    private String getArg(String args, int position){
+        String[] split = args.split(" ");
+        if (split.length>=position+1){
+            if (split[position].length()==0){
+                return null;
+            }
+            return split[position];
+        }
+        return null;
+    }
+
+    private void names(String from, String args){
+        String username = getArg(args, 0);
+        if (username == null) return;
+
+        username = cleanName(from, username);
+
         if (isNotAllowed(from, username, "names")){
             return;
         }
@@ -266,7 +281,7 @@ public class Statistics implements Runnable{
                 }
             }
             if (amount >= 1){
-                names = names.reverse();
+                names.reverse();
                 names.deleteCharAt(0);
                 names.deleteCharAt(0);
                 names.reverse();
@@ -288,6 +303,7 @@ public class Statistics implements Runnable{
         }
         choiceMsg = choiceMsg.replaceAll(" \uDB40\uDC00", "");
         String[] choices = choiceMsg.split(" ");
+        if (choices.length == 0) return;
         int choice = ThreadLocalRandom.current().nextInt(0, choices.length);
         sendingQueue.add(String.format("@%s, I choose %s", from, choices[choice]));
         lastCommandTime = Instant.now();
@@ -316,7 +332,9 @@ public class Statistics implements Runnable{
 
 
     private void searchUser(String from, String msg) {
-        String username = msg.toLowerCase().split(" ")[0];
+        String username = getArg(msg, 0);
+        if (username == null) return;
+
         if (isNotAllowed(from, username, "searchuser")){
             return;
         }
@@ -478,13 +496,11 @@ public class Statistics implements Runnable{
     }
 
     private void randomSearch(String from, String msg) {
-        String username = msg.toLowerCase().split(" ")[0];
+        String username = getArg(msg, 0);
         if (username == null || username.length() == 0){
             return;
         }
-        if (username.equalsIgnoreCase("me")){
-            username = from;
-        }
+        username = cleanName(from, username);
         if (!godUsers.contains(from) && !username.equalsIgnoreCase(from)){
             return;
         }
@@ -562,7 +578,7 @@ public class Statistics implements Runnable{
         }
     }
 
-    public void userNam(String from, String username) {
+    public void userNam(String from, String args) {
         if (online){
             Running.getLogger().info("Attempted to use !NaM while stream is online");
             return;
@@ -571,6 +587,9 @@ public class Statistics implements Runnable{
             Running.getLogger().info("Attempted to use !NaM before cooldown was over");
             return;
         }
+
+        String username = getArg(args, 0);
+        if (username == null) username = from;
 
         try (Connection conn = DriverManager.getConnection(SQLCredentials);
              PreparedStatement stmt = conn.prepareStatement("call chat_stats.sp_get_usernam(?)")) {
@@ -593,10 +612,13 @@ public class Statistics implements Runnable{
             lastCommandTime = Instant.now();
         }
     }
-    public void firstMessage(String from, String username) {
+    public void firstMessage(String from, String args) {
+        String username = getArg(args, 0);
+        if (username == null) username = from;
         if (isNotAllowed(from, username, "firstmessage")){
             return;
         }
+        username = cleanName(from, username);
         int count = getCount(username);
         if (count == 0){
             Running.getLogger().info("Did not find any messages for user " + username);
@@ -627,7 +649,11 @@ public class Statistics implements Runnable{
         }
     }
 
-    public void lastMessage(String from, String username) {
+    public void lastMessage(String from, String args) {
+        String username = getArg(args, 0);
+        if (username == null) return;
+        username = cleanName(from, username);
+
         if (isNotAllowed(from, username, "lastmessage")){
             return;
         }
@@ -794,11 +820,13 @@ public class Statistics implements Runnable{
                     e.getMessage() + ", VendorError: " + e.getErrorCode());
         }
     }
-    public void addDisabled(String from, String username){
+    public void addDisabled(String from, String args){
+        String username = getArg(args, 0);
+        if (username == null) username = from;
         if (disabled.contains(username.toLowerCase())){
             return;
         }
-        if (mods.contains(from.toLowerCase()) || from.toLowerCase().equals(username.toLowerCase())){
+        if (mods.contains(from.toLowerCase()) || from.equalsIgnoreCase(username)){
             Running.getLogger().info(from+" added "+username + " to disabled list");
 
             try (Connection conn = DriverManager.getConnection(SQLCredentials);
@@ -851,9 +879,13 @@ public class Statistics implements Runnable{
         }
     }
 
-    public void addAlt(String from, String main, String alt){
+    public void addAlt(String from, String args){
         from = from.toLowerCase();
+        String main = getArg(args, 0);
+        if (main == null) return;
         main = main.toLowerCase();
+        String alt = getArg(args, 1);
+        if (alt == null) return;
         alt = alt.toLowerCase();
         if (alts.containsKey(main)){
             if (alts.get(main).contains(alt)){
@@ -891,7 +923,7 @@ public class Statistics implements Runnable{
 
 
     public boolean isNotAllowed(String from, String username, String cmdName){
-        if (banned.containsKey(from)){
+        if (banned.containsKey(from.toLowerCase())){
             if (banned.get(from).plus(600, ChronoUnit.SECONDS).isAfter(Instant.now())){
                 Running.getLogger().info("Banned user "+ from +" attempted to use a command.");
                 return true;
@@ -899,7 +931,7 @@ public class Statistics implements Runnable{
                 banned.remove(from);
             }
         }
-        if (superbanned.containsKey(from)){
+        if (superbanned.containsKey(from.toLowerCase())){
             if (superbanned.get(from).plus(3600, ChronoUnit.SECONDS).isAfter(Instant.now())){
                 Running.getLogger().info("superbanned user "+ from +" attempted to use a command.");
                 return true;
@@ -948,11 +980,13 @@ public class Statistics implements Runnable{
         return false;
     }
 
-    public void removeDisabled(String from, String username){
+    public void removeDisabled(String from, String args){
+        String username = getArg(args, 0);
+        if (username == null) username = from;
         if (!disabled.contains(username.toLowerCase())){
             return;
         }
-        if (mods.contains(from.toLowerCase()) || from.toLowerCase().equals(username.toLowerCase())){
+        if (mods.contains(from.toLowerCase()) || from.equalsIgnoreCase(username)){
             Running.getLogger().info(from+" removed "+username + " from disabled list");
             try (Connection conn = DriverManager.getConnection(SQLCredentials);
                     PreparedStatement stmt = conn.prepareStatement("CALL chat_stats.sp_remove_disabled(?);")) {
@@ -995,11 +1029,19 @@ public class Statistics implements Runnable{
         return sb.toString();
     }
 
-    public void randomQuote(String from, String username, String year){
+    public void randomQuote(String from, String args){
+        String username = getArg(args, 0);
+        if (username == null) username = from;
+        username = cleanName(from, username);
+        System.out.println(username);
+
         if (isNotAllowed(from, username, "rq")){
             return;
         }
         lastCommandTime = Instant.now();
+
+        String year = getYear(getArg(args, 1));
+
         int count = getCount(username);
         if (count == 0){
             Running.getLogger().info("Did not find any messages for user " + username);
@@ -1054,7 +1096,10 @@ public class Statistics implements Runnable{
         return times.size()>=5;
     }
 
-    public void getFollowList(String username, String from){
+    public void getFollowList(String args, String from){
+        String username = getArg(args, 0);
+        if (username == null) username = from;
+        username = cleanName(from, username);
         if (isNotAllowed(from, username, "followlist")){
             return;
         }
@@ -1068,11 +1113,12 @@ public class Statistics implements Runnable{
             return;
         }
 
+        String finalUsername = username;
         new Thread (() -> {
             try {
                 FtpHandler ftpHandler = new FtpHandler();
                 if (ftpHandler.upload(link, text)){
-                    String output = String.format("@%s all channels followed by %s: %s%s", from, username, website, link);
+                    String output = String.format("@%s all channels followed by %s: %s%s", from, finalUsername, website, link);
                     Running.getLogger().info(output);
                     sendingQueue.add(output);
                 }
@@ -1085,7 +1131,10 @@ public class Statistics implements Runnable{
         lastCommandTime = Instant.now();
     }
 
-    public void getLogs(String username, String from) {
+    public void getLogs(String args, String from) {
+        String username = getArg(args, 0);
+        if (username == null) return;
+        username = cleanName(from, username);
         username = username.toLowerCase();
         if (lastLogTime.plus(20, ChronoUnit.SECONDS).isAfter(Instant.now()) &&
                 lastCommandTime.plus(5, ChronoUnit.SECONDS).isAfter(Instant.now()) &&
@@ -1117,7 +1166,7 @@ public class Statistics implements Runnable{
         Instant startTime = Instant.now();
         try (Connection conn = DriverManager.getConnection(SQLCredentials)) {
             PreparedStatement stmt;
-            if (username.toLowerCase().equals("all")) {
+            if (username.equalsIgnoreCase("all")) {
                 stmt = conn.prepareStatement("CALL chat_stats.sp_get_logs();");
             } else {
                 stmt = conn.prepareStatement("CALL chat_stats.sp_get_user_logs(?);");
