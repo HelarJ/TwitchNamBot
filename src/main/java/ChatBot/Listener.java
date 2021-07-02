@@ -65,9 +65,9 @@ public class Listener implements Runnable {
                     lastPing = Instant.now();
                     continue;
                 }
-                if (output.contains("PRIVMSG")) {
+                if (output.contains(".tmi.twitch.tv PRIVMSG")) {
                     String name = output.substring(0, output.indexOf(".tmi.twitch.tv PRIVMSG "));
-                    name = name.substring(name.lastIndexOf("@")+1);
+                    name = name.substring(name.lastIndexOf("@") + 1);
 
                     String userid = output.substring(output.indexOf(";user-id="));
                     userid = userid.substring(9);
@@ -80,7 +80,7 @@ public class Listener implements Runnable {
                     String message = output.substring(output.indexOf("PRIVMSG"));
                     //String channelName = message.substring(message.indexOf("#"), message.indexOf(":")-1);
                     String outputMSG = message.substring(message.indexOf(":") + 1);
-                    if (outputMSG.startsWith("\u0001ACTION ")){
+                    if (outputMSG.startsWith("\u0001ACTION ")) {
                         outputMSG = outputMSG.replaceAll("\u0001", "");
                         outputMSG = outputMSG.replaceFirst("ACTION", "/me");
                     }
@@ -88,31 +88,10 @@ public class Listener implements Runnable {
 
                     messageQueue.add(command);
                     statistics.recordTimeout(name, userid, 0);
-                    if (plebsAllowed || command.isSubscribed()){
+                    if (plebsAllowed || command.isSubscribed()) {
                         statisticsQueue.add(command);
                     }
-
-                } else if (output.contains("CLEARCHAT")) {
-                    //@ban-duration=600;room-id=121059319;target-user-id=40206877;tmi-sent-ts=1588635742673 :tmi.twitch.tv CLEARCHAT #moonmoon :kroom
-                    String name = output.substring(output.indexOf("#"));
-                    name = name.substring(name.indexOf(":") + 1);
-
-                    String userid = output.substring(output.indexOf("user-id="));
-                    userid = userid.substring(8, userid.indexOf(";"));
-
-                    int banTime = Integer.parseInt(output.substring(output.indexOf("=") + 1, output.indexOf(";")).strip());
-                    Running.getLogger().info(String.format("User %s timed out for %ds", name, banTime));
-                    if (banTime >= 121059319){
-                        statistics.addDisabled("Autoban", name);
-                        messageQueue.add(new Command(name, userid, "User was permanently banned.", false, false, output));
-                    }
-                    statistics.recordTimeout(name, userid, banTime);
-                } else if (output.contains("USERNOTICE")) {
-                    continue;
-                    //String name = output.substring(output.indexOf("display-name="));
-                    //name = name.substring(13, name.indexOf(";"));
-                    //Running.getLogger().info(name + " subscribed.");
-                } else if (output.contains("WHISPER")) {
+                } else if (output.contains(".tmi.twitch.tv WHISPER")) {
                     //@badges=premium/1;color=#FF36F2;display-name=kroom;emotes=;message-id=2;thread-id=40206877_130928910;turbo=0;user-id=40206877;user-type= :kroom!kroom@kroom.tmi.twitch.tv WHISPER moonmoon_nam :test
                     String name = output.substring(output.indexOf("display-name="));
                     name = name.substring(13, name.indexOf(";"));
@@ -121,7 +100,7 @@ public class Listener implements Runnable {
                     Running.getLogger().info(String.format("User %s whispered %s.", name, msg));
                     Command command = new Command(name, "NULL", msg, false, true, output);
                     messageQueue.add(command);
-                    if (name.toLowerCase().equals(admin.toLowerCase())) {
+                    if (name.equalsIgnoreCase(admin)) {
                         if (msg.equals("/setonline")) {
                             statistics.setOnline();
                         } else if (msg.equals("/setoffline")) {
@@ -143,6 +122,32 @@ public class Listener implements Runnable {
                             Running.getLogger().info("Banned plebs.");
                         }
                     }
+                } else if (output.contains("CLEARCHAT")) {
+                    //@ban-duration=600;room-id=121059319;target-user-id=40206877;tmi-sent-ts=1588635742673 :tmi.twitch.tv CLEARCHAT #moonmoon :kroom
+                    if (!output.contains("target-user-id")) {
+                        Running.getLogger().info("Chat was cleared");
+                        return;
+                    }
+
+                    String name = output.substring(output.indexOf("#"));
+                    name = name.substring(name.indexOf(":") + 1);
+
+                    String userid = output.substring(output.indexOf("user-id="));
+                    userid = userid.substring(8, userid.indexOf(";"));
+
+                    int banTime = Integer.parseInt(output.substring(output.indexOf("=") + 1, output.indexOf(";")).strip());
+                    Running.getLogger().info(String.format("User %s timed out for %ds", name, banTime));
+                    if (banTime >= 121059319){
+                        statistics.addDisabled("Autoban", name);
+                        messageQueue.add(new Command(name, userid, "User was permanently banned.", false, false, output));
+                        Running.addPermabanCount();
+                    }
+                    statistics.recordTimeout(name, userid, banTime);
+                } else if (output.contains("USERNOTICE")) {
+                    continue;
+                    //String name = output.substring(output.indexOf("display-name="));
+                    //name = name.substring(13, name.indexOf(";"));
+                    //Running.getLogger().info(name + " subscribed.");
 
                 } else if (output.contains(".tv USERSTATE ")) {
                     Running.getLogger().info("Message sent successfully.");

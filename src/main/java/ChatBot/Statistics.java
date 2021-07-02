@@ -239,7 +239,7 @@ public class Statistics implements Runnable{
         if (name.equals("me")){
             return from;
         }
-        return name;
+        return name.toLowerCase(Locale.ROOT);
     }
 
     private String getArg(String args, int position){
@@ -313,11 +313,12 @@ public class Statistics implements Runnable{
         if (isNotAllowed(from, from, "ping")){
             return;
         }
-        sendingQueue.add(String.format("NamBot online for %s | %d messages sent | %d messages logged | %d timeouts logged.",
+        sendingQueue.add(String.format("NamBot online for %s | %d messages sent | %d messages logged | %d timeouts logged, of which %d were permabans.",
                 (convertTime((int) (Instant.now().minus(Running.getStartTime().toEpochMilli(), ChronoUnit.MILLIS).toEpochMilli()/1000))),
                 Running.getCommandCount(),
                 Running.getMessageCount(),
-                Running.getTimeoutCount()
+                Running.getTimeoutCount(),
+                Running.getPermabanCount()
         ));
     }
     private String getYear(String year){
@@ -333,17 +334,19 @@ public class Statistics implements Runnable{
 
     private void searchUser(String from, String msg) {
         String username = getArg(msg, 0);
-        if (username == null) return;
 
+        if (username == null) return;
         if (isNotAllowed(from, username, "searchuser")){
             return;
         }
+
         try {
             msg = msg.substring(username.length()+1);
 
         } catch (StringIndexOutOfBoundsException e){
             msg = "";
         }
+        username = cleanName(from, username);
         String phrase = getSolrPattern(msg);
 
         if (username.toLowerCase().equals(botName)){
@@ -1135,7 +1138,6 @@ public class Statistics implements Runnable{
         String username = getArg(args, 0);
         if (username == null) return;
         username = cleanName(from, username);
-        username = username.toLowerCase();
         if (lastLogTime.plus(20, ChronoUnit.SECONDS).isAfter(Instant.now()) &&
                 lastCommandTime.plus(5, ChronoUnit.SECONDS).isAfter(Instant.now()) &&
                 !godUsers.contains(from.toLowerCase())){

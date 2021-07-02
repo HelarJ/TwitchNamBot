@@ -19,6 +19,8 @@ public class Running {
     private static int messageCount = 0;
     private static int commandCount = 0;
     private static int timeoutCount = 0;
+    private static int permabanCount = 0;
+
 
     public static Instant getStartTime(){
         return startingTime;
@@ -39,9 +41,18 @@ public class Running {
     public static int getTimeoutCount(){
         return timeoutCount;
     }
+
     public static void addTimeoutCount(){
         timeoutCount++;
     }
+
+    public static int getPermabanCount(){
+        return permabanCount;
+    }
+    public static void addPermabanCount(){
+        permabanCount++;
+    }
+
 
     public static void start(){
         Date date = new Date();
