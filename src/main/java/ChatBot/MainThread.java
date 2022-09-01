@@ -1,11 +1,13 @@
 package ChatBot;
 
+import ChatBot.StaticUtils.Running;
+
 import java.io.IOException;
 import java.net.Socket;
 import java.util.Properties;
 import java.util.concurrent.LinkedBlockingQueue;
 
-public class MainThread implements Runnable{
+public class MainThread implements Runnable {
     private final Listener listener;
     private final Sender sender;
     private final Statistics stats;
@@ -18,7 +20,8 @@ public class MainThread implements Runnable{
     private final Thread senderThread;
     private final Thread statisticsThread;
     private boolean running = true;
-    public void shutdown(){
+
+    public void shutdown() {
         running = false;
     }
 
@@ -28,7 +31,7 @@ public class MainThread implements Runnable{
         this.sender = new Sender(socket, new LinkedBlockingQueue<>(), channel);
         this.stats = new Statistics(channel, sender);
         this.listener = new Listener(socket, stats);
-        Properties p  = Running.getProperties();
+        Properties p = Running.getProperties();
         this.username = p.getProperty("twitch.nick");
         this.oauth = p.getProperty("twitch.oauth");
         listenerThread = new Thread(listener, "Listener");
@@ -38,7 +41,7 @@ public class MainThread implements Runnable{
 
     @Override
     public void run() {
-        while (Running.getRunning() && running){
+        while (Running.getRunning() && running) {
             try {
                 listenerThread.start();
                 senderThread.start();
@@ -62,7 +65,7 @@ public class MainThread implements Runnable{
         Running.getLogger().warning("Mainthread thread ended.");
     }
 
-    public void closeThreads(){
+    public void closeThreads() {
         shutdown();
         listener.shutdown();
         sender.shutdown();
@@ -78,12 +81,12 @@ public class MainThread implements Runnable{
         }
     }
 
-    public void connect(Sender sender, String channel) throws IOException{
+    public void connect(Sender sender, String channel) throws IOException {
         Running.getLogger().info("Starting server...");
-        sender.sendToServer("PASS "+oauth+"\r\n");
-        sender.sendToServer("NICK "+username+"\r\n");
+        sender.sendToServer("PASS " + oauth + "\r\n");
+        sender.sendToServer("NICK " + username + "\r\n");
         sender.sendToServer("USER nambot\r\n");
-        sender.sendToServer("JOIN "+channel+"\r\n");
+        sender.sendToServer("JOIN " + channel + "\r\n");
         sender.sendToServer("CAP REQ :twitch.tv/membership\r\n");
         sender.sendToServer("CAP REQ :twitch.tv/tags twitch.tv/commands\r\n");
         Running.getLogger().info("Credentials sent.");

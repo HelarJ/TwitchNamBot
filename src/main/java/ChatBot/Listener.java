@@ -1,5 +1,8 @@
 package ChatBot;
 
+import ChatBot.Dataclass.Command;
+import ChatBot.StaticUtils.Running;
+
 import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
@@ -31,9 +34,9 @@ public class Listener implements Runnable {
         this.admin = p.getProperty("bot.admin").toLowerCase();
         this.statisticsQueue = statistics.getStatisticsQueue();
         this.messageQueue = statistics.getMessageQueue();
-        closerThread = new Thread (() -> {
-            while (Running.getRunning() && running){
-                if (lastPing.plus(10, ChronoUnit.MINUTES).isBefore(Instant.now())){
+        closerThread = new Thread(() -> {
+            while (Running.getRunning() && running) {
+                if (lastPing.plus(10, ChronoUnit.MINUTES).isBefore(Instant.now())) {
                     ConsoleMain.reconnect();
                     break;
                 } else {
@@ -48,7 +51,7 @@ public class Listener implements Runnable {
         closerThread.start();
     }
 
-    public void shutdown(){
+    public void shutdown() {
         running = false;
         closerThread.interrupt();
     }
@@ -110,14 +113,14 @@ public class Listener implements Runnable {
                         } else if (msg.startsWith("/send ")) {
                             msg = msg.substring(6);
                             statistics.delegateMessage(msg);
-                        } else if (msg.startsWith("/banuser ")){
+                        } else if (msg.startsWith("/banuser ")) {
                             Running.getLogger().info("Banned user" + msg.substring(9));
-                        } else if (msg.equals("/restart")){
+                        } else if (msg.equals("/restart")) {
                             ConsoleMain.reconnect();
-                        } else if (msg.equals("/unbanplebs")){
+                        } else if (msg.equals("/unbanplebs")) {
                             this.plebsAllowed = true;
                             Running.getLogger().info("Unbanned plebs.");
-                        } else if (msg.equals("/banplebs")){
+                        } else if (msg.equals("/banplebs")) {
                             this.plebsAllowed = false;
                             Running.getLogger().info("Banned plebs.");
                         }
@@ -137,7 +140,7 @@ public class Listener implements Runnable {
 
                     int banTime = Integer.parseInt(output.substring(output.indexOf("=") + 1, output.indexOf(";")).strip());
                     Running.getLogger().info(String.format("User %s timed out for %ds", name, banTime));
-                    if (banTime >= 121059319){
+                    if (banTime >= 121059319) {
                         statistics.addDisabled("Autoban", name);
                         messageQueue.add(new Command(name, userid, "User was permanently banned.", false, false, output));
                         Running.addPermabanCount();
@@ -151,18 +154,19 @@ public class Listener implements Runnable {
 
                 } else if (output.contains(".tv USERSTATE ")) {
                     Running.getLogger().info("Message sent successfully.");
-                } else if (output.contains(".tv CLEARMSG ")){
+                } else if (output.contains(".tv CLEARMSG ")) {
                     continue;
-                } else if (output.contains(".tv PART ")){
+                } else if (output.contains(".tv PART ")) {
                     continue;
                     //Running.getLogger().info(output);
 
                 } else if (output.contains(".tv JOIN ")) {
                     continue;
                     //Running.getLogger().info(output);
-                } else
+                } else {
                     Running.getLogger().info(output);
                 }
+            }
 
             Running.getLogger().info("Listener Thread Ended.");
         } catch (IOException e) {

@@ -1,4 +1,6 @@
-package ChatBot;
+package ChatBot.Dataclass;
+
+import ChatBot.StaticUtils.Running;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -14,18 +16,19 @@ public class Timeout {
         this.length = length;
     }
 
-    public boolean hasExpired(){
+    public boolean hasExpired() {
         return timeout.plus(length, ChronoUnit.SECONDS).isBefore(Instant.now());
     }
 
     /**
      * For duplicate timeouts.
+     *
      * @param length new timeout length.
      */
-    public void resetTimeout(int length){
+    public void resetTimeout(int length) {
         int prevlength = this.length;
         this.length = length;
-        Running.getLogger().info(String.format("Set %s's %d timeout to %ds.",username, prevlength, length));
+        Running.getLogger().info(String.format("Set %s's %d timeout to %ds.", username, prevlength, length));
         this.timeout = Instant.now();
     }
 

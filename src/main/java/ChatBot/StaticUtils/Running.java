@@ -1,4 +1,4 @@
-package ChatBot;
+package ChatBot.StaticUtils;
 
 import java.io.File;
 import java.io.IOException;
@@ -21,50 +21,53 @@ public class Running {
     private static int timeoutCount = 0;
     private static int permabanCount = 0;
 
-
-    public static Instant getStartTime(){
+    public static Instant getStartTime() {
         return startingTime;
     }
-    public static int getCommandCount(){
+
+    public static int getCommandCount() {
         return commandCount;
     }
-    public static void addCommandCount(){
+
+    public static void addCommandCount() {
         commandCount++;
     }
-    public static int getMessageCount(){
+
+    public static int getMessageCount() {
         return messageCount;
     }
-    public static void addMessageCount(){
+
+    public static void addMessageCount() {
         messageCount++;
     }
 
-    public static int getTimeoutCount(){
+    public static int getTimeoutCount() {
         return timeoutCount;
     }
 
-    public static void addTimeoutCount(){
+    public static void addTimeoutCount() {
         timeoutCount++;
     }
 
-    public static int getPermabanCount(){
+    public static int getPermabanCount() {
         return permabanCount;
     }
-    public static void addPermabanCount(){
+
+    public static void addPermabanCount() {
         permabanCount++;
     }
 
-
-    public static void start(){
+    public static void start() {
         Date date = new Date();
         File file = new File("log");
-        if (!file.exists()){
-            if(file.mkdir()){
+        if (!file.exists()) {
+            if (file.mkdir()) {
                 logger.info("Log directory created successfully");
             }
         }
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
         try {
-            fh = new FileHandler("log/server_"+dateFormat.format(date)+".log");
+            fh = new FileHandler("log/server_" + dateFormat.format(date) + ".log");
             fh.setFormatter(new SimpleFormatter());
             fh.publish(new LogRecord(Level.INFO, "Start of the server log."));
             fh.flush();
@@ -79,7 +82,7 @@ public class Running {
 
     }
 
-    public static void readProperties(){
+    public static void readProperties() {
         try (InputStream input = Running.class.getClassLoader().getResourceAsStream("config.properties")) {
             properties = new Properties();
             if (input != null) {
@@ -95,7 +98,7 @@ public class Running {
         return properties;
     }
 
-    public static void stop(){
+    public static void stop() {
         logger.info("Starting shutdown procedure.");
         running = false;
         fh.close();
@@ -109,11 +112,11 @@ public class Running {
         Running.oauth = oauth;
     }
 
-    public static boolean getRunning(){
+    public static boolean getRunning() {
         return running;
     }
 
-    public static Logger getLogger(){
+    public static Logger getLogger() {
         return logger;
     }
 

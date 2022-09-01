@@ -1,5 +1,8 @@
 package ChatBot;
 
+import ChatBot.Dataclass.Timeout;
+import ChatBot.StaticUtils.Running;
+
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -16,12 +19,11 @@ public class TimeoutLogger implements Runnable {
     private final HashSet<String> usernames;
     private boolean running = true;
 
-    public void shutdown(){
+    public void shutdown() {
         running = false;
     }
 
-
-    public TimeoutLogger(){
+    public TimeoutLogger() {
         this.timeoutQueue = new LinkedBlockingQueue<>();
         this.usernames = new HashSet<>();
         timeouts = new ArrayList<>();
@@ -33,7 +35,7 @@ public class TimeoutLogger implements Runnable {
     @Override
     public void run() {
         Running.getLogger().info("Timeoutlogger started.");
-        while (Running.getRunning() && running){
+        while (Running.getRunning() && running) {
             try {
                 Timeout timeout = timeoutQueue.poll(3, TimeUnit.SECONDS);
                 if (timeout != null) {
@@ -44,19 +46,20 @@ public class TimeoutLogger implements Runnable {
             }
 
             Iterator<Timeout> iterator = timeouts.iterator();
-            while (iterator.hasNext()){
-                if (!Running.getRunning()){
+            while (iterator.hasNext()) {
+                if (!Running.getRunning()) {
                     Running.getLogger().info("Server shutting down but there are still timeouts left to be added: ");
-                    while (iterator.hasNext()){
+                    while (iterator.hasNext()) {
                         Running.getLogger().info(iterator.next().toString());
                         iterator.remove();
                     }
                     break;
                 }
                 Timeout t = iterator.next();
-                if (t.hasExpired()){
+                if (t.hasExpired()) {
                     try (Connection conn = DriverManager.getConnection(credentials);
-                            PreparedStatement stmt = conn.prepareStatement("select chat_stats.f_add_user(?);")) {
+                         PreparedStatement stmt = conn.prepareStatement("select chat_stats.f_add_user(?);"))
+                    {
                         if (!usernames.contains(t.getUsername())) { //buffer to prevent one name being added multiple times
                             stmt.setString(1, t.getUsername());
                             stmt.executeQuery();
@@ -66,7 +69,8 @@ public class TimeoutLogger implements Runnable {
                         usernames.add(t.getUsername());
                     }
                     try (Connection conn = DriverManager.getConnection(credentials);
-                         PreparedStatement stmt = conn.prepareStatement("select chat_stats.f_add_timeout(?,?);")){
+                         PreparedStatement stmt = conn.prepareStatement("select chat_stats.f_add_timeout(?,?);"))
+                    {
 
                         String username = t.getUsername();
                         int length = t.getLength();
@@ -75,14 +79,14 @@ public class TimeoutLogger implements Runnable {
                         stmt.setInt(2, length);
                         ResultSet result = stmt.executeQuery();
                         result.next();
-                        if (result.getBoolean(1)){
-                            Running.getLogger().info("Added "+username+" with a timeout of "+length+"s to db.");
+                        if (result.getBoolean(1)) {
+                            Running.getLogger().info("Added " + username + " with a timeout of " + length + "s to db.");
                         } else {
-                            Running.getLogger().warning("Failed to add "+username+" with a timeout of "+length+"s to db.");
+                            Running.getLogger().warning("Failed to add " + username + " with a timeout of " + length + "s to db.");
                         }
 
                     } catch (SQLException e) {
-                        Running.getLogger().severe("SQLException: " + e.getMessage()+", VendorError: " + e.getErrorCode());
+                        Running.getLogger().severe("SQLException: " + e.getMessage() + ", VendorError: " + e.getErrorCode());
                     }
                     iterator.remove();
                 }
@@ -95,14 +99,14 @@ public class TimeoutLogger implements Runnable {
         Running.getLogger().warning("Timeoutlogger stopped.");
     }
 
-    public void addTimeout(String username, int length){
+    public void addTimeout(String username, int length) {
         for (Timeout timeout : timeouts) {
-            if (timeout.getUsername().equals(username)){
+            if (timeout.getUsername().equals(username)) {
                 timeout.resetTimeout(length);
                 return;
             }
         }
-        if (length>0){
+        if (length > 0) {
             timeoutQueue.add(new Timeout(username, length));
         }
     }

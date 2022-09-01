@@ -1,4 +1,4 @@
-package ChatBot;
+package ChatBot.Dataclass;
 
 import java.time.Instant;
 
@@ -11,7 +11,7 @@ public class Command {
     private final boolean whisper;
     private final String fullMsg;
 
-    public Command (String sender, String uid, String message, boolean subscribed, boolean whisper, String fullMsg) {
+    public Command(String sender, String uid, String message, boolean subscribed, boolean whisper, String fullMsg) {
         this.sender = sender;
         this.message = message;
         this.uid = uid;
@@ -41,28 +41,32 @@ public class Command {
         return subscribed;
     }
 
-    public String getTime(){
+    public String getTime() {
         String timeStr = time.toString().replaceAll("T", " ");
-        return timeStr.substring(0,timeStr.indexOf('.'));
+        if (timeStr.indexOf('.') == -1) {
+            return timeStr;
+        } else {
+            return timeStr.substring(0, timeStr.indexOf('.'));
+        }
     }
 
     public boolean isWhisper() {
         return whisper;
     }
 
-    public String getName(){
-        if (message.startsWith("!")){
-            String cmdName = message.toLowerCase().replaceAll("\uDB40\uDC00","").stripTrailing().split(" ")[0].substring(1);
-            if (cmdName.length()>0){
+    public String getName() {
+        if (message.startsWith("!")) {
+            String cmdName = message.toLowerCase().replaceAll("\uDB40\uDC00", "").stripTrailing().split(" ")[0].substring(1);
+            if (cmdName.length() > 0) {
                 return cmdName;
             }
         }
         return null;
     }
 
-    public String getArguments(){
-        String[] split = message.replaceAll("\uDB40\uDC00","").stripTrailing().split(" ", 2);
-        if (split.length == 2){
+    public String getArguments() {
+        String[] split = message.replaceAll("\uDB40\uDC00", "").stripTrailing().split(" ", 2);
+        if (split.length == 2) {
             return split[1];
         } else {
             return "";
