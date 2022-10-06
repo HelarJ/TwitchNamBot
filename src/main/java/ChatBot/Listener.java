@@ -1,20 +1,24 @@
 package ChatBot;
 
 import ChatBot.Dataclass.Command;
+import ChatBot.StaticUtils.Config;
 import ChatBot.StaticUtils.Running;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
 
 public class Listener implements Runnable {
     private final BufferedReader bufferedReader;
     private final BufferedWriter bufferedWriter;
-    private final Statistics statistics;
+    private final CommandHandler commandHandler;
     private final String username;
     private final BlockingQueue<Command> statisticsQueue;
     private Instant lastPing;
@@ -24,16 +28,15 @@ public class Listener implements Runnable {
     private boolean plebsAllowed = true;
     private final String admin;
 
-    public Listener(Socket socket, Statistics statistics) throws IOException {
+    public Listener(Socket socket, CommandHandler commandHandler) throws IOException {
         this.lastPing = Instant.now();
-        this.statistics = statistics;
+        this.commandHandler = commandHandler;
         this.bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
         this.bufferedWriter = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
-        Properties p = Running.getProperties();
-        this.username = p.getProperty("twitch.nick").toLowerCase();
-        this.admin = p.getProperty("bot.admin").toLowerCase();
-        this.statisticsQueue = statistics.getStatisticsQueue();
-        this.messageQueue = statistics.getMessageQueue();
+        this.username = Config.getTwitchUsername().toLowerCase();
+        this.admin = Config.getBotAdmin().toLowerCase();
+        this.statisticsQueue = commandHandler.getStatisticsQueue();
+        this.messageQueue = commandHandler.getMessageQueue();
         closerThread = new Thread(() -> {
             while (Running.getRunning() && running) {
                 if (lastPing.plus(10, ChronoUnit.MINUTES).isBefore(Instant.now())) {
@@ -90,7 +93,7 @@ public class Listener implements Runnable {
                     Command command = new Command(name, userid, outputMSG, subscribed, false, output);
 
                     messageQueue.add(command);
-                    statistics.recordTimeout(name, userid, 0);
+                    commandHandler.recordTimeout(name, userid, 0);
                     if (plebsAllowed || command.isSubscribed()) {
                         statisticsQueue.add(command);
                     }
@@ -105,14 +108,14 @@ public class Listener implements Runnable {
                     messageQueue.add(command);
                     if (name.equalsIgnoreCase(admin)) {
                         if (msg.equals("/setonline")) {
-                            statistics.setOnline();
+                            commandHandler.setOnline();
                         } else if (msg.equals("/setoffline")) {
-                            statistics.setOffline();
+                            commandHandler.setOffline();
                         } else if (msg.equals("/shutdown")) {
                             Running.stop();
                         } else if (msg.startsWith("/send ")) {
                             msg = msg.substring(6);
-                            statistics.delegateMessage(msg);
+                            commandHandler.delegateMessage(msg);
                         } else if (msg.startsWith("/banuser ")) {
                             Running.getLogger().info("Banned user" + msg.substring(9));
                         } else if (msg.equals("/restart")) {
@@ -141,11 +144,11 @@ public class Listener implements Runnable {
                     int banTime = Integer.parseInt(output.substring(output.indexOf("=") + 1, output.indexOf(";")).strip());
                     Running.getLogger().info(String.format("User %s timed out for %ds", name, banTime));
                     if (banTime >= 121059319) {
-                        statistics.addDisabled("Autoban", name);
+                        commandHandler.addDisabled("Autoban", name);
                         messageQueue.add(new Command(name, userid, "User was permanently banned.", false, false, output));
                         Running.addPermabanCount();
                     }
-                    statistics.recordTimeout(name, userid, banTime);
+                    commandHandler.recordTimeout(name, userid, banTime);
                 } else if (output.contains("USERNOTICE")) {
                     continue;
                     //String name = output.substring(output.indexOf("display-name="));

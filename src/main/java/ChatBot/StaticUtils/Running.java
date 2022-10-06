@@ -2,19 +2,19 @@ package ChatBot.StaticUtils;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.util.Date;
-import java.util.Properties;
-import java.util.logging.*;
+import java.util.logging.FileHandler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 
 public class Running {
     private static boolean running = true;
     private final static Logger logger = Logger.getLogger(Running.class.getName());
     private static FileHandler fh;
-    private static Properties properties;
-    private static String oauth;
     private static final Instant startingTime = Instant.now();
     private static int messageCount = 0;
     private static int commandCount = 0;
@@ -78,38 +78,13 @@ public class Running {
             throw new RuntimeException("Could not create log file.");
         }
         logger.addHandler(fh);
-        readProperties();
 
-    }
-
-    public static void readProperties() {
-        try (InputStream input = Running.class.getClassLoader().getResourceAsStream("config.properties")) {
-            properties = new Properties();
-            if (input != null) {
-                properties.load(input);
-            }
-        } catch (IOException e) {
-            logger.severe("Error reading properties");
-            throw new RuntimeException("Error reading properties");
-        }
-    }
-
-    public static Properties getProperties() {
-        return properties;
     }
 
     public static void stop() {
         logger.info("Starting shutdown procedure.");
         running = false;
         fh.close();
-    }
-
-    public static String getOauth() {
-        return oauth;
-    }
-
-    public static void setOauth(String oauth) {
-        Running.oauth = oauth;
     }
 
     public static boolean getRunning() {

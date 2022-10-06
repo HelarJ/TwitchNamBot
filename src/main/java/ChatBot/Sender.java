@@ -1,6 +1,7 @@
 package ChatBot;
 
 import ChatBot.Dataclass.Command;
+import ChatBot.StaticUtils.Config;
 import ChatBot.StaticUtils.Running;
 
 import java.io.BufferedWriter;
@@ -9,7 +10,6 @@ import java.io.OutputStreamWriter;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -57,9 +57,8 @@ public class Sender implements Runnable {
     public Sender(Socket socket, BlockingQueue<String> sendingQueue, String channel) throws IOException {
         this.bufferedWriter = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
         this.lastmessage = "";
-        Properties p = Running.getProperties();
-        this.username = p.getProperty("twitch.nick");
-        this.uid = p.getProperty("twitch.uid");
+        this.username = Config.getTwitchUsername();
+        this.uid = Config.getTwitchUID();
         this.sendingQueue = sendingQueue;
         this.channel = channel;
     }

@@ -1,5 +1,6 @@
 package ChatBot;
 
+import ChatBot.StaticUtils.Config;
 import ChatBot.StaticUtils.Running;
 
 import java.io.IOException;
@@ -10,9 +11,11 @@ public class ConsoleMain {
 
     public static void main(String[] args) throws IOException, InterruptedException {
         Running.start();
+        Config.initializeCredentials();
+
         while (Running.getRunning()) {
             if (args.length == 0) {
-                args = new String[]{"#moonmoon"};
+                args = new String[]{Config.getChannelToJoin()}; //channel should have a # at the start.
             }
             mainThread = new MainThread(args);
             Thread mt = new Thread(mainThread);

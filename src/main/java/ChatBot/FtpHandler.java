@@ -1,5 +1,6 @@
 package ChatBot;
 
+import ChatBot.StaticUtils.Config;
 import ChatBot.StaticUtils.Running;
 import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.net.ftp.FTPFile;
@@ -10,22 +11,20 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Properties;
 
 public class FtpHandler {
     private final FTPClient ftpClient;
 
     public FtpHandler() {
-        Properties p = Running.getProperties();
         ftpClient = new FTPClient();
         try {
-            ftpClient.connect(p.getProperty("ftp.server"), Integer.parseInt(p.getProperty("ftp.port")));
+            ftpClient.connect(Config.getFtpServer(), Integer.parseInt(Config.getFtpPort()));
             int reply = ftpClient.getReplyCode();
             if (!FTPReply.isPositiveCompletion(reply)) {
                 ftpClient.disconnect();
                 throw new IOException("Exception in connecting to FTP Server");
             }
-            ftpClient.login(p.getProperty("ftp.username"), p.getProperty("ftp.password"));
+            ftpClient.login(Config.getFtpUsername(), Config.getFtpPassword());
         } catch (IOException e) {
             Running.getLogger().warning("Error connecting to FTP: " + e.getMessage());
         }

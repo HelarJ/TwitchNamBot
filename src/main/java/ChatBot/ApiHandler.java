@@ -1,5 +1,6 @@
 package ChatBot;
 
+import ChatBot.StaticUtils.Config;
 import ChatBot.StaticUtils.Running;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -11,14 +12,13 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.HashMap;
-import java.util.Properties;
 
 public class ApiHandler implements Runnable {
     private final String channel;
     private final HttpClient httpClient;
     private final String clientID;
     private final String secret;
-    private final Statistics stats;
+    private final CommandHandler stats;
     private final String oauth;
     private boolean running = true;
 
@@ -26,15 +26,14 @@ public class ApiHandler implements Runnable {
         running = false;
     }
 
-    public ApiHandler(String channel, Statistics stats) {
+    public ApiHandler(String channel, CommandHandler stats) {
         if (channel.startsWith("#")) {
             this.channel = channel.substring(1);
         } else {
             this.channel = channel;
         }
-        Properties p = Running.getProperties();
-        this.clientID = p.getProperty("twitch.clientid");
-        this.secret = p.getProperty("twitch.secret");
+        this.clientID = Config.getTwitchClientId();
+        this.secret = Config.getTwitchSecret();
         this.stats = stats;
         this.httpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_2).build();
         this.oauth = getOauth();
@@ -69,7 +68,6 @@ public class ApiHandler implements Runnable {
                 String result = response.body();
                 JsonNode jsonNode = mapper.readTree(result);
                 oauthToken = jsonNode.get("access_token").asText();
-                Running.setOauth(oauthToken);
                 expires = jsonNode.get("expires_in").asInt();
                 Running.getLogger().info(expires + " " + oauthToken);
             } catch (IOException | InterruptedException | NullPointerException e) {

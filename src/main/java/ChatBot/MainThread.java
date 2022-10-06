@@ -1,20 +1,18 @@
 package ChatBot;
 
+import ChatBot.StaticUtils.Config;
 import ChatBot.StaticUtils.Running;
 
 import java.io.IOException;
 import java.net.Socket;
-import java.util.Properties;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class MainThread implements Runnable {
     private final Listener listener;
     private final Sender sender;
-    private final Statistics stats;
+    private final CommandHandler stats;
 
     private final String channel;
-    private final String oauth;
-    private final String username;
 
     private final Thread listenerThread;
     private final Thread senderThread;
@@ -29,11 +27,8 @@ public class MainThread implements Runnable {
         this.channel = args[0];
         Socket socket = new Socket("irc.chat.twitch.tv", 6667);
         this.sender = new Sender(socket, new LinkedBlockingQueue<>(), channel);
-        this.stats = new Statistics(channel, sender);
+        this.stats = new CommandHandler(channel, sender);
         this.listener = new Listener(socket, stats);
-        Properties p = Running.getProperties();
-        this.username = p.getProperty("twitch.nick");
-        this.oauth = p.getProperty("twitch.oauth");
         listenerThread = new Thread(listener, "Listener");
         senderThread = new Thread(sender, "Sender");
         statisticsThread = new Thread(stats, "Statistics");
@@ -83,8 +78,8 @@ public class MainThread implements Runnable {
 
     public void connect(Sender sender, String channel) throws IOException {
         Running.getLogger().info("Starting server...");
-        sender.sendToServer("PASS " + oauth + "\r\n");
-        sender.sendToServer("NICK " + username + "\r\n");
+        sender.sendToServer("PASS " + Config.getTwitchOauth() + "\r\n");
+        sender.sendToServer("NICK " + Config.getTwitchUsername() + "\r\n");
         sender.sendToServer("USER nambot\r\n");
         sender.sendToServer("JOIN " + channel + "\r\n");
         sender.sendToServer("CAP REQ :twitch.tv/membership\r\n");

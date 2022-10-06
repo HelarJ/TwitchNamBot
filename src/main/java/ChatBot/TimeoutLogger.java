@@ -1,13 +1,17 @@
 package ChatBot;
 
 import ChatBot.Dataclass.Timeout;
+import ChatBot.StaticUtils.Config;
 import ChatBot.StaticUtils.Running;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -27,9 +31,7 @@ public class TimeoutLogger implements Runnable {
         this.timeoutQueue = new LinkedBlockingQueue<>();
         this.usernames = new HashSet<>();
         timeouts = new ArrayList<>();
-        Properties p = Running.getProperties();
-        this.credentials = String.format("jdbc:mariadb://%s:%s/%s?user=%s&password=%s", p.getProperty("db.ip"), p.getProperty("db.port"),
-                p.getProperty("db.name"), p.getProperty("db.user"), p.getProperty("db.password"));
+        this.credentials = Config.getSQLCredentials();
     }
 
     @Override

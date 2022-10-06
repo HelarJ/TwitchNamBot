@@ -1,6 +1,7 @@
 package ChatBot;
 
 import ChatBot.Dataclass.Command;
+import ChatBot.StaticUtils.Config;
 import ChatBot.StaticUtils.Running;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrServerException;
@@ -9,12 +10,15 @@ import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.apache.solr.common.SolrInputDocument;
 
 import java.io.IOException;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -36,12 +40,8 @@ public class MessageLogger implements Runnable {
     public MessageLogger() {
 
         this.logQueue = new LinkedBlockingQueue<>();
-
-        Properties p = Running.getProperties();
-        this.SQLCredentials = String.format("jdbc:mariadb://%s:%s/%s?user=%s&password=%s", p.getProperty("db.ip"), p.getProperty("db.port"),
-                p.getProperty("db.name"), p.getProperty("db.user"), p.getProperty("db.password"));
-        this.solrCredentials = String.format("http://%s:%s/solr/%s", p.getProperty("solr.ip"),
-                p.getProperty("solr.port"), p.getProperty("solr.core"));
+        this.SQLCredentials = Config.getSQLCredentials();
+        this.solrCredentials = Config.getSolrCredentials();
         getLastId();
     }
 

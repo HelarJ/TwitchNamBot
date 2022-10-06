@@ -1,6 +1,7 @@
 package ChatBot;
 
 import ChatBot.Dataclass.Command;
+import ChatBot.StaticUtils.Config;
 import ChatBot.StaticUtils.Running;
 import ChatBot.StaticUtils.Utils;
 import org.apache.solr.client.solrj.SolrClient;
@@ -14,18 +15,27 @@ import org.apache.solr.common.SolrDocumentList;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.TimeZone;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
-public class Statistics implements Runnable {
+public class CommandHandler implements Runnable {
     private final String solrCredentials;
     private boolean online;
     private boolean first = true;
@@ -58,7 +68,7 @@ public class Statistics implements Runnable {
     private final Sender sender;
     private final String admin;
 
-    public Statistics(String channel, Sender sender) {
+    public CommandHandler(String channel, Sender sender) {
         this.sender = sender;
         this.sendingQueue = sender.getSendingQueue();
         this.statisticsQueue = new LinkedBlockingQueue<>();
@@ -77,14 +87,12 @@ public class Statistics implements Runnable {
         tl = new TimeoutLogger();
         timeoutThread = new Thread(tl, "TimeoutLogger");
         timeoutThread.start();
-        Properties p = Running.getProperties();
-        this.SQLCredentials = String.format("jdbc:mariadb://%s:%s/%s?user=%s&password=%s", p.getProperty("db.ip"),
-                p.getProperty("db.port"), p.getProperty("db.name"), p.getProperty("db.user"), p.getProperty("db.password"));
-        this.solrCredentials = String.format("http://%s:%s/solr/%s", p.getProperty("solr.ip"),
-                p.getProperty("solr.port"), p.getProperty("solr.core"));
-        this.website = p.getProperty("bot.website");
-        this.botName = p.getProperty("twitch.nick").toLowerCase();
-        this.admin = p.getProperty("bot.admin").toLowerCase();
+
+        this.SQLCredentials = Config.getSQLCredentials();
+        this.solrCredentials = Config.getSolrCredentials();
+        this.website = Config.getBotWebsite();
+        this.botName = Config.getTwitchUsername();
+        this.admin = Config.getBotAdmin();
         this.logCount = new HashMap<>();
         refreshLists("Startup");
     }
