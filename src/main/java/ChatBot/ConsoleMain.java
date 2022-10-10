@@ -2,6 +2,7 @@ package ChatBot;
 
 import ChatBot.StaticUtils.Config;
 import ChatBot.StaticUtils.Running;
+import ChatBot.StaticUtils.SharedQueues;
 
 import java.io.IOException;
 import java.util.logging.Handler;
@@ -10,8 +11,9 @@ public class ConsoleMain {
     private static MainThread mainThread;
 
     public static void main(String[] args) throws IOException, InterruptedException {
-        Running.start();
-        Config.initializeCredentials();
+        Running.startLog();
+        Config.initializeConfig();
+        SharedQueues.initializeQueues();
 
         while (Running.getRunning()) {
             if (args.length == 0) {

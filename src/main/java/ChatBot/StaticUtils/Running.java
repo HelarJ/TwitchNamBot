@@ -4,7 +4,9 @@ import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.logging.FileHandler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
@@ -20,6 +22,9 @@ public class Running {
     private static int commandCount = 0;
     private static int timeoutCount = 0;
     private static int permabanCount = 0;
+    public static List<String> blacklist = new ArrayList<>();
+    public static List<String> textBlacklist = new ArrayList<>();
+    public static String replacelist = "";
 
     public static Instant getStartTime() {
         return startingTime;
@@ -57,7 +62,7 @@ public class Running {
         permabanCount++;
     }
 
-    public static void start() {
+    public static void startLog() {
         Date date = new Date();
         File file = new File("log");
         if (!file.exists()) {
@@ -95,4 +100,9 @@ public class Running {
         return logger;
     }
 
+    public static void setBlacklist(List<String> blacklist, List<String> textBlacklist, String replacelist) {
+        Running.replacelist = replacelist;
+        Running.blacklist = blacklist;
+        Running.textBlacklist = textBlacklist;
+    }
 }

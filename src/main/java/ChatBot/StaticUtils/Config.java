@@ -13,7 +13,7 @@ public class Config {
     private static Properties properties;
     private static final Map<ConfigName, String> configMap = new HashMap<>();
 
-    public static void initializeCredentials() {
+    public static void initializeConfig() {
         readProperties();
         //for each config attempts to get the value from an environment variable
         //or if it doesn't exist, attempts to read it from config.properties

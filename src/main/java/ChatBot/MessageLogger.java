@@ -142,10 +142,6 @@ public class MessageLogger implements Runnable {
         Running.addMessageCount();
     }
 
-    public BlockingQueue<Command> getLogQueue() {
-        return logQueue;
-    }
-
     public void setOnline() {
         online = true;
     }

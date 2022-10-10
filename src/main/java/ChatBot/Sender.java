@@ -3,14 +3,14 @@ package ChatBot;
 import ChatBot.Dataclass.Command;
 import ChatBot.StaticUtils.Config;
 import ChatBot.StaticUtils.Running;
+import ChatBot.StaticUtils.SharedQueues;
+import ChatBot.StaticUtils.Utils;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 public class Sender implements Runnable {
@@ -18,24 +18,11 @@ public class Sender implements Runnable {
     private String lastmessage;
     private final String username;
     private final String uid;
-    private final BlockingQueue<String> sendingQueue;
-    private BlockingQueue<Command> messageQueue;
     private final String channel;
     private boolean running = true;
-    private final char zws1 = '\uDB40';
-    private final char zws2 = '\uDC00';
-    private List<String> blacklist;
-    private List<String> textBlacklist;
-    private String replacelist;
 
     public void shutdown() {
         running = false;
-    }
-
-    public void setBlacklist(List<String> blacklist, List<String> textBlacklist, String replacelist) {
-        this.replacelist = replacelist;
-        this.blacklist = blacklist;
-        this.textBlacklist = textBlacklist;
     }
 
     @Override
@@ -43,7 +30,7 @@ public class Sender implements Runnable {
         Running.getLogger().info("Sender thread started");
         while (Running.getRunning() && running) {
             try {
-                String toSend = sendingQueue.poll(3, TimeUnit.SECONDS);
+                String toSend = SharedQueues.sendingBlockingQueue.poll(3, TimeUnit.SECONDS);
                 if (toSend != null) {
                     sendToChannel(toSend);
                 }
@@ -54,17 +41,12 @@ public class Sender implements Runnable {
         Running.getLogger().info("Sender thread stopped");
     }
 
-    public Sender(Socket socket, BlockingQueue<String> sendingQueue, String channel) throws IOException {
+    public Sender(Socket socket, String channel) throws IOException {
         this.bufferedWriter = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
         this.lastmessage = "";
         this.username = Config.getTwitchUsername();
         this.uid = Config.getTwitchUID();
-        this.sendingQueue = sendingQueue;
         this.channel = channel;
-    }
-
-    public void setLogQueue(BlockingQueue<Command> messageQueue) {
-        this.messageQueue = messageQueue;
     }
 
     public void sendToServer(String msg) throws IOException {
@@ -94,7 +76,8 @@ public class Sender implements Runnable {
             bufferedWriter.write(msg);
             bufferedWriter.flush();
             Running.addCommandCount();
-            messageQueue.add(new Command(username.toLowerCase(), uid, lastmessage, true, false, lastmessage));
+            //logs sent bot messages to database.
+            SharedQueues.messageLogBlockingQueue.add(new Command(username.toLowerCase(), uid, lastmessage, true, false, lastmessage));
 
         } catch (Exception e) {
             Running.getLogger().info("Error sending message: " + msg + " to " + channel + ": " + e.getMessage());
@@ -103,10 +86,10 @@ public class Sender implements Runnable {
 
     private String cleanMessage(String msg) {
         String cleanedMsg = msg;
-        for (String phrase : blacklist) {
+        for (String phrase : Running.blacklist) {
             cleanedMsg = escapeBlacklisted(cleanedMsg, phrase, true);
         }
-        for (String phrase : textBlacklist) {
+        for (String phrase : Running.textBlacklist) {
             cleanedMsg = escapeBlacklisted(cleanedMsg, phrase, false);
         }
         cleanedMsg = replaceWords(cleanedMsg);
@@ -158,7 +141,7 @@ public class Sender implements Runnable {
             }
             i++;
         }
-        cleanedMessage = cleanedMessage.replaceAll("(?i)" + replacelist, "BANME");
+        cleanedMessage = cleanedMessage.replaceAll("(?i)" + Running.replacelist, "BANME");
 
         return cleanedMessage;
     }
@@ -171,11 +154,7 @@ public class Sender implements Runnable {
         } else {
             regex = "(?i)" + phrase;
         }
-        replacedMsg = replacedMsg.replaceAll(regex, phrase.substring(0, 1) + zws1 + zws2 + phrase.substring(1));
+        replacedMsg = replacedMsg.replaceAll(regex, Utils.addZws(phrase));
         return replacedMsg.stripTrailing();
-    }
-
-    public BlockingQueue<String> getSendingQueue() {
-        return sendingQueue;
     }
 }

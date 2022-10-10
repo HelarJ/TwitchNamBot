@@ -5,7 +5,6 @@ import ChatBot.StaticUtils.Running;
 
 import java.io.IOException;
 import java.net.Socket;
-import java.util.concurrent.LinkedBlockingQueue;
 
 public class MainThread implements Runnable {
     private final Listener listener;
@@ -26,8 +25,8 @@ public class MainThread implements Runnable {
     public MainThread(String[] args) throws IOException {
         this.channel = args[0];
         Socket socket = new Socket("irc.chat.twitch.tv", 6667);
-        this.sender = new Sender(socket, new LinkedBlockingQueue<>(), channel);
-        this.stats = new CommandHandler(channel, sender);
+        this.sender = new Sender(socket, channel);
+        this.stats = new CommandHandler(channel);
         this.listener = new Listener(socket, stats);
         listenerThread = new Thread(listener, "Listener");
         senderThread = new Thread(sender, "Sender");

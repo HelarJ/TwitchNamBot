@@ -107,4 +107,10 @@ public class Utils {
         }
         return name.toLowerCase(Locale.ROOT);
     }
+
+    public static String addZws(String word) {
+        final char zws1 = '\uDB40';
+        final char zws2 = '\uDC00';
+        return word.substring(0, 1) + zws1 + zws2 + word.substring(1);
+    }
 }

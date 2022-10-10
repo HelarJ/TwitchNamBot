@@ -3,6 +3,7 @@ package ChatBot;
 import ChatBot.Dataclass.Command;
 import ChatBot.StaticUtils.Config;
 import ChatBot.StaticUtils.Running;
+import ChatBot.StaticUtils.SharedQueues;
 import ChatBot.StaticUtils.Utils;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
@@ -31,29 +32,25 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.TimeZone;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 public class CommandHandler implements Runnable {
-    private final String solrCredentials;
+    private final String solrCredentials = Config.getSolrCredentials();
     private boolean online;
     private boolean first = true;
     private final String channel;
     private final TimeoutLogger tl;
     private Instant lastCommandTime;
     private Instant lastLogTime;
-    private final String SQLCredentials;
+    private final String SQLCredentials = Config.getSQLCredentials();
     private final HashMap<String, Integer> logCount;
     private final HashMap<String, Integer> spammers = new HashMap<>();
     private final HashMap<String, Instant> banned = new HashMap<>();
     private final HashMap<String, Instant> superbanned = new HashMap<>();
-    private final char zws1 = '\uDB40';
-    private final char zws2 = '\uDC00';
-    private final String website;
-    private final String botName;
-    private final BlockingQueue<String> sendingQueue;
-    private final BlockingQueue<Command> statisticsQueue;
+    private final String website = Config.getBotWebsite();
+    private final String botName = Config.getTwitchUsername();
+    private final BlockingQueue<String> sendingQueue = SharedQueues.sendingBlockingQueue;
     private List<String> godUsers;
     private final Thread checkerThread;
     private final ApiHandler apiHandler;
@@ -65,19 +62,14 @@ public class CommandHandler implements Runnable {
     private HashMap<String, String> mains;
     private List<String> disabled;
     private List<String> mods;
-    private final Sender sender;
-    private final String admin;
+    private final String admin = Config.getBotAdmin();
 
-    public CommandHandler(String channel, Sender sender) {
-        this.sender = sender;
-        this.sendingQueue = sender.getSendingQueue();
-        this.statisticsQueue = new LinkedBlockingQueue<>();
+    public CommandHandler(String channel) {
         this.messageLogger = new MessageLogger();
         this.messageLoggerThread = new Thread(messageLogger, "MessageLogger");
         this.messageLoggerThread.start();
         FtpHandler ftpHandler = new FtpHandler();
         ftpHandler.cleanLogs();
-        sender.setLogQueue(messageLogger.getLogQueue());
         lastCommandTime = Instant.now().minus(30, ChronoUnit.SECONDS);
         lastLogTime = Instant.now().minus(30, ChronoUnit.SECONDS);
         this.channel = channel.toLowerCase();
@@ -87,12 +79,6 @@ public class CommandHandler implements Runnable {
         tl = new TimeoutLogger();
         timeoutThread = new Thread(tl, "TimeoutLogger");
         timeoutThread.start();
-
-        this.SQLCredentials = Config.getSQLCredentials();
-        this.solrCredentials = Config.getSolrCredentials();
-        this.website = Config.getBotWebsite();
-        this.botName = Config.getTwitchUsername();
-        this.admin = Config.getBotAdmin();
         this.logCount = new HashMap<>();
         refreshLists("Startup");
     }
@@ -128,7 +114,7 @@ public class CommandHandler implements Runnable {
         Running.getLogger().info("Statistics thread started");
         while (Running.getRunning() && running) {
             try {
-                Command command = statisticsQueue.poll(3, TimeUnit.SECONDS);
+                Command command = SharedQueues.commandBlockingQueue.poll(3, TimeUnit.SECONDS);
                 if (command != null) {
                     handleCommand(command);
                 }
@@ -331,7 +317,7 @@ public class CommandHandler implements Runnable {
             try {
                 SolrDocumentList result = response.getResults();
                 long rowcount = result.getNumFound();
-                finalMessage = "@" + from + ", " + username.charAt(0) + zws1 + zws2 + username.substring(1) + " has used " + Utils.getWordList(msg) + " in " + rowcount + " messages.";
+                finalMessage = "@" + from + ", " + Utils.addZws(username) + " has used " + Utils.getWordList(msg) + " in " + rowcount + " messages.";
                 SolrDocument result1 = response.getResults().get(0);
                 /*
                 long wordcount = (long) result1.get("ttf(message,"+phrase+")");
@@ -407,7 +393,7 @@ public class CommandHandler implements Runnable {
                 }
                 Date date = (Date) result.getFirstValue("time");
                 String dateStr = ("[" + date.toInstant().toString().replaceAll("T", " ").replaceAll("Z", "]"));
-                finalMessage = String.format("@%s, first occurrence: %s %s: %s", from, dateStr, msgName.substring(0, 1) + zws1 + zws2 + msgName.substring(1), message);
+                finalMessage = String.format("@%s, first occurrence: %s %s: %s", from, dateStr, Utils.addZws(msgName), message);
             } catch (IndexOutOfBoundsException ignored) {
             }
             sendingQueue.add(finalMessage);
@@ -460,7 +446,7 @@ public class CommandHandler implements Runnable {
                 String msgName = (String) result.getFirstValue("username");
                 Date date = (Date) result.getFirstValue("time");
                 String dateStr = ("[" + date.toInstant().toString().replaceAll("T", " ").replaceAll("Z", "]"));
-                finalMessage = String.format("%s %s: %s", dateStr, msgName.substring(0, 1) + zws1 + zws2 + msgName.substring(1), message);
+                finalMessage = String.format("%s %s: %s", dateStr, Utils.addZws(msgName), message);
             } catch (IndexOutOfBoundsException ignored) {
             }
             sendingQueue.add(finalMessage);
@@ -537,7 +523,7 @@ public class CommandHandler implements Runnable {
                 if (from.equals(username)) {
                     sendingQueue.add(String.format("%s, you have spent %s in the shadow realm.", username, Utils.convertTime(timeout)));
                 } else {
-                    sendingQueue.add(String.format("%s has spent %s in the shadow realm.", username.substring(0, 1) + zws1 + zws2 + username.substring(1), Utils.convertTime(timeout)));
+                    sendingQueue.add(String.format("%s has spent %s in the shadow realm.", Utils.addZws(username), Utils.convertTime(timeout)));
                 }
 
             }
@@ -573,7 +559,9 @@ public class CommandHandler implements Runnable {
                         ChronoUnit.MILLIS).toEpochMilli() / 1000));
                 String message = rs.getString("message");
                 String finalMessage = String.format("%s's first message %s ago was: %s",
-                        username.substring(0, 1) + zws1 + zws2 + username.substring(1), convertedTime, message);
+                        Utils.addZws(username),
+                        convertedTime,
+                        message);
                 sendingQueue.add(finalMessage);
             }
 
@@ -610,7 +598,9 @@ public class CommandHandler implements Runnable {
                         ChronoUnit.MILLIS).toEpochMilli() / 1000));
                 String message = rs.getString("message");
                 String finalMessage = String.format("%s's last message %s ago was: %s",
-                        username.substring(0, 1) + zws1 + zws2 + username.substring(1), convertedTime, message);
+                        Utils.addZws(username),
+                        convertedTime,
+                        message);
                 sendingQueue.add(finalMessage);
             }
 
@@ -737,7 +727,7 @@ public class CommandHandler implements Runnable {
                 }
             }
             replacelistSb.replace(0, 1, "");
-            sender.setBlacklist(blacklist, textBlacklist, replacelistSb.toString());
+            Running.setBlacklist(blacklist, textBlacklist, replacelistSb.toString());
             Running.getLogger().info("Blacklist initialized successfully " + blacklist.size() + " blacklisted words.");
 
         } catch (SQLException e) {
@@ -1038,7 +1028,10 @@ public class CommandHandler implements Runnable {
             Date date = (Date) result.getFirstValue("time");
             username = (String) result.getFirstValue("username");
             String dateStr = ("[" + date.toInstant().toString().replaceAll("T", " ").replaceAll("Z", "]"));
-            String finalMessage = String.format("%s %s: %s", dateStr, username.substring(0, 1) + zws1 + zws2 + username.substring(1), message);
+            String finalMessage = String.format("%s %s: %s",
+                    dateStr,
+                    Utils.addZws(username),
+                    message);
             sendingQueue.add(finalMessage);
 
         } catch (IOException | SolrServerException | IndexOutOfBoundsException e) {
@@ -1264,13 +1257,4 @@ public class CommandHandler implements Runnable {
             Running.getLogger().info("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@" + channel + " is offline.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
         }
     }
-
-    public BlockingQueue<Command> getStatisticsQueue() {
-        return statisticsQueue;
-    }
-
-    public BlockingQueue<Command> getMessageQueue() {
-        return messageLogger.getLogQueue();
-    }
-
 }

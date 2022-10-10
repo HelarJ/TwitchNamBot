@@ -3,6 +3,7 @@ package ChatBot;
 import ChatBot.Dataclass.Command;
 import ChatBot.StaticUtils.Config;
 import ChatBot.StaticUtils.Running;
+import ChatBot.StaticUtils.SharedQueues;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -19,12 +20,11 @@ public class Listener implements Runnable {
     private final BufferedReader bufferedReader;
     private final BufferedWriter bufferedWriter;
     private final CommandHandler commandHandler;
+    public static BlockingQueue<Command> messageLogQueue = SharedQueues.messageLogBlockingQueue;
     private final String username;
-    private final BlockingQueue<Command> statisticsQueue;
     private Instant lastPing;
     private final Thread closerThread;
     private boolean running = true;
-    private final BlockingQueue<Command> messageQueue;
     private boolean plebsAllowed = true;
     private final String admin;
 
@@ -35,8 +35,6 @@ public class Listener implements Runnable {
         this.bufferedWriter = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
         this.username = Config.getTwitchUsername().toLowerCase();
         this.admin = Config.getBotAdmin().toLowerCase();
-        this.statisticsQueue = commandHandler.getStatisticsQueue();
-        this.messageQueue = commandHandler.getMessageQueue();
         closerThread = new Thread(() -> {
             while (Running.getRunning() && running) {
                 if (lastPing.plus(10, ChronoUnit.MINUTES).isBefore(Instant.now())) {
@@ -92,10 +90,10 @@ public class Listener implements Runnable {
                     }
                     Command command = new Command(name, userid, outputMSG, subscribed, false, output);
 
-                    messageQueue.add(command);
+                    messageLogQueue.add(command);
                     commandHandler.recordTimeout(name, userid, 0);
                     if (plebsAllowed || command.isSubscribed()) {
-                        statisticsQueue.add(command);
+                        SharedQueues.commandBlockingQueue.add(command);
                     }
                 } else if (output.contains(".tmi.twitch.tv WHISPER")) {
                     //@badges=premium/1;color=#FF36F2;display-name=kroom;emotes=;message-id=2;thread-id=40206877_130928910;turbo=0;user-id=40206877;user-type= :kroom!kroom@kroom.tmi.twitch.tv WHISPER moonmoon_nam :test
@@ -105,7 +103,7 @@ public class Listener implements Runnable {
                     msg = msg.substring(msg.indexOf(":") + 1);
                     Running.getLogger().info(String.format("User %s whispered %s.", name, msg));
                     Command command = new Command(name, "NULL", msg, false, true, output);
-                    messageQueue.add(command);
+                    messageLogQueue.add(command);
                     if (name.equalsIgnoreCase(admin)) {
                         if (msg.equals("/setonline")) {
                             commandHandler.setOnline();
@@ -145,7 +143,7 @@ public class Listener implements Runnable {
                     Running.getLogger().info(String.format("User %s timed out for %ds", name, banTime));
                     if (banTime >= 121059319) {
                         commandHandler.addDisabled("Autoban", name);
-                        messageQueue.add(new Command(name, userid, "User was permanently banned.", false, false, output));
+                        messageLogQueue.add(new Command(name, userid, "User was permanently banned.", false, false, output));
                         Running.addPermabanCount();
                     }
                     commandHandler.recordTimeout(name, userid, banTime);
