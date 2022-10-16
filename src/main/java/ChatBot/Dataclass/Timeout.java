@@ -1,12 +1,13 @@
 package ChatBot.Dataclass;
 
-import ChatBot.StaticUtils.Running;
 import ChatBot.enums.MessageType;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.logging.Logger;
 
 public class Timeout {
+    private final static Logger logger = Logger.getLogger(Timeout.class.toString());
     private String username;
     private Instant timeout;
     private int length;
@@ -33,7 +34,7 @@ public class Timeout {
     public void resetTimeout(int length) {
         int prevlength = this.length;
         this.length = length;
-        Running.getLogger().info(String.format("Set %s's %d timeout to %ds.", username, prevlength, length));
+        logger.info(String.format("Set %s's %d timeout to %ds.", username, prevlength, length));
         this.timeout = Instant.now();
     }
 

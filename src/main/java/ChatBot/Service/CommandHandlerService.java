@@ -139,7 +139,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     }
 
     private void logCommandUse(String from, String command, String arguments) {
-        Running.getLogger().info(String.format("%s used %s with arguments [%s].", from, command, arguments));
+        logger.info(String.format("%s used %s with arguments [%s].", from, command, arguments));
     }
 
     private void namCommands(String name) {
@@ -204,7 +204,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
                 SharedQueues.sendingBlockingQueue.add(new Message("@" + from + ", no alternate names found in logs PEEPERS"));
             }
         } catch (SQLException e) {
-            Running.getLogger().severe("SQL ERROR: " + "SQLException: " + e.getMessage() + ", VendorError: " + e.getErrorCode());
+            logger.severe("SQL ERROR: " + "SQLException: " + e.getMessage() + ", VendorError: " + e.getErrorCode());
         } finally {
             lastCommandTime = Instant.now();
         }
@@ -294,7 +294,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             SharedQueues.sendingBlockingQueue.add(new Message(finalMessage));
 
         } catch (IOException | SolrServerException | BaseHttpSolrClient.RemoteSolrException e) {
-            Running.getLogger().warning(e.getMessage());
+            logger.warning(e.getMessage());
         } finally {
             lastCommandTime = Instant.now();
         }
@@ -327,7 +327,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             SharedQueues.sendingBlockingQueue.add(new Message(finalMessage));
 
         } catch (IOException | BaseHttpSolrClient.RemoteSolrException | SolrServerException e) {
-            Running.getLogger().warning(e.getMessage());
+            logger.warning(e.getMessage());
         } finally {
             lastCommandTime = Instant.now();
         }
@@ -364,7 +364,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             SharedQueues.sendingBlockingQueue.add(new Message(finalMessage));
 
         } catch (IOException | BaseHttpSolrClient.RemoteSolrException | SolrServerException e) {
-            Running.getLogger().warning(e.getMessage());
+            logger.warning(e.getMessage());
         } finally {
             lastCommandTime = Instant.now();
         }
@@ -417,7 +417,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             SharedQueues.sendingBlockingQueue.add(new Message(finalMessage));
 
         } catch (IOException | BaseHttpSolrClient.RemoteSolrException | SolrServerException e) {
-            Running.getLogger().warning(e.getMessage());
+            logger.warning(e.getMessage());
         } finally {
             lastCommandTime = Instant.now();
         }
@@ -441,11 +441,11 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
 
     public void userNam(String from, String args) {
         if (Running.online) {
-            Running.getLogger().info("Attempted to use !NaM while stream is online");
+            logger.info("Attempted to use !NaM while stream is online");
             return;
         }
         if (lastCommandTime.plus(2, ChronoUnit.SECONDS).isAfter(Instant.now())) {
-            Running.getLogger().info("Attempted to use !NaM before cooldown was over");
+            logger.info("Attempted to use !NaM before cooldown was over");
             return;
         }
 
@@ -496,7 +496,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             }
 
         } catch (SQLException e) {
-            Running.getLogger().severe("SQL ERROR: " + "SQLException: " + e.getMessage() + ", VendorError: " + e.getErrorCode());
+            logger.severe("SQL ERROR: " + "SQLException: " + e.getMessage() + ", VendorError: " + e.getErrorCode());
         } finally {
             lastCommandTime = Instant.now();
         }
@@ -536,7 +536,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             }
 
         } catch (SQLException e) {
-            Running.getLogger().severe("SQL ERROR: " + "SQLException: " +
+            logger.severe("SQL ERROR: " + "SQLException: " +
                     e.getMessage() + ", VendorError: " + e.getErrorCode());
         } finally {
             lastCommandTime = Instant.now();
@@ -546,7 +546,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     private boolean hasNoMessages(String from, String username) {
         int count = getCount(username);
         if (count == 0) {
-            Running.getLogger().info("Did not find any messages for user " + username);
+            logger.info("Did not find any messages for user " + username);
             SharedQueues.sendingBlockingQueue.add(new Message("@" + from + ", no messages found PEEPERS"));
             lastCommandTime = Instant.now();
             lastLogTime = Instant.now();
@@ -557,11 +557,11 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
 
     private void sendTop10to() {
         if (Running.online) {
-            Running.getLogger().info("Attempted to use !nammers while stream is online");
+            logger.info("Attempted to use !nammers while stream is online");
             return;
         }
         if (lastCommandTime.plus(10, ChronoUnit.SECONDS).isAfter(Instant.now())) {
-            Running.getLogger().info("Attempted to use !nammers before cooldown was over");
+            logger.info("Attempted to use !nammers before cooldown was over");
             return;
         }
 
@@ -582,7 +582,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             }
             SharedQueues.sendingBlockingQueue.add(new Message(sb.toString()));
         } catch (SQLException e) {
-            Running.getLogger().severe("SQL ERROR: " + "SQLException: " +
+            logger.severe("SQL ERROR: " + "SQLException: " +
                     e.getMessage() + ", VendorError: " + e.getErrorCode());
         } finally {
             lastCommandTime = Instant.now();
@@ -606,7 +606,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             }
 
         } catch (SQLException e) {
-            Running.getLogger().severe("SQL ERROR: " + "SQLException: " +
+            logger.severe("SQL ERROR: " + "SQLException: " +
                     e.getMessage() + ", VendorError: " + e.getErrorCode());
         }
         return count;
@@ -630,12 +630,12 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             }
 
         } catch (SQLException e) {
-            Running.getLogger().severe("SQL ERROR: " + "SQLException: " +
+            logger.severe("SQL ERROR: " + "SQLException: " +
                     e.getMessage() + ", VendorError: " + e.getErrorCode());
         }
         godUsers.add(admin);
         godUsers.add(channel.replace("#", ""));
-        Running.getLogger().info("Initialized mods list successfully " + mods.size() + " mods | " + godUsers + " god users.");
+        logger.info("Initialized mods list successfully " + mods.size() + " mods | " + godUsers + " god users.");
     }
 
     private void initializeBlacklist() {
@@ -659,10 +659,10 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             }
             replacelistSb.replace(0, 1, "");
             Running.setBlacklist(blacklist, textBlacklist, replacelistSb.toString());
-            Running.getLogger().info("Blacklist initialized successfully " + blacklist.size() + " blacklisted words.");
+            logger.info("Blacklist initialized successfully " + blacklist.size() + " blacklisted words.");
 
         } catch (SQLException e) {
-            Running.getLogger().severe("SQL ERROR: " + "SQLException: " +
+            logger.severe("SQL ERROR: " + "SQLException: " +
                     e.getMessage() + ", VendorError: " + e.getErrorCode());
         }
     }
@@ -678,10 +678,10 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
                 String user = rs.getString("username");
                 disabled.add(user.toLowerCase());
             }
-            Running.getLogger().info("Initialized disabled list successfully " + disabled.size() + " disabled users.");
+            logger.info("Initialized disabled list successfully " + disabled.size() + " disabled users.");
 
         } catch (SQLException e) {
-            Running.getLogger().severe("SQL ERROR: " + "SQLException: " +
+            logger.severe("SQL ERROR: " + "SQLException: " +
                     e.getMessage() + ", VendorError: " + e.getErrorCode());
         }
     }
@@ -695,7 +695,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             return;
         }
         if (mods.contains(from.toLowerCase()) || from.equalsIgnoreCase(username)) {
-            Running.getLogger().info(from + " added " + username + " to disabled list");
+            logger.info(from + " added " + username + " to disabled list");
 
             try (Connection conn = DriverManager.getConnection(SQLCredentials);
                  PreparedStatement stmt = conn.prepareStatement("CALL chat_stats.sp_add_disabled(?,?);"))
@@ -712,7 +712,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
                 }
 
             } catch (SQLException e) {
-                Running.getLogger().severe("SQL ERROR: " + "SQLException: " + e.getMessage() + ", VendorError: " + e.getErrorCode());
+                logger.severe("SQL ERROR: " + "SQLException: " + e.getMessage() + ", VendorError: " + e.getErrorCode());
             } finally {
                 lastCommandTime = Instant.now();
             }
@@ -742,10 +742,10 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
                     alts.put(main, list);
                 }
             }
-            Running.getLogger().info("Initialized alts list successfully " + alts.size() + " users with alts.");
+            logger.info("Initialized alts list successfully " + alts.size() + " users with alts.");
 
         } catch (SQLException e) {
-            Running.getLogger().severe("SQL ERROR: " + "SQLException: " +
+            logger.severe("SQL ERROR: " + "SQLException: " +
                     e.getMessage() + ", VendorError: " + e.getErrorCode());
         }
     }
@@ -768,7 +768,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             }
         }
         if (mods.contains(from.toLowerCase())) {
-            Running.getLogger().info(from + " added " + alt + " to " + main + "'s alt list");
+            logger.info(from + " added " + alt + " to " + main + "'s alt list");
 
             try (Connection conn = DriverManager.getConnection(SQLCredentials);
                  PreparedStatement stmt = conn.prepareStatement("CALL chat_stats.sp_add_alt(?,?);"))
@@ -789,7 +789,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
                 SharedQueues.sendingBlockingQueue.add(new Message("@" + from + ", added " + alt + " as " + main + "'s alt account."));
 
             } catch (SQLException e) {
-                Running.getLogger().severe("SQL ERROR: " + "SQLException: " +
+                logger.severe("SQL ERROR: " + "SQLException: " +
                         e.getMessage() + ", VendorError: " + e.getErrorCode());
             } finally {
                 lastCommandTime = Instant.now().minus(5, ChronoUnit.SECONDS);
@@ -800,7 +800,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     private boolean isNotAllowed(String from, String username, String cmdName) {
         if (banned.containsKey(from.toLowerCase())) {
             if (banned.get(from).plus(600, ChronoUnit.SECONDS).isAfter(Instant.now())) {
-                Running.getLogger().info("Banned user " + from + " attempted to use a command.");
+                logger.info("Banned user " + from + " attempted to use a command.");
                 return true;
             } else {
                 banned.remove(from);
@@ -808,7 +808,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         }
         if (superbanned.containsKey(from.toLowerCase())) {
             if (superbanned.get(from).plus(3600, ChronoUnit.SECONDS).isAfter(Instant.now())) {
-                Running.getLogger().info("superbanned user " + from + " attempted to use a command.");
+                logger.info("superbanned user " + from + " attempted to use a command.");
                 return true;
             } else {
                 superbanned.remove(from);
@@ -816,12 +816,12 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         }
 
         if (Running.online && !godUsers.contains(from.toLowerCase())) {
-            Running.getLogger().info("Attempted to use " + cmdName + " while stream is online");
+            logger.info("Attempted to use " + cmdName + " while stream is online");
             return true;
         }
 
         if (lastCommandTime.plus(10, ChronoUnit.SECONDS).isAfter(Instant.now()) && !godUsers.contains(from.toLowerCase())) {
-            Running.getLogger().info("Attempted to use " + cmdName + " before cooldown was over");
+            logger.info("Attempted to use " + cmdName + " before cooldown was over");
             if (!spammers.containsKey(from)) {
                 spammers.put(from, 1);
             } else {
@@ -874,7 +874,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             return;
         }
         if (mods.contains(from.toLowerCase()) || from.equalsIgnoreCase(username)) {
-            Running.getLogger().info(from + " removed " + username + " from disabled list");
+            logger.info(from + " removed " + username + " from disabled list");
             try (Connection conn = DriverManager.getConnection(SQLCredentials);
                  PreparedStatement stmt = conn.prepareStatement("CALL chat_stats.sp_remove_disabled(?);"))
             {
@@ -885,7 +885,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
                 }
                 disabled.remove(username.toLowerCase());
             } catch (SQLException e) {
-                Running.getLogger().severe("SQL ERROR: " + "SQLException: " + e.getMessage() + ", VendorError: " + e.getErrorCode());
+                logger.severe("SQL ERROR: " + "SQLException: " + e.getMessage() + ", VendorError: " + e.getErrorCode());
             } finally {
                 lastCommandTime = Instant.now();
             }
@@ -934,7 +934,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
 
         int count = getCount(username);
         if (count == 0) {
-            Running.getLogger().info("Did not find any messages for user " + username);
+            logger.info("Did not find any messages for user " + username);
             SharedQueues.sendingBlockingQueue.add(new Message("@" + from + ", no messages found PEEPERS"));
             lastCommandTime = Instant.now();
             return;
@@ -968,8 +968,8 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             SharedQueues.sendingBlockingQueue.add(new Message(finalMessage));
 
         } catch (IOException | SolrServerException | IndexOutOfBoundsException e) {
-            Running.getLogger().severe("Solr error: " + e.getMessage());
-            Running.getLogger().info("Did not find any messages for " + fullNameStr);
+            logger.severe("Solr error: " + e.getMessage());
+            logger.info("Did not find any messages for " + fullNameStr);
             SharedQueues.sendingBlockingQueue.add(new Message("@" + from + ", no messages found PEEPERS"));
         } finally {
             lastCommandTime = Instant.now();
@@ -1002,7 +1002,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         String text = apiHandler.getFollowList(username);
         String link = "stalk_" + username;
         if (text == null) {
-            Running.getLogger().info("No follow list found for " + username);
+            logger.info("No follow list found for " + username);
             SharedQueues.sendingBlockingQueue.add(new Message("@" + from + ", no such user found PEEPERS"));
             lastCommandTime = Instant.now();
             return;
@@ -1014,13 +1014,13 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
                 FtpHandler ftpHandler = new FtpHandler();
                 if (ftpHandler.upload(link, text)) {
                     String output = String.format("@%s all channels followed by %s: %s%s", from, finalUsername, website, link);
-                    Running.getLogger().info(output);
+                    logger.info(output);
                     SharedQueues.sendingBlockingQueue.add(new Message(output));
                 }
             } catch (IOException e) {
-                Running.getLogger().severe("Error writing to outputstream: " + e.getMessage());
+                logger.severe("Error writing to outputstream: " + e.getMessage());
             } catch (NullPointerException e) {
-                Running.getLogger().severe("Error uploading logs to ftp");
+                logger.severe("Error uploading logs to ftp");
             }
         }).start();
         lastCommandTime = Instant.now();
@@ -1036,13 +1036,13 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
                 lastCommandTime.plus(5, ChronoUnit.SECONDS).isAfter(Instant.now()) &&
                 !godUsers.contains(from.toLowerCase()))
         {
-            Running.getLogger().info(from + " attempted to call !log before cooldown");
+            logger.info(from + " attempted to call !log before cooldown");
             return;
         }
         logCache.putIfAbsent(username, 0);
         int count = getCount(username);
         if (count == 0) {
-            Running.getLogger().info("Did not find any logs for user " + username);
+            logger.info("Did not find any logs for user " + username);
             SharedQueues.sendingBlockingQueue.add(new Message("@" + from + ", no messages found PEEPERS"));
             lastCommandTime = Instant.now();
             lastLogTime = Instant.now();
@@ -1051,7 +1051,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         String link = username;
         if (count == logCache.get(username)) {
             String output = String.format("@%s logs for %s: %s%s", from, username, website, link);
-            Running.getLogger().info("No change to message count, not updating link.");
+            logger.info("No change to message count, not updating link.");
             SharedQueues.sendingBlockingQueue.add(new Message(output));
             lastCommandTime = Instant.now();
             lastLogTime = Instant.now();
@@ -1071,7 +1071,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             }
             ResultSet rs = stmt.executeQuery();
             Instant queryEndTime = Instant.now();
-            Running.getLogger().info("Query took: " + (Utils.convertTime((int) (queryEndTime.minus(startTime.toEpochMilli(), ChronoUnit.MILLIS).toEpochMilli() / 1000))));
+            logger.info("Query took: " + (Utils.convertTime((int) (queryEndTime.minus(startTime.toEpochMilli(), ChronoUnit.MILLIS).toEpochMilli() / 1000))));
             StringBuilder sb = new StringBuilder();
             sb.append("<!DOCTYPE html>");
             sb.append("\r\n");
@@ -1139,7 +1139,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             sb.append("\r\n");
             sb.append("</html>");
             sb.append("\r\n");
-            Running.getLogger().info("Data compilation took: " + (Utils.convertTime((int) (Instant.now().minus(queryEndTime.toEpochMilli(), ChronoUnit.MILLIS).toEpochMilli() / 1000))));
+            logger.info("Data compilation took: " + (Utils.convertTime((int) (Instant.now().minus(queryEndTime.toEpochMilli(), ChronoUnit.MILLIS).toEpochMilli() / 1000))));
 
             String finalUsername = username;
             new Thread(() -> {
@@ -1147,18 +1147,18 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
                     FtpHandler ftpHandler = new FtpHandler();
                     if (ftpHandler.upload(link, sb.toString())) {
                         String output = String.format("@%s logs for %s: %s%s", from, finalUsername, website, link);
-                        Running.getLogger().info(output);
-                        Running.getLogger().info("Total time: " + (Utils.convertTime((int) (Instant.now().minus(startTime.toEpochMilli(), ChronoUnit.MILLIS).toEpochMilli() / 1000))));
+                        logger.info(output);
+                        logger.info("Total time: " + (Utils.convertTime((int) (Instant.now().minus(startTime.toEpochMilli(), ChronoUnit.MILLIS).toEpochMilli() / 1000))));
                         SharedQueues.sendingBlockingQueue.add(new Message(output));
                     }
                 } catch (IOException e) {
-                    Running.getLogger().severe("Error writing to outputstream: " + e.getMessage());
+                    logger.severe("Error writing to outputstream: " + e.getMessage());
                 } catch (NullPointerException e) {
-                    Running.getLogger().severe("Error uploading logs to ftp");
+                    logger.severe("Error uploading logs to ftp");
                 }
             }).start();
         } catch (SQLException ex) {
-            Running.getLogger().severe("SQL ERROR: " + "SQLException: " + ex.getMessage() + ", VendorError: " + ex.getErrorCode());
+            logger.severe("SQL ERROR: " + "SQLException: " + ex.getMessage() + ", VendorError: " + ex.getErrorCode());
         } finally {
             lastLogTime = Instant.now();
             lastCommandTime = Instant.now();

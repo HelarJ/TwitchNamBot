@@ -46,7 +46,7 @@ public class ApiHandler {
             requestBody = objectMapper
                     .writeValueAsString(values);
         } catch (JsonProcessingException e) {
-            Running.getLogger().severe("Unable to process json.");
+            logger.severe("Unable to process json.");
         }
         String oauthToken = null;
         int expires;
@@ -63,7 +63,7 @@ public class ApiHandler {
                 JsonNode jsonNode = mapper.readTree(result);
                 oauthToken = jsonNode.get("access_token").asText();
                 expires = jsonNode.get("expires_in").asInt();
-                Running.getLogger().info(expires + " " + oauthToken);
+                logger.info(expires + " " + oauthToken);
             } catch (IOException | InterruptedException | NullPointerException e) {
                 logger.severe("Exception in getting oauth. Defaulting to online mode and retrying: " + e.getMessage());
                 Running.setOnline();
@@ -94,7 +94,7 @@ public class ApiHandler {
                 JsonNode jsonNode = mapper.readTree(result);
                 result = jsonNode.get("data").toString();
                 result = result.substring(1, result.length() - 1);
-                Running.getLogger().info(result);
+                logger.info(result);
                 jsonNode = mapper.readTree(result);
                 userID = jsonNode.get("id").asText();
 
@@ -182,7 +182,7 @@ public class ApiHandler {
                     try {
                         response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
                     } catch (IOException | InterruptedException e) {
-                        Running.getLogger().warning("Error getting followed list for " + username + ": " + e.getMessage());
+                        logger.warning("Error getting followed list for " + username + ": " + e.getMessage());
                     }
                     if (response != null) {
                         result = response.body();

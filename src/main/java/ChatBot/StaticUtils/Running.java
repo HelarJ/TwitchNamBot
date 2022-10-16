@@ -103,10 +103,6 @@ public class Running {
         return running;
     }
 
-    public static Logger getLogger() {
-        return logger;
-    }
-
     public static void setBlacklist(List<String> blacklist, List<String> textBlacklist, String replacelist) {
         Running.replacelist = replacelist;
         Running.blacklist = blacklist;

@@ -15,8 +15,10 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.logging.Logger;
 
 public class ListenerService extends AbstractExecutionThreadService {
+    private final static Logger logger = Logger.getLogger(ListenerService.class.toString());
     private final BufferedReader bufferedReader;
     private final BufferedWriter bufferedWriter;
     private final CommandHandlerService commandHandlerService;
@@ -40,7 +42,7 @@ public class ListenerService extends AbstractExecutionThreadService {
     @Override
     public void run() {
         try {
-            Running.getLogger().info("Listener started");
+            logger.info("Listener started");
             String output;
             while (Running.isBotStillRunning() && running && (output = bufferedReader.readLine()) != null) {
                 if (output.equals("PING :tmi.twitch.tv")) {
@@ -80,7 +82,7 @@ public class ListenerService extends AbstractExecutionThreadService {
                     name = name.substring(13, name.indexOf(";"));
                     String msg = output.substring(output.indexOf(username));
                     msg = msg.substring(msg.indexOf(":") + 1);
-                    Running.getLogger().info(String.format("User %s whispered %s.", name, msg));
+                    logger.info(String.format("User %s whispered %s.", name, msg));
                     Message message = new Message(name, "NULL", msg, false, true, output);
                     SharedQueues.messageLogBlockingQueue.add(message);
                     if (name.equalsIgnoreCase(admin)) {
@@ -90,7 +92,7 @@ public class ListenerService extends AbstractExecutionThreadService {
                             msg = msg.substring(6);
                             SharedQueues.sendingBlockingQueue.add(new Message(msg));
                         } else if (msg.startsWith("/banuser ")) {
-                            Running.getLogger().info("Banned user" + msg.substring(9));
+                            logger.info("Banned user" + msg.substring(9));
                         } else if (msg.equals("/restart")) {
                             ConsoleMain.reconnect();
                         }
@@ -98,7 +100,7 @@ public class ListenerService extends AbstractExecutionThreadService {
                 } else if (output.contains("CLEARCHAT")) {
                     //@ban-duration=600;room-id=121059319;target-user-id=40206877;tmi-sent-ts=1588635742673 :tmi.twitch.tv CLEARCHAT #moonmoon :kroom
                     if (!output.contains("target-user-id")) {
-                        Running.getLogger().info("Chat was cleared");
+                        logger.info("Chat was cleared");
                         return;
                     }
 
@@ -109,7 +111,7 @@ public class ListenerService extends AbstractExecutionThreadService {
                     userid = userid.substring(8, userid.indexOf(";"));
 
                     int banTime = Integer.parseInt(output.substring(output.indexOf("=") + 1, output.indexOf(";")).strip());
-                    Running.getLogger().info(String.format("User %s timed out for %ds", name, banTime));
+                    logger.info(String.format("User %s timed out for %ds", name, banTime));
                     if (banTime >= 121059319) {
                         commandHandlerService.addDisabled("Autoban", name);
                         SharedQueues.messageLogBlockingQueue.add(new Message(name, userid, "User was permanently banned.", false, false, output));
@@ -120,30 +122,30 @@ public class ListenerService extends AbstractExecutionThreadService {
                     continue;
                     //String name = output.substring(output.indexOf("display-name="));
                     //name = name.substring(13, name.indexOf(";"));
-                    //Running.getLogger().info(name + " subscribed.");
+                    //logger.info(name + " subscribed.");
 
                 } else if (output.contains(".tv USERSTATE ")) {
-                    Running.getLogger().info("Message sent successfully.");
+                    logger.info("Message sent successfully.");
                 } else if (output.contains(".tv CLEARMSG ")) {
                     continue;
                 } else if (output.contains(".tv PART ")) {
                     continue;
-                    //Running.getLogger().info(output);
+                    //logger.info(output);
 
                 } else if (output.contains(".tv JOIN ")) {
                     continue;
-                    //Running.getLogger().info(output);
+                    //logger.info(output);
                 } else {
-                    Running.getLogger().info(output);
+                    logger.info(output);
                 }
             }
 
-            Running.getLogger().info("Listener Thread Ended.");
+            logger.info("Listener Thread Ended.");
             if (Running.isBotStillRunning()) {
                 ConsoleMain.reconnect();
             }
         } catch (IOException e) {
-            Running.getLogger().severe("Connection error for Listener:" + e.getMessage());
+            logger.severe("Connection error for Listener:" + e.getMessage());
             if (Running.isBotStillRunning()) {
                 ConsoleMain.reconnect();
             }

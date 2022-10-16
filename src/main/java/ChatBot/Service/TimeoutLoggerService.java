@@ -60,7 +60,7 @@ public class TimeoutLoggerService extends AbstractExecutionThreadService {
                     }
                 }
             } catch (InterruptedException e) {
-                Running.getLogger().warning("Thread interrupted");
+                logger.warning("Thread interrupted");
             }
 
             checkForExpiredTimeouts();

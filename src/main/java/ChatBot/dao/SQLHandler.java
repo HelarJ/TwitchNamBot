@@ -62,7 +62,7 @@ public class SQLHandler {
             stmt.setBoolean(4, Running.online);
             stmt.executeQuery();
         } catch (SQLException ex) {
-            Running.getLogger().severe("SQL ERROR: " + "SQLException: " + ex.getMessage() + ", VendorError: " + ex.getErrorCode());
+            logger.severe("SQL ERROR: " + "SQLException: " + ex.getMessage() + ", VendorError: " + ex.getErrorCode());
         }
     }
 
@@ -76,7 +76,7 @@ public class SQLHandler {
             return rs.getInt("timeout");
 
         } catch (SQLException ex) {
-            Running.getLogger().warning("SQL ERROR: " + "SQLException: " + ex.getMessage() + ", VendorError: " + ex.getErrorCode());
+            logger.warning("SQL ERROR: " + "SQLException: " + ex.getMessage() + ", VendorError: " + ex.getErrorCode());
         }
         return 0;
     }
