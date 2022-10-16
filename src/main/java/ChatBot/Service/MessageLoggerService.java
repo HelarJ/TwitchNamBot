@@ -1,8 +1,10 @@
-package ChatBot;
+package ChatBot.Service;
 
-import ChatBot.Dataclass.Command;
+import ChatBot.Dataclass.Message;
 import ChatBot.StaticUtils.Config;
 import ChatBot.StaticUtils.Running;
+import ChatBot.StaticUtils.SharedQueues;
+import com.google.common.util.concurrent.AbstractExecutionThreadService;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.BaseHttpSolrClient;
@@ -19,52 +21,50 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 
-public class MessageLogger implements Runnable {
-    private final BlockingQueue<Command> logQueue;
+public class MessageLoggerService extends AbstractExecutionThreadService {
+    private final Logger logger = Logger.getLogger(CommandHandlerService.class.toString());
     private final String SQLCredentials;
     private final String solrCredentials;
-    private boolean online;
     private int lastid;
-    private boolean running = true;
     private Instant lastCommit = Instant.now();
     private final List<SolrInputDocument> commitBacklog = new ArrayList<>();
 
-    public void shutdown() {
-        running = false;
-    }
-
-    public MessageLogger() {
-
-        this.logQueue = new LinkedBlockingQueue<>();
+    public MessageLoggerService() {
         this.SQLCredentials = Config.getSQLCredentials();
         this.solrCredentials = Config.getSolrCredentials();
         getLastId();
     }
 
     @Override
-    public void run() {
-        Running.getLogger().info("MessageLogger thread started");
-        while (Running.getRunning() && running) {
-            try {
-                Command command = logQueue.poll(3, TimeUnit.SECONDS);
-                if (command != null) {
-                    if (command.isWhisper()) {
-                        recordWhisper(command);
-                    } else {
-                        lastid++;
-                        recordMessage(command);
-                    }
-                }
-            } catch (InterruptedException e) {
-                Running.getLogger().warning("MessageLogger thread interrupted.");
+    protected void shutDown() {
+        logger.info(MessageLoggerService.class + " stopped.");
+
+    }
+
+    @Override
+    protected void startUp() {
+        logger.info(MessageLoggerService.class + " started.");
+    }
+
+    @Override
+    public void run() throws InterruptedException {
+        while (Running.isBotStillRunning()) {
+            Message message = SharedQueues.messageLogBlockingQueue.take();
+            if (message.isPoison()) {
+                logger.info(MessageLoggerService.class + " poisoned.");
+                break;
+            }
+
+            logger.fine(MessageLoggerService.class + " received a message: " + message);
+            if (message.isWhisper()) {
+                recordWhisper(message);
+            } else {
+                lastid++;
+                recordMessage(message);
             }
         }
-        Running.getLogger().info("MessageLogger thread stopped");
-
     }
 
     public void getLastId() {
@@ -76,11 +76,11 @@ public class MessageLogger implements Runnable {
             rs.next();
             this.lastid = rs.getInt("id");
         } catch (SQLException e) {
-            Running.getLogger().severe("SQL ERROR: " + "SQLException: " + e.getMessage() + ", VendorError: " + e.getErrorCode());
+            logger.severe("SQL ERROR: " + "SQLException: " + e.getMessage() + ", VendorError: " + e.getErrorCode());
         }
     }
 
-    public void recordWhisper(Command command) {
+    public void recordWhisper(Message command) {
         String username = command.getSender();
         String message = command.getMessage();
         String time = command.getTime();
@@ -92,12 +92,12 @@ public class MessageLogger implements Runnable {
             stmt.setString(3, message);
             stmt.executeQuery();
         } catch (SQLException ex) {
-            Running.getLogger().severe("SQL ERROR: " + "SQLException: " + ex.getMessage() + ", VendorError: " + ex.getErrorCode() + "\r\n WHISPER"
+            logger.severe("SQL ERROR: " + "SQLException: " + ex.getMessage() + ", VendorError: " + ex.getErrorCode() + "\r\n WHISPER"
                     + username + " " + message);
         }
     }
 
-    public void recordMessage(Command command) {
+    public void recordMessage(Message command) {
         String username = command.getSender();
         String userid = command.getUid();
         String message = command.getMessage();
@@ -112,12 +112,12 @@ public class MessageLogger implements Runnable {
             stmt.setString(3, username);
             stmt.setString(4, userid);
             stmt.setString(5, message);
-            stmt.setBoolean(6, online);
+            stmt.setBoolean(6, Running.online);
             stmt.setBoolean(7, subscribed);
             stmt.setString(8, fullMsg);
             stmt.executeQuery();
         } catch (SQLException ex) {
-            Running.getLogger().severe("SQL ERROR: " + "SQLException: " + ex.getMessage() + ", VendorError: " + ex.getErrorCode() + "\r\n"
+            logger.severe("SQL ERROR: " + "SQLException: " + ex.getMessage() + ", VendorError: " + ex.getErrorCode() + "\r\n"
                     + username + " " + userid + " " + message);
         }
 
@@ -134,20 +134,11 @@ public class MessageLogger implements Runnable {
                 solr.commit();
                 commitBacklog.clear();
             } catch (IOException | SolrServerException | BaseHttpSolrClient.RemoteSolrException e) {
-                Running.getLogger().severe("Solr error: " + e.getMessage());
+                logger.severe("Solr error: " + e.getMessage());
             } finally {
                 lastCommit = Instant.now();
             }
         }
         Running.addMessageCount();
-    }
-
-    public void setOnline() {
-        online = true;
-    }
-
-    public void setOffline() {
-        online = false;
-
     }
 }

@@ -1,17 +1,22 @@
 package ChatBot.Dataclass;
 
+import ChatBot.enums.MessageType;
+
+import javax.annotation.Nonnull;
 import java.time.Instant;
 
-public class Command {
-    private final String sender;
-    private final String message;
-    private final String uid;
-    private final boolean subscribed;
-    private final Instant time;
-    private final boolean whisper;
-    private final String fullMsg;
+@Nonnull
+public class Message {
+    private String sender;
+    private String message;
+    private String uid;
+    private boolean subscribed;
+    private Instant time;
+    private boolean whisper;
+    private String fullMsg;
+    public final MessageType type;
 
-    public Command(String sender, String uid, String message, boolean subscribed, boolean whisper, String fullMsg) {
+    public Message(String sender, String uid, String message, boolean subscribed, boolean whisper, String fullMsg) {
         this.sender = sender;
         this.message = message;
         this.uid = uid;
@@ -19,10 +24,24 @@ public class Command {
         this.time = Instant.now();
         this.whisper = whisper;
         this.fullMsg = fullMsg;
+        this.type = MessageType.MESSAGE;
+    }
+
+    public Message(MessageType type) {
+        this.type = type;
+    }
+
+    public Message(String message) {
+        this.message = message;
+        this.type = MessageType.MESSAGE;
     }
 
     public String getFullMsg() {
         return fullMsg;
+    }
+
+    public boolean isPoison() {
+        return this.type == MessageType.POISON;
     }
 
     public String getSender() {
@@ -71,6 +90,10 @@ public class Command {
         } else {
             return "";
         }
+    }
 
+    @Override
+    public String toString() {
+        return sender + ": " + message;
     }
 }

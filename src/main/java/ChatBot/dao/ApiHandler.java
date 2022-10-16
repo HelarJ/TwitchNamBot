@@ -1,5 +1,6 @@
-package ChatBot;
+package ChatBot.dao;
 
+import ChatBot.Service.OnlineCheckerService;
 import ChatBot.StaticUtils.Config;
 import ChatBot.StaticUtils.Running;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -12,30 +13,23 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.HashMap;
+import java.util.logging.Logger;
 
-public class ApiHandler implements Runnable {
+public class ApiHandler {
+    private final Logger logger = Logger.getLogger(ApiHandler.class.toString());
+    private final HttpClient httpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_2).build();
+    private final String clientID = Config.getTwitchClientId();
+    private final String secret = Config.getTwitchSecret();
     private final String channel;
-    private final HttpClient httpClient;
-    private final String clientID;
-    private final String secret;
-    private final CommandHandler stats;
     private final String oauth;
-    private boolean running = true;
 
-    public void shutdown() {
-        running = false;
-    }
-
-    public ApiHandler(String channel, CommandHandler stats) {
+    public ApiHandler() {
+        String channel = Config.getChannelToJoin();
         if (channel.startsWith("#")) {
             this.channel = channel.substring(1);
         } else {
             this.channel = channel;
         }
-        this.clientID = Config.getTwitchClientId();
-        this.secret = Config.getTwitchSecret();
-        this.stats = stats;
-        this.httpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_2).build();
         this.oauth = getOauth();
     }
 
@@ -61,7 +55,7 @@ public class ApiHandler implements Runnable {
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                 .build();
 
-        while (oauthToken == null && Running.getRunning() && running) {
+        while (oauthToken == null && Running.isBotStillRunning()) {
             try {
                 HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
                 ObjectMapper mapper = new ObjectMapper();
@@ -71,8 +65,8 @@ public class ApiHandler implements Runnable {
                 expires = jsonNode.get("expires_in").asInt();
                 Running.getLogger().info(expires + " " + oauthToken);
             } catch (IOException | InterruptedException | NullPointerException e) {
-                Running.getLogger().severe("Exception in getting oauth. Defaulting to online mode and retrying: " + e.getMessage());
-                stats.setOnline();
+                logger.severe("Exception in getting oauth. Defaulting to online mode and retrying: " + e.getMessage());
+                Running.setOnline();
                 oauthToken = null;
                 try {
                     Thread.sleep(1000);
@@ -91,7 +85,7 @@ public class ApiHandler implements Runnable {
                 .setHeader("Client-ID", clientID)
                 .build();
         String userID = null;
-        while (userID == null && Running.getRunning() && running) {
+        while (userID == null && Running.isBotStillRunning()) {
             try {
                 HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
                 ObjectMapper mapper = new ObjectMapper();
@@ -105,7 +99,7 @@ public class ApiHandler implements Runnable {
                 userID = jsonNode.get("id").asText();
 
             } catch (IOException | InterruptedException | NullPointerException e) {
-                Running.getLogger().severe("Exception in getting UID from name: " + e.getMessage());
+                logger.severe("Exception in getting UID from name: " + e.getMessage());
                 return null;
             }
         }
@@ -128,7 +122,7 @@ public class ApiHandler implements Runnable {
         try {
             response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
         } catch (IOException | InterruptedException e) {
-            Running.getLogger().warning("Error getting followed list for " + username + ": " + e.getMessage());
+            logger.warning("Error getting followed list for " + username + ": " + e.getMessage());
         }
         String result;
         if (response != null) {
@@ -232,7 +226,7 @@ public class ApiHandler implements Runnable {
                 sb.append("\r\n");
                 return sb.toString();
             } catch (JsonProcessingException e) {
-                Running.getLogger().severe("Error parsing json.");
+                logger.severe("Error parsing json.");
             }
         } else {
             return null;
@@ -240,52 +234,42 @@ public class ApiHandler implements Runnable {
         return null;
     }
 
-    @Override
-    public void run() {
-        while (Running.getRunning() && running) {
-            Running.getLogger().info("Onlinechecker started.");
-            String userID = getUID(channel);
-            if (userID == null) {
-                Running.getLogger().warning("Error getting UID from API. Retrying in 5s.");
-                try {
-                    Thread.sleep(5000);
-                } catch (InterruptedException ignored) {
+    public void checkOnline(OnlineCheckerService onlineCheckerService) {
+        String userID = getUID(channel);
+        if (userID == null) {
+            logger.warning("Error getting UID from API. Retrying in 5s.");
+            try {
+                Thread.sleep(5000);
+            } catch (InterruptedException ignored) {
+            }
+            return;
+        }
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .GET()
+                .uri(URI.create("https://api.twitch.tv/helix/streams?user_id=" + userID))
+                .setHeader("Authorization", "Bearer " + oauth)
+                .setHeader("Client-ID", clientID)
+                .build();
+
+        try {
+            while (Running.isBotStillRunning() && onlineCheckerService.running) {
+                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+                String result = response.body();
+                if (result != null) {
+                    if (result.length() == 27) { //0 if the API is not responding.
+                        Running.setOffline();
+                    } else {
+                        Running.setOnline();
+                    }
+                } else {
+                    Running.setOnline();
                 }
-                continue;
+                Thread.sleep(3000);
             }
 
-            HttpRequest request = HttpRequest.newBuilder()
-                    .GET()
-                    .uri(URI.create("https://api.twitch.tv/helix/streams?user_id=" + userID))
-                    .setHeader("Authorization", "Bearer " + oauth)
-                    .setHeader("Client-ID", clientID)
-                    .build();
-            try {
-                while (Running.getRunning() && running) {
-                    HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-                    String result = response.body();
-                    if (result != null) {
-                        if (result.length() == 27) { //0 if the the API is not responding.
-                            stats.setOffline();
-                        } else {
-                            stats.setOnline();
-                        }
-                    } else {
-                        stats.setOnline();
-                    }
-                    Thread.sleep(9000);
-                }
-            } catch (IOException | InterruptedException | NullPointerException e) {
-                Running.getLogger().severe("Error getting online status: " + e.getMessage());
-            }
-            if (!Running.getRunning()) {
-                Running.getLogger().severe("Restarting OnlineChecker...");
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException ignored) {
-                }
-            }
+        } catch (IOException | InterruptedException | NullPointerException e) {
+            logger.severe("Error getting online status: " + e.getMessage());
         }
-        Running.getLogger().info("OnlineChecker Thread Ended.");
     }
 }

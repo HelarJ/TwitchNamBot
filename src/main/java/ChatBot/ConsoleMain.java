@@ -6,41 +6,38 @@ import ChatBot.StaticUtils.SharedQueues;
 
 import java.io.IOException;
 import java.util.logging.Handler;
+import java.util.logging.Logger;
 
 public class ConsoleMain {
-    private static MainThread mainThread;
+    private static final Logger logger = Logger.getLogger(ConsoleMain.class.toString());
+    private static ProgramThread programThread;
 
-    public static void main(String[] args) throws IOException, InterruptedException {
+    public static void main(String[] args) throws IOException {
         Running.startLog();
         Config.initializeConfig();
         SharedQueues.initializeQueues();
 
-        while (Running.getRunning()) {
-            if (args.length == 0) {
-                args = new String[]{Config.getChannelToJoin()}; //channel should have a # at the start.
-            }
-            mainThread = new MainThread(args);
-            Thread mt = new Thread(mainThread);
+        while (Running.isBotStillRunning()) {
+            programThread = new ProgramThread();
+            Thread programThread = new Thread(ConsoleMain.programThread);
             try {
-                mt.start();
-                mt.join();
+                programThread.start();
+                programThread.join();
             } catch (InterruptedException e) {
-                mainThread.closeThreads();
-                Running.getLogger().severe("Exception in main thread.");
-                Running.getLogger().info(e.getMessage());
+                logger.severe("Program thread interrupted. " + e.getMessage());
+                SharedQueues.poisonQueues();
             } finally {
-                mt.join();
-                if (Running.getRunning()) {
-                    Running.getLogger().info("Attempting to reconnect...");
+                if (Running.isBotStillRunning()) {
+                    logger.info("Attempting to reconnect...");
                 }
             }
         }
-        for (Handler handler : Running.getLogger().getHandlers()) {
+        for (Handler handler : logger.getHandlers()) {
             handler.close();
         }
     }
 
     public static void reconnect() {
-        mainThread.closeThreads();
+        programThread.shutdown();
     }
 }

@@ -7,8 +7,10 @@ import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.logging.Logger;
 
 public class Config {
+    private static final Logger logger = Logger.getLogger(Config.class.toString());
 
     private static Properties properties;
     private static final Map<ConfigName, String> configMap = new HashMap<>();
@@ -26,20 +28,25 @@ public class Config {
         }
     }
 
-    public static void readProperties() {
+    private static void readProperties() {
         try (InputStream input = Running.class.getClassLoader().getResourceAsStream("config.properties")) {
             properties = new Properties();
             if (input != null) {
                 properties.load(input);
             }
         } catch (IOException e) {
-            Running.getLogger().severe("Error reading properties");
+            logger.severe("Error reading properties");
             properties = null;
         }
     }
 
     public static String getChannelToJoin() {
-        return configMap.get(ConfigName.NAM_TWITCH_CHANNEL_TO_JOIN);
+        String channel = configMap.get(ConfigName.NAM_TWITCH_CHANNEL_TO_JOIN);
+        if (channel == null) {
+            logger.severe("No channelname specified in config.");
+            throw new RuntimeException("No channelname specified. Cannot continue");
+        }
+        return channel.toLowerCase();
     }
 
     public static String getTwitchOauth() {
@@ -87,21 +94,11 @@ public class Config {
     }
 
     public static String getSQLCredentials() {
-        return String.format("jdbc:mariadb://%s:%s/%s?user=%s&password=%s",
-                configMap.get(ConfigName.NAM_DB_IP),
-                configMap.get(ConfigName.NAM_DB_PORT),
-                configMap.get(ConfigName.NAM_DB_NAME),
-                configMap.get(ConfigName.NAM_DB_USER),
-                configMap.get(ConfigName.NAM_DB_PASSWORD)
-        );
+        return String.format("jdbc:mariadb://%s:%s/%s?user=%s&password=%s", configMap.get(ConfigName.NAM_DB_IP), configMap.get(ConfigName.NAM_DB_PORT), configMap.get(ConfigName.NAM_DB_NAME), configMap.get(ConfigName.NAM_DB_USER), configMap.get(ConfigName.NAM_DB_PASSWORD));
     }
 
     public static String getSolrCredentials() {
-        return String.format("http://%s:%s/solr/%s",
-                configMap.get(ConfigName.NAM_SOLR_IP),
-                configMap.get(ConfigName.NAM_SOLR_PORT),
-                configMap.get(ConfigName.NAM_SOLR_CORE)
-        );
+        return String.format("http://%s:%s/solr/%s", configMap.get(ConfigName.NAM_SOLR_IP), configMap.get(ConfigName.NAM_SOLR_PORT), configMap.get(ConfigName.NAM_SOLR_CORE));
     }
 
 }

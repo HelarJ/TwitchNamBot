@@ -113,4 +113,22 @@ public class Utils {
         final char zws2 = '\uDC00';
         return word.substring(0, 1) + zws1 + zws2 + word.substring(1);
     }
+
+    /**
+     * Gets an argument from a space separated message.
+     *
+     * @param args     String to get the argument from.
+     * @param position Which position argument to get.
+     * @return Argument as a single word or null if not found.
+     */
+    public static String getArg(String args, int position) {
+        String[] split = args.split(" ");
+        if (split.length >= position + 1) {
+            if (split[position].length() == 0) {
+                return null;
+            }
+            return split[position];
+        }
+        return null;
+    }
 }

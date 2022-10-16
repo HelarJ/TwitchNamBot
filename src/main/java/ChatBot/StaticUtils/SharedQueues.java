@@ -1,6 +1,8 @@
 package ChatBot.StaticUtils;
 
-import ChatBot.Dataclass.Command;
+import ChatBot.Dataclass.Message;
+import ChatBot.Dataclass.Timeout;
+import ChatBot.enums.MessageType;
 
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -12,23 +14,32 @@ public class SharedQueues {
     /**
      * Queue for commands.
      */
-    public static BlockingQueue<Command> commandBlockingQueue;
+    public static BlockingQueue<Message> messageBlockingQueue;
     /**
      * Queue for sending messages to chat.
      */
-    public static BlockingQueue<String> sendingBlockingQueue;
+    public static BlockingQueue<Message> sendingBlockingQueue;
     /**
      * Queue for database logging.
      */
-    public static BlockingQueue<Command> messageLogBlockingQueue;
+    public static BlockingQueue<Message> messageLogBlockingQueue;
 
+    public static BlockingQueue<Timeout> timeoutBlockingQueue;
+
+    /**
+     * Initializes shared blockingqueues with empty ones.
+     */
     public static void initializeQueues() {
-        commandBlockingQueue = new LinkedBlockingQueue<>();
+        messageBlockingQueue = new LinkedBlockingQueue<>();
         sendingBlockingQueue = new LinkedBlockingQueue<>();
         messageLogBlockingQueue = new LinkedBlockingQueue<>();
+        timeoutBlockingQueue = new LinkedBlockingQueue<>();
     }
 
     public static void poisonQueues() {
-        //todo: add poison to shut down threads gracefully.
+        messageBlockingQueue.add(new Message(MessageType.POISON));
+        sendingBlockingQueue.add(new Message(MessageType.POISON));
+        messageLogBlockingQueue.add(new Message(MessageType.POISON));
+        timeoutBlockingQueue.add(new Timeout(MessageType.POISON));
     }
 }

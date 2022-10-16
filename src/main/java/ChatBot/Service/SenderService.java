@@ -1,52 +1,52 @@
-package ChatBot;
+package ChatBot.Service;
 
-import ChatBot.Dataclass.Command;
+import ChatBot.ConsoleMain;
+import ChatBot.Dataclass.Message;
 import ChatBot.StaticUtils.Config;
 import ChatBot.StaticUtils.Running;
 import ChatBot.StaticUtils.SharedQueues;
 import ChatBot.StaticUtils.Utils;
+import com.google.common.util.concurrent.AbstractExecutionThreadService;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 
-public class Sender implements Runnable {
+public class SenderService extends AbstractExecutionThreadService {
+    private static final Logger logger = Logger.getLogger(SenderService.class.toString());
     private final BufferedWriter bufferedWriter;
-    private String lastmessage;
-    private final String username;
-    private final String uid;
-    private final String channel;
-    private boolean running = true;
+    private final String username = Config.getTwitchUsername();
+    private final String uid = Config.getTwitchUID();
+    private final String channel = Config.getChannelToJoin();
 
-    public void shutdown() {
-        running = false;
+    @Override
+    protected void shutDown() {
+        logger.info(SenderService.class + " stopped.");
     }
 
     @Override
-    public void run() {
-        Running.getLogger().info("Sender thread started");
-        while (Running.getRunning() && running) {
-            try {
-                String toSend = SharedQueues.sendingBlockingQueue.poll(3, TimeUnit.SECONDS);
-                if (toSend != null) {
-                    sendToChannel(toSend);
-                }
-            } catch (InterruptedException e) {
-                Running.getLogger().warning("Sender thread interrupted");
-            }
-        }
-        Running.getLogger().info("Sender thread stopped");
+    protected void startUp() {
+        logger.info(SenderService.class + " started.");
     }
 
-    public Sender(Socket socket, String channel) throws IOException {
+    @Override
+    public void run() throws InterruptedException {
+        while (Running.isBotStillRunning()) {
+            Message toSend = SharedQueues.sendingBlockingQueue.take();
+            if (toSend.isPoison()) {
+                logger.info(SenderService.class + " poisoned.");
+                break;
+            }
+            logger.fine("Received message from sendingQueue: " + toSend);
+            sendToChannel(toSend);
+        }
+    }
+
+    public SenderService(Socket socket) throws IOException {
         this.bufferedWriter = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
-        this.lastmessage = "";
-        this.username = Config.getTwitchUsername();
-        this.uid = Config.getTwitchUID();
-        this.channel = channel;
     }
 
     public void sendToServer(String msg) throws IOException {
@@ -57,7 +57,8 @@ public class Sender implements Runnable {
         bufferedWriter.flush();
     }
 
-    public void sendToChannel(String msg) {
+    public void sendToChannel(Message message) {
+        String msg = message.getMessage();
         msg = cleanMessage(msg);
         if (msg == null) {
             return;
@@ -65,22 +66,25 @@ public class Sender implements Runnable {
         if (!msg.endsWith("\r\n")) {
             msg += "\r\n";
         }
-        lastmessage = msg;
+        String uneditedMessage = msg;
         if (msg.startsWith("/w ")) {
             msg = ("PRIVMSG #jtv :" + msg);
         } else {
             msg = ("PRIVMSG " + channel + " :" + msg);
         }
         try {
-            Running.getLogger().info("Sent: " + msg.stripTrailing());
+            logger.info("Sent: " + msg.stripTrailing());
             bufferedWriter.write(msg);
             bufferedWriter.flush();
             Running.addCommandCount();
             //logs sent bot messages to database.
-            SharedQueues.messageLogBlockingQueue.add(new Command(username.toLowerCase(), uid, lastmessage, true, false, lastmessage));
+            SharedQueues.messageLogBlockingQueue.add(new Message(username.toLowerCase(), uid, uneditedMessage, true, false, uneditedMessage));
 
-        } catch (Exception e) {
-            Running.getLogger().info("Error sending message: " + msg + " to " + channel + ": " + e.getMessage());
+        } catch (IOException e) {
+            logger.info("Error sending message: " + msg + " to " + channel + ": " + e.getMessage());
+            if (Running.isBotStillRunning()) {
+                ConsoleMain.reconnect();
+            }
         }
     }
 
@@ -113,7 +117,7 @@ public class Sender implements Runnable {
             }
         }
         if (count > 24 && count > latincount * 0.30) {
-            Running.getLogger().info("Too many symbols: " + msg);
+            logger.info("Too many symbols: " + msg);
             int location = msg.indexOf(":");
             if (msg.startsWith("was", location - 3)) {
                 return msg.substring(0, location) + " not posted due to NOPERS symbol spam NOPERS";
@@ -137,7 +141,7 @@ public class Sender implements Runnable {
             String oldMessage = cleanedMessage;
             cleanedMessage = cleanedMessage.replaceAll(blacklisted, "BADWORD");
             if (!oldMessage.equals(cleanedMessage)) {
-                Running.getLogger().warning("blacklist match " + i + " for message \"" + msg + "\"");
+                logger.warning("blacklist match " + i + " for message \"" + msg + "\"");
             }
             i++;
         }
@@ -156,5 +160,21 @@ public class Sender implements Runnable {
         }
         replacedMsg = replacedMsg.replaceAll(regex, Utils.addZws(phrase));
         return replacedMsg.stripTrailing();
+    }
+
+    /**
+     * Sends handshake commands to the Twitch IRC server.
+     *
+     * @throws IOException if there was a general connection issue with the Socket/bufferedwriter.
+     */
+    public void connect() throws IOException {
+        logger.info("Starting server...");
+        sendToServer("PASS " + Config.getTwitchOauth() + "\r\n");
+        sendToServer("NICK " + Config.getTwitchUsername() + "\r\n");
+        sendToServer("USER nambot\r\n");
+        sendToServer("JOIN " + channel + "\r\n");
+        sendToServer("CAP REQ :twitch.tv/membership\r\n");
+        sendToServer("CAP REQ :twitch.tv/tags twitch.tv/commands\r\n");
+        logger.info("Credentials sent.");
     }
 }

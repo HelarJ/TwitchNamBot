@@ -1,5 +1,7 @@
 package ChatBot.StaticUtils;
 
+import ChatBot.ConsoleMain;
+
 import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
@@ -16,7 +18,6 @@ import java.util.logging.SimpleFormatter;
 public class Running {
     private static boolean running = true;
     private final static Logger logger = Logger.getLogger(Running.class.getName());
-    private static FileHandler fh;
     private static final Instant startingTime = Instant.now();
     private static int messageCount = 0;
     private static int commandCount = 0;
@@ -25,6 +26,11 @@ public class Running {
     public static List<String> blacklist = new ArrayList<>();
     public static List<String> textBlacklist = new ArrayList<>();
     public static String replacelist = "";
+    /**
+     * Is the stream online or offline. Modified by periodic API pulls.
+     */
+    public static boolean online;
+    private static boolean first = true;
 
     public static Instant getStartTime() {
         return startingTime;
@@ -71,6 +77,7 @@ public class Running {
             }
         }
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
+        FileHandler fh;
         try {
             fh = new FileHandler("log/server_" + dateFormat.format(date) + ".log");
             fh.setFormatter(new SimpleFormatter());
@@ -89,10 +96,10 @@ public class Running {
     public static void stop() {
         logger.info("Starting shutdown procedure.");
         running = false;
-        fh.close();
+        ConsoleMain.reconnect();
     }
 
-    public static boolean getRunning() {
+    public static boolean isBotStillRunning() {
         return running;
     }
 
@@ -104,5 +111,21 @@ public class Running {
         Running.replacelist = replacelist;
         Running.blacklist = blacklist;
         Running.textBlacklist = textBlacklist;
+    }
+
+    public static void setOnline() {
+        if (!online || first) {
+            online = true;
+            first = false;
+            logger.info(Config.getChannelToJoin() + " is online.");
+        }
+    }
+
+    public static void setOffline() {
+        if (online || first) {
+            online = false;
+            first = false;
+            logger.info(Config.getChannelToJoin() + " is offline.");
+        }
     }
 }

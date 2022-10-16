@@ -1,19 +1,24 @@
 package ChatBot.Dataclass;
 
 import ChatBot.StaticUtils.Running;
+import ChatBot.enums.MessageType;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
 public class Timeout {
-    private final String username;
+    private String username;
     private Instant timeout;
     private int length;
+    private String userid;
+    private final MessageType type;
 
-    public Timeout(String username, int length) {
+    public Timeout(String username, String userid, int length) {
         this.username = username;
         this.timeout = Instant.now();
         this.length = length;
+        this.userid = userid;
+        type = MessageType.TIMEOUT;
     }
 
     public boolean hasExpired() {
@@ -38,6 +43,18 @@ public class Timeout {
 
     public int getLength() {
         return length;
+    }
+
+    public String getUserid() {
+        return userid;
+    }
+
+    public Timeout(MessageType type) {
+        this.type = type;
+    }
+
+    public boolean isPoison() {
+        return type == MessageType.POISON;
     }
 
     @Override
