@@ -1,12 +1,12 @@
 package ChatBot.Service;
 
 import ChatBot.Dataclass.Message;
-import ChatBot.FtpHandler;
 import ChatBot.StaticUtils.Config;
 import ChatBot.StaticUtils.Running;
 import ChatBot.StaticUtils.SharedQueues;
 import ChatBot.StaticUtils.Utils;
 import ChatBot.dao.ApiHandler;
+import ChatBot.dao.FtpHandler;
 import ChatBot.dao.SQLHandler;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
 import org.apache.solr.client.solrj.SolrClient;

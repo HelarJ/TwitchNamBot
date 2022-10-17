@@ -1,4 +1,4 @@
-package ChatBot;
+package ChatBot.dao;
 
 import ChatBot.StaticUtils.Config;
 import org.apache.commons.net.ftp.FTPClient;

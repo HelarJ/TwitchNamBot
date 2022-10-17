@@ -27,14 +27,12 @@ public class MessageLoggerService extends AbstractExecutionThreadService {
     private final Logger logger = Logger.getLogger(CommandHandlerService.class.toString());
     private final String SQLCredentials;
     private final String solrCredentials;
-    private int lastid;
     private Instant lastCommit = Instant.now();
     private final List<SolrInputDocument> commitBacklog = new ArrayList<>();
 
     public MessageLoggerService() {
         this.SQLCredentials = Config.getSQLCredentials();
         this.solrCredentials = Config.getSolrCredentials();
-        getLastId();
     }
 
     @Override
@@ -61,24 +59,11 @@ public class MessageLoggerService extends AbstractExecutionThreadService {
             if (message.isWhisper()) {
                 recordWhisper(message);
             } else {
-                lastid++;
                 recordMessage(message);
             }
         }
     }
 
-    public void getLastId() {
-        try (Connection conn = DriverManager.getConnection(SQLCredentials);
-             PreparedStatement stmt = conn.prepareStatement("call chat_stats.sp_get_last_id()"))
-        {
-
-            ResultSet rs = stmt.executeQuery();
-            rs.next();
-            this.lastid = rs.getInt("id");
-        } catch (SQLException e) {
-            logger.severe("SQL ERROR: " + "SQLException: " + e.getMessage() + ", VendorError: " + e.getErrorCode());
-        }
-    }
 
     public void recordWhisper(Message command) {
         String username = command.getSender();
@@ -104,25 +89,28 @@ public class MessageLoggerService extends AbstractExecutionThreadService {
         boolean subscribed = command.isSubscribed();
         String time = command.getTime();
         String fullMsg = command.getFullMsg();
+        int id = 0;
         try (Connection conn = DriverManager.getConnection(SQLCredentials);
-             PreparedStatement stmt = conn.prepareStatement("CALL chat_stats.sp_log_message_all(?,?,?,?,?,?,?,?);"))
+             PreparedStatement stmt = conn.prepareStatement("SELECT chat_stats.sp_log_message_return_id(?,?,?,?,?,?,?);"))
         {
-            stmt.setInt(1, lastid);
-            stmt.setString(2, time);
-            stmt.setString(3, username);
-            stmt.setString(4, userid);
-            stmt.setString(5, message);
-            stmt.setBoolean(6, Running.online);
-            stmt.setBoolean(7, subscribed);
-            stmt.setString(8, fullMsg);
-            stmt.executeQuery();
+            stmt.setString(1, time);
+            stmt.setString(2, username);
+            stmt.setString(3, userid);
+            stmt.setString(4, message);
+            stmt.setBoolean(5, Running.online);
+            stmt.setBoolean(6, subscribed);
+            stmt.setString(7, fullMsg);
+            ResultSet resultSet = stmt.executeQuery();
+            resultSet.next();
+            id = resultSet.getInt(1);
         } catch (SQLException ex) {
             logger.severe("SQL ERROR: " + "SQLException: " + ex.getMessage() + ", VendorError: " + ex.getErrorCode() + "\r\n"
                     + username + " " + userid + " " + message);
         }
 
+
         SolrInputDocument in = new SolrInputDocument();
-        in.addField("id", lastid);
+        in.addField("id", id);
         in.addField("time", time);
         in.addField("username", username.toLowerCase());
         in.addField("message", message);
@@ -139,6 +127,7 @@ public class MessageLoggerService extends AbstractExecutionThreadService {
                 lastCommit = Instant.now();
             }
         }
+
         Running.addMessageCount();
     }
 }

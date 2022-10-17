@@ -94,11 +94,19 @@ public class Config {
     }
 
     public static String getSQLCredentials() {
-        return String.format("jdbc:mariadb://%s:%s/%s?user=%s&password=%s", configMap.get(ConfigName.NAM_DB_IP), configMap.get(ConfigName.NAM_DB_PORT), configMap.get(ConfigName.NAM_DB_NAME), configMap.get(ConfigName.NAM_DB_USER), configMap.get(ConfigName.NAM_DB_PASSWORD));
+        return String.format("jdbc:mariadb://%s:%s/%s?user=%s&password=%s",
+                configMap.get(ConfigName.NAM_DB_IP),
+                configMap.get(ConfigName.NAM_DB_PORT),
+                configMap.get(ConfigName.NAM_DB_NAME),
+                configMap.get(ConfigName.NAM_DB_USER),
+                configMap.get(ConfigName.NAM_DB_PASSWORD));
     }
 
     public static String getSolrCredentials() {
-        return String.format("http://%s:%s/solr/%s", configMap.get(ConfigName.NAM_SOLR_IP), configMap.get(ConfigName.NAM_SOLR_PORT), configMap.get(ConfigName.NAM_SOLR_CORE));
+        return String.format("http://%s:%s/solr/%s",
+                configMap.get(ConfigName.NAM_SOLR_IP),
+                configMap.get(ConfigName.NAM_SOLR_PORT),
+                configMap.get(ConfigName.NAM_SOLR_CORE));
     }
 
 }

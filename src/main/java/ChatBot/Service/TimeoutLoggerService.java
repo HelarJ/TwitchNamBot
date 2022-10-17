@@ -49,13 +49,10 @@ public class TimeoutLoggerService extends AbstractExecutionThreadService {
                         sqlHandler.addTimeoutToDatabase(timeout);
                     }
                     Running.addTimeoutCount();
-
-                    if (isTimeoutForUserAlreadyActive(timeout)) {
-                        return;
-                    }
+                    boolean active = isTimeoutForUserAlreadyActive(timeout);
 
                     //timeout expiring/adding to timeoutlist only active while stream is offline.
-                    if (timeout.getLength() > 0 && !Running.online) {
+                    if (timeout.getLength() > 0 && !Running.online && !active) {
                         timeouts.add(timeout);
                     }
                 }
