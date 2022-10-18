@@ -1,6 +1,6 @@
-package ChatBot.dataclass;
+package chatbot.dataclass;
 
-import ChatBot.enums.MessageType;
+import chatbot.enums.MessageType;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;

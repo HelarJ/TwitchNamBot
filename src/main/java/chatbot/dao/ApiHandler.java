@@ -1,8 +1,8 @@
-package ChatBot.dao;
+package chatbot.dao;
 
-import ChatBot.service.OnlineCheckerService;
-import ChatBot.utils.Config;
-import ChatBot.utils.Running;
+import chatbot.service.OnlineCheckerService;
+import chatbot.utils.Config;
+import chatbot.utils.Running;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,7 +21,7 @@ public class ApiHandler {
     private final String clientID = Config.getTwitchClientId();
     private final String secret = Config.getTwitchSecret();
     private final String channel;
-    private final String oauth;
+    public String oauth = null;
 
     public ApiHandler() {
         String channel = Config.getChannelToJoin();
@@ -30,10 +30,15 @@ public class ApiHandler {
         } else {
             this.channel = channel;
         }
-        this.oauth = getOauth();
     }
 
     //todo: add something to refresh the oauth automatically as it expires in a month from request.
+
+    /**
+     * Attempts to get an oauth from the twitch API, using credentials given in config.
+     *
+     * @return oauth key for use in twitch API requests.
+     */
     public String getOauth() {
         var values = new HashMap<String, String>();
         values.put("client_id", clientID);
@@ -106,6 +111,11 @@ public class ApiHandler {
         if (userID == null) {
             return null;
         }
+        if (oauth == null) {
+            logger.warning("No oauth for followlist.");
+            return null;
+        }
+
         HttpRequest request = HttpRequest.newBuilder()
                 .GET()
                 .uri(URI.create("https://api.twitch.tv/helix/users/follows?from_id=" + userID))

@@ -1,7 +1,7 @@
-package ChatBot.dao;
+package chatbot.dao;
 
-import ChatBot.dataclass.Message;
-import ChatBot.dataclass.Timeout;
+import chatbot.dataclass.Message;
+import chatbot.dataclass.Timeout;
 
 import java.util.List;
 import java.util.Map;

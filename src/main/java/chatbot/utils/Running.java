@@ -1,6 +1,6 @@
-package ChatBot.utils;
+package chatbot.utils;
 
-import ChatBot.ConsoleMain;
+import chatbot.ConsoleMain;
 
 import java.io.File;
 import java.io.IOException;

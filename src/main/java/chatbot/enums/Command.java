@@ -1,4 +1,4 @@
-package ChatBot.enums;
+package chatbot.enums;
 
 import java.util.Locale;
 

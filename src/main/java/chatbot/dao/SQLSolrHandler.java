@@ -1,10 +1,10 @@
-package ChatBot.dao;
+package chatbot.dao;
 
-import ChatBot.dataclass.Message;
-import ChatBot.dataclass.Timeout;
-import ChatBot.utils.Config;
-import ChatBot.utils.Running;
-import ChatBot.utils.Utils;
+import chatbot.dataclass.Message;
+import chatbot.dataclass.Timeout;
+import chatbot.utils.Config;
+import chatbot.utils.Running;
+import chatbot.utils.Utils;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;

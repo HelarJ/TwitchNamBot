@@ -1,6 +1,6 @@
-package ChatBot.dao;
+package chatbot.dao;
 
-import ChatBot.utils.Config;
+import chatbot.utils.Config;
 import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.net.ftp.FTPFile;
 import org.apache.commons.net.ftp.FTPReply;

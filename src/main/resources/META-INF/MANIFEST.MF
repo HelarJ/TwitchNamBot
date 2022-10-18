@@ -1,5 +1,5 @@
 Manifest-Version: 1.0
-Main-Class: ChatBot.ConsoleMain
+Main-Class: chatbot.ConsoleMain
 Class-Path: netty-transport-native-epoll-4.1.68.Final.jar netty-resolver
  -4.1.68.Final.jar netty-transport-native-unix-common-4.1.68.Final.jar c
  ommons-math3-3.6.1.jar http2-common-9.4.44.v20210927.jar guava-31.1-jre

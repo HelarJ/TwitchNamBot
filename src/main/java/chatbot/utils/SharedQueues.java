@@ -1,8 +1,8 @@
-package ChatBot.utils;
+package chatbot.utils;
 
-import ChatBot.dataclass.Message;
-import ChatBot.dataclass.Timeout;
-import ChatBot.enums.MessageType;
+import chatbot.dataclass.Message;
+import chatbot.dataclass.Timeout;
+import chatbot.enums.MessageType;
 
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;

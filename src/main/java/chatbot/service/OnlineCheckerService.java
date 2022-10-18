@@ -1,7 +1,7 @@
-package ChatBot.service;
+package chatbot.service;
 
-import ChatBot.dao.ApiHandler;
-import ChatBot.utils.Running;
+import chatbot.dao.ApiHandler;
+import chatbot.utils.Running;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
 
 import java.util.logging.Logger;
@@ -32,6 +32,10 @@ public class OnlineCheckerService extends AbstractExecutionThreadService {
 
     @Override
     public void run() {
+        if (apiHandler.oauth == null) {
+            apiHandler.oauth = apiHandler.getOauth();
+        }
+
         while (Running.isBotStillRunning() && running) {
             apiHandler.checkOnline(this);
         }

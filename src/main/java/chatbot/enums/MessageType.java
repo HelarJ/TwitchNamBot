@@ -1,4 +1,4 @@
-package ChatBot.enums;
+package chatbot.enums;
 
 public enum MessageType {
     MESSAGE,

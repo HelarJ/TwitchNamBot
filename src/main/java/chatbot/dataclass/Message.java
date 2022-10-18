@@ -1,7 +1,7 @@
-package ChatBot.dataclass;
+package chatbot.dataclass;
 
-import ChatBot.enums.Command;
-import ChatBot.enums.MessageType;
+import chatbot.enums.Command;
+import chatbot.enums.MessageType;
 
 import javax.annotation.Nonnull;
 import java.time.Instant;

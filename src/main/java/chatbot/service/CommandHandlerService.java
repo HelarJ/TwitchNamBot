@@ -1,14 +1,14 @@
-package ChatBot.service;
+package chatbot.service;
 
-import ChatBot.dao.ApiHandler;
-import ChatBot.dao.DatabaseHandler;
-import ChatBot.dao.FtpHandler;
-import ChatBot.dataclass.Message;
-import ChatBot.enums.Command;
-import ChatBot.utils.Config;
-import ChatBot.utils.Running;
-import ChatBot.utils.SharedQueues;
-import ChatBot.utils.Utils;
+import chatbot.dao.ApiHandler;
+import chatbot.dao.DatabaseHandler;
+import chatbot.dao.FtpHandler;
+import chatbot.dataclass.Message;
+import chatbot.enums.Command;
+import chatbot.utils.Config;
+import chatbot.utils.Running;
+import chatbot.utils.SharedQueues;
+import chatbot.utils.Utils;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
@@ -40,10 +40,10 @@ import java.util.TimeZone;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.logging.Logger;
 
-import static ChatBot.enums.Command.FIRSTMESSAGE;
-import static ChatBot.enums.Command.LASTMESSAGE;
-import static ChatBot.enums.Command.RQ;
-import static ChatBot.enums.Command.RS;
+import static chatbot.enums.Command.FIRSTMESSAGE;
+import static chatbot.enums.Command.LASTMESSAGE;
+import static chatbot.enums.Command.RQ;
+import static chatbot.enums.Command.RS;
 
 public class CommandHandlerService extends AbstractExecutionThreadService {
     private final Logger logger = Logger.getLogger(CommandHandlerService.class.toString());
@@ -60,10 +60,11 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     private final String admin = Config.getBotAdmin();
     private final String channel = Config.getChannelToJoin();
     private final DatabaseHandler sqlSolrHandler;
-    private final ApiHandler apiHandler = new ApiHandler();
+    private final ApiHandler apiHandler;
 
-    public CommandHandlerService(DatabaseHandler databaseHandler) {
+    public CommandHandlerService(DatabaseHandler databaseHandler, ApiHandler apiHandler) {
         this.sqlSolrHandler = databaseHandler;
+        this.apiHandler = apiHandler;
         FtpHandler ftpHandler = new FtpHandler();
         ftpHandler.cleanLogs();
 

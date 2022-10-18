@@ -1,4 +1,4 @@
-package ChatBot.utils;
+package chatbot.utils;
 
 public class HtmlBuilder {
 

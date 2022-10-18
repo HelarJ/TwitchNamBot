@@ -1,9 +1,9 @@
-package ChatBot.service;
+package chatbot.service;
 
-import ChatBot.dao.DatabaseHandler;
-import ChatBot.dataclass.Timeout;
-import ChatBot.utils.Running;
-import ChatBot.utils.SharedQueues;
+import chatbot.dao.DatabaseHandler;
+import chatbot.dataclass.Timeout;
+import chatbot.utils.Running;
+import chatbot.utils.SharedQueues;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
 
 import java.util.ArrayList;

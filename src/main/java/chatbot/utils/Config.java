@@ -1,6 +1,6 @@
-package ChatBot.utils;
+package chatbot.utils;
 
-import ChatBot.enums.ConfigName;
+import chatbot.enums.ConfigName;
 
 import java.io.IOException;
 import java.io.InputStream;

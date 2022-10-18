@@ -1,15 +1,16 @@
-package ChatBot;
+package chatbot;
 
-import ChatBot.dao.ApiHandler;
-import ChatBot.dao.SQLSolrHandler;
-import ChatBot.service.CommandHandlerService;
-import ChatBot.service.ListenerService;
-import ChatBot.service.MessageLoggerService;
-import ChatBot.service.OnlineCheckerService;
-import ChatBot.service.SenderService;
-import ChatBot.service.TimeoutLoggerService;
-import ChatBot.utils.Running;
-import ChatBot.utils.SharedQueues;
+import chatbot.dao.ApiHandler;
+import chatbot.dao.DatabaseHandler;
+import chatbot.dao.SQLSolrHandler;
+import chatbot.service.CommandHandlerService;
+import chatbot.service.ListenerService;
+import chatbot.service.MessageLoggerService;
+import chatbot.service.OnlineCheckerService;
+import chatbot.service.SenderService;
+import chatbot.service.TimeoutLoggerService;
+import chatbot.utils.Running;
+import chatbot.utils.SharedQueues;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.Service;
@@ -27,16 +28,22 @@ public class ProgramThread implements Runnable {
     private static final Logger logger = Logger.getLogger(ProgramThread.class.toString());
     private final ListenerService listenerService;
     private final SenderService senderService;
-    private final CommandHandlerService commandHandlerService = new CommandHandlerService(new SQLSolrHandler());
-    private final MessageLoggerService messageLoggerService = new MessageLoggerService(new SQLSolrHandler());
-    private final TimeoutLoggerService timeoutLoggerService = new TimeoutLoggerService(new SQLSolrHandler());
-    private final OnlineCheckerService onlineCheckerService = new OnlineCheckerService(new ApiHandler());
+    private final CommandHandlerService commandHandlerService;
+    private final MessageLoggerService messageLoggerService;
+    private final TimeoutLoggerService timeoutLoggerService;
+    private final OnlineCheckerService onlineCheckerService;
     private final CountDownLatch done = new CountDownLatch(1);
     private ServiceManager serviceManager;
 
     public ProgramThread() throws IOException {
+        ApiHandler apiHandler = new ApiHandler();
+        DatabaseHandler databaseHandler = new SQLSolrHandler();
         Socket socket = new Socket("irc.chat.twitch.tv", 6667);
         this.senderService = new SenderService(socket);
+        this.commandHandlerService = new CommandHandlerService(databaseHandler, apiHandler);
+        this.onlineCheckerService = new OnlineCheckerService(apiHandler);
+        this.timeoutLoggerService = new TimeoutLoggerService(databaseHandler);
+        this.messageLoggerService = new MessageLoggerService(databaseHandler);
         this.listenerService = new ListenerService(socket, commandHandlerService);
     }
 

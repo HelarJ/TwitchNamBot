@@ -1,8 +1,8 @@
-package ChatBot;
+package chatbot;
 
-import ChatBot.utils.Config;
-import ChatBot.utils.Running;
-import ChatBot.utils.SharedQueues;
+import chatbot.utils.Config;
+import chatbot.utils.Running;
+import chatbot.utils.SharedQueues;
 
 import java.io.IOException;
 import java.util.logging.Handler;
