@@ -1,14 +1,14 @@
-package ChatBot.Service;
+package ChatBot.service;
 
-import ChatBot.Dataclass.Message;
-import ChatBot.StaticUtils.Config;
-import ChatBot.StaticUtils.Running;
-import ChatBot.StaticUtils.SharedQueues;
-import ChatBot.StaticUtils.Utils;
 import ChatBot.dao.ApiHandler;
+import ChatBot.dao.DatabaseHandler;
 import ChatBot.dao.FtpHandler;
-import ChatBot.dao.SQLSolrHandler;
+import ChatBot.dataclass.Message;
 import ChatBot.enums.Command;
+import ChatBot.utils.Config;
+import ChatBot.utils.Running;
+import ChatBot.utils.SharedQueues;
+import ChatBot.utils.Utils;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
@@ -35,6 +35,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.TimeZone;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.logging.Logger;
@@ -55,15 +56,14 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     private final String website = Config.getBotWebsite();
     private final String botName = Config.getTwitchUsername();
     private List<String> godUsers;
-    private HashMap<String, List<String>> alts;
-    private HashMap<String, String> mains;
     private List<String> mods;
     private final String admin = Config.getBotAdmin();
     private final String channel = Config.getChannelToJoin();
-    private final SQLSolrHandler sqlSolrHandler = new SQLSolrHandler();
+    private final DatabaseHandler sqlSolrHandler;
     private final ApiHandler apiHandler = new ApiHandler();
 
-    public CommandHandlerService() {
+    public CommandHandlerService(DatabaseHandler databaseHandler) {
+        this.sqlSolrHandler = databaseHandler;
         FtpHandler ftpHandler = new FtpHandler();
         ftpHandler.cleanLogs();
 
@@ -243,13 +243,10 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             return;
         }
 
-        try {
-            msg = msg.substring(username.length() + 1);
+        msg = getMsgWithoutName(msg, username);
 
-        } catch (StringIndexOutOfBoundsException e) {
-            msg = "";
-        }
         username = Utils.cleanName(from, username);
+
         String phrase = Utils.getSolrPattern(msg);
 
         if (isBot(from, username)) {
@@ -280,6 +277,19 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         } catch (IOException | SolrServerException | BaseHttpSolrClient.RemoteSolrException e) {
             logger.warning(e.getMessage());
         }
+    }
+
+    private static String getMsgWithoutName(String msg, String username) {
+        try {
+            if (msg.startsWith("me ".toLowerCase())) {
+                msg = msg.substring(3);
+            } else {
+                msg = msg.substring(username.length() + 1);
+            }
+        } catch (StringIndexOutOfBoundsException e) {
+            msg = "*";
+        }
+        return msg;
     }
 
     private void search(String from, String msg) {
@@ -322,50 +332,20 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         if (username == null || username.length() == 0) {
             return;
         }
+
+        msg = getMsgWithoutName(msg, username);
+
         username = Utils.cleanName(from, username);
 
         if (!godUsers.contains(from) && !username.equalsIgnoreCase(from)) {
             return;
         }
 
-        try {
-            if (msg.startsWith("me ".toLowerCase())) {
-                msg = msg.substring(3);
-            } else {
-                msg = msg.substring(username.length() + 1);
-            }
-        } catch (StringIndexOutOfBoundsException e) {
-            msg = "";
-        }
-
         if (isBot(from, username)) {
             return;
         }
 
-        try (SolrClient solr = new HttpSolrClient.Builder(solrCredentials).build()) {
-            SolrQuery query = new SolrQuery();
-            String fullNameStr = getAlts(username);
-            query.set("q", fullNameStr);
-            query.set("fq", Utils.getSolrPattern(msg) + " AND -message:\"!rs\" AND -message:\"!searchuser\" AND -message:\"!search\" AND -message:\"!rq\"");
-            int seed = ThreadLocalRandom.current().nextInt(0, 999999999);
-            query.set("sort", "random_" + seed + " asc");
-            query.set("rows", 1);
-            QueryResponse response = solr.query(query);
-            String finalMessage = "@" + from + ", no messages found PEEPERS";
-            try {
-                SolrDocument result = response.getResults().get(0);
-                String message = (String) result.getFirstValue("message");
-                String msgName = (String) result.getFirstValue("username");
-                Date date = (Date) result.getFirstValue("time");
-                String dateStr = ("[" + date.toInstant().toString().replaceAll("T", " ").replaceAll("Z", "]"));
-                finalMessage = String.format("%s %s: %s", dateStr, Utils.addZws(msgName), message);
-            } catch (IndexOutOfBoundsException ignored) {
-            }
-            SharedQueues.sendingBlockingQueue.add(new Message(finalMessage));
-
-        } catch (IOException | BaseHttpSolrClient.RemoteSolrException | SolrServerException e) {
-            logger.warning(e.getMessage());
-        }
+        SharedQueues.sendingBlockingQueue.add(new Message(sqlSolrHandler.randomSearch(from, username, msg)));
     }
 
     private boolean isBot(String from, String username) {
@@ -566,48 +546,21 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         ArrayList<String> blacklist = new ArrayList<>();
         ArrayList<String> textBlacklist = new ArrayList<>();
         StringBuilder replacelistSb = new StringBuilder();
-        try (Connection conn = DriverManager.getConnection(SQLCredentials);
-             PreparedStatement stmt = conn.prepareStatement("call chat_stats.sp_get_blacklist()"))
-        {
-            stmt.execute();
-            ResultSet rs = stmt.getResultSet();
-
-            while (rs.next()) {
-                String word = rs.getString("word");
-                String type = rs.getString("type");
-                switch (type) {
-                    case "word" -> blacklist.add(word);
-                    case "text" -> textBlacklist.add(word);
-                    case "replace" -> replacelistSb.append("|").append(word);
-                }
+        for (Map.Entry<String, String> entry : sqlSolrHandler.getBlacklist().entrySet()) {
+            switch (entry.getValue()) {
+                case "word" -> blacklist.add(entry.getKey());
+                case "text" -> textBlacklist.add(entry.getKey());
+                case "replace" -> replacelistSb.append("|").append(entry.getKey());
             }
-            replacelistSb.replace(0, 1, "");
-            Running.setBlacklist(blacklist, textBlacklist, replacelistSb.toString());
-            logger.info("Blacklist initialized successfully " + blacklist.size() + " blacklisted words.");
-
-        } catch (SQLException e) {
-            logger.severe("SQL ERROR: " + "SQLException: " +
-                    e.getMessage() + ", VendorError: " + e.getErrorCode());
         }
+        replacelistSb.replace(0, 1, "");
+        Running.setBlacklist(blacklist, textBlacklist, replacelistSb.toString());
+        logger.info("Blacklist initialized. " + Running.blacklist.size() + " blacklisted words.");
     }
 
     private void initializeDisabled() {
-        Running.disabledUsers = new ArrayList<>();
-        try (Connection conn = DriverManager.getConnection(SQLCredentials);
-             PreparedStatement stmt = conn.prepareStatement("call chat_stats.sp_get_disabled_users()"))
-        {
-            stmt.execute();
-            ResultSet rs = stmt.getResultSet();
-            while (rs.next()) {
-                String user = rs.getString("username");
-                Running.disabledUsers.add(user.toLowerCase());
-            }
-            logger.info("Initialized disabled list successfully " + Running.disabledUsers.size() + " disabled users.");
-
-        } catch (SQLException e) {
-            logger.severe("SQL ERROR: " + "SQLException: " +
-                    e.getMessage() + ", VendorError: " + e.getErrorCode());
-        }
+        Running.disabledUsers = sqlSolrHandler.getDisabledList();
+        logger.info("Disabled list initialized. " + Running.disabledUsers.size() + " disabled users.");
     }
 
     public void addDisabled(String from, String args) {
@@ -642,8 +595,8 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     }
 
     private void initializeAlts() {
-        this.mains = new HashMap<>();
-        this.alts = new HashMap<>();
+        Running.mains = new HashMap<>();
+        Running.alts = new HashMap<>();
         try (Connection conn = DriverManager.getConnection(SQLCredentials);
              PreparedStatement stmt = conn.prepareStatement("call chat_stats.sp_get_alts()"))
         {
@@ -652,19 +605,19 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             while (rs.next()) {
                 String main = rs.getString("main").toLowerCase();
                 String alt = rs.getString("alt").toLowerCase();
-                mains.put(alt, main);
-                if (alts.containsKey(main)) {
-                    List<String> list = alts.get(main);
+                Running.mains.put(alt, main);
+                if (Running.alts.containsKey(main)) {
+                    List<String> list = Running.alts.get(main);
                     list.add(alt);
-                    alts.put(main, list);
+                    Running.alts.put(main, list);
                 } else {
-                    mains.put(main, main);
+                    Running.mains.put(main, main);
                     List<String> list = new ArrayList<>();
                     list.add(alt);
-                    alts.put(main, list);
+                    Running.alts.put(main, list);
                 }
             }
-            logger.info("Initialized alts list successfully " + alts.size() + " users with alts.");
+            logger.info("Initialized alts list successfully " + Running.alts.size() + " users with alts.");
 
         } catch (SQLException e) {
             logger.severe("SQL ERROR: " + "SQLException: " +
@@ -684,8 +637,8 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             return;
         }
         alt = alt.toLowerCase();
-        if (alts.containsKey(main)) {
-            if (alts.get(main).contains(alt)) {
+        if (Running.alts.containsKey(main)) {
+            if (Running.alts.get(main).contains(alt)) {
                 return;
             }
         }
@@ -698,16 +651,16 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
                 stmt.setString(1, main);
                 stmt.setString(2, alt);
                 stmt.executeQuery();
-                mains.put(alt, main);
-                mains.put(main, main);
+                Running.mains.put(alt, main);
+                Running.mains.put(main, main);
                 List<String> list;
-                if (alts.containsKey(main)) {
-                    list = alts.get(main);
+                if (Running.alts.containsKey(main)) {
+                    list = Running.alts.get(main);
                 } else {
                     list = new ArrayList<>();
                 }
                 list.add(alt);
-                alts.put(main, list);
+                Running.alts.put(main, list);
                 SharedQueues.sendingBlockingQueue.add(new Message("@" + from + ", added " + alt + " as " + main + "'s alt account."));
 
             } catch (SQLException e) {
@@ -803,32 +756,6 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         }
     }
 
-    private String getAlts(String username) {
-        username = username.toLowerCase();
-        if (!mains.containsKey(username)) {
-            return "username:" + username.toLowerCase();
-        }
-        String main = mains.get(username);
-        if (main == null) {
-            return "username:" + username.toLowerCase();
-        }
-        StringBuilder sb = new StringBuilder();
-        sb.append("username:");
-        sb.append(main);
-        if (Running.disabledUsers.contains(main)) {
-            return "username:" + username.toLowerCase();
-        }
-
-        for (String alt : alts.get(main)) {
-            if (!Running.disabledUsers.contains(alt)) {
-                sb.append(" OR ");
-                sb.append("username:");
-                sb.append(alt);
-            }
-        }
-        return sb.toString();
-    }
-
     private void randomQuote(String from, String args) {
         String username = Utils.getArg(args, 0);
         if (username == null) {
@@ -849,7 +776,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
 
         try (SolrClient solr = new HttpSolrClient.Builder(solrCredentials).build()) {
             SolrQuery query = new SolrQuery();
-            fullNameStr = getAlts(username);
+            fullNameStr = Running.getAlts(username);
             query.set("q", fullNameStr);
             if (year != null) {
                 query.set("fq", "-message:\"!rq\" AND -message:\"!chain\" AND -message:\"!lastmessage\" AND time:" + year);

@@ -1,8 +1,8 @@
 package ChatBot.dao;
 
-import ChatBot.Service.OnlineCheckerService;
-import ChatBot.StaticUtils.Config;
-import ChatBot.StaticUtils.Running;
+import ChatBot.service.OnlineCheckerService;
+import ChatBot.utils.Config;
+import ChatBot.utils.Running;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -33,6 +33,7 @@ public class ApiHandler {
         this.oauth = getOauth();
     }
 
+    //todo: add something to refresh the oauth automatically as it expires in a month from request.
     public String getOauth() {
         var values = new HashMap<String, String>();
         values.put("client_id", clientID);
@@ -84,26 +85,20 @@ public class ApiHandler {
                 .setHeader("Authorization", "Bearer " + oauth)
                 .setHeader("Client-ID", clientID)
                 .build();
-        String userID = null;
-        while (userID == null && Running.isBotStillRunning()) {
-            try {
-                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-                ObjectMapper mapper = new ObjectMapper();
-                String result = response.body();
+        try {
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            ObjectMapper mapper = new ObjectMapper();
+            String result = response.body();
 
-                JsonNode jsonNode = mapper.readTree(result);
-                result = jsonNode.get("data").toString();
-                result = result.substring(1, result.length() - 1);
-                logger.info(result);
-                jsonNode = mapper.readTree(result);
-                userID = jsonNode.get("id").asText();
+            JsonNode jsonNode = mapper.readTree(result);
+            String userID = jsonNode.findValue("id").asText();
+            logger.info("UserID: " + userID);
+            return userID;
 
-            } catch (IOException | InterruptedException | NullPointerException e) {
-                logger.severe("Exception in getting UID from name: " + e.getMessage());
-                return null;
-            }
+        } catch (IOException | InterruptedException | NullPointerException e) {
+            logger.severe("Exception in getting UID from name: " + e.getMessage());
+            return null;
         }
-        return userID;
     }
 
     public String getFollowList(String username) {
@@ -134,37 +129,21 @@ public class ApiHandler {
                 result = jsonNode.get("total").toString();
                 count = Integer.parseInt(result);
                 StringBuilder sb = new StringBuilder();
-                sb.append("<!DOCTYPE html>");
-                sb.append("\r\n");
-                sb.append("<html>");
-                sb.append("\r\n");
-                sb.append("<head>");
-                sb.append("\r\n");
-                sb.append("<meta charset=\"utf-8\">");
-                sb.append("\r\n");
-                sb.append("<title>");
-                sb.append("Followlist for ");
-                sb.append(username);
-                sb.append("</title>");
-                sb.append("\r\n");
-                sb.append("<!-- if you read this you are gat robDab -->");
-                sb.append("\r\n");
-                sb.append("</head>");
-                sb.append("\r\n");
-                sb.append("<body>");
-                sb.append("=========================================================");
-                sb.append("<br>\r\n");
-                sb.append("All channels followed by ");
-                sb.append(username);
-                sb.append(".");
-                sb.append("<br>\n");
-                sb.append("Total ");
-                sb.append(count);
-                sb.append(" channels followed.");
-                sb.append("<br>\n");
-                sb.append("=========================================================");
-                sb.append("<br>\n");
-                sb.append("<br>\n");
+                sb.append("""
+                        <!DOCTYPE html>
+                        <html>
+                        <head>
+                            <meta charset="utf-8">
+                            <title>Followlist for %s </title>
+                        </head>
+                        <body>
+                        =========================================================<br>
+                        All channels followed by %1$s.<br>
+                        Total %d channels followed.<br>
+                        =========================================================<br>
+                        <br>
+                        """.formatted(username, count));
+
                 String pagination = null;
                 int i = 0;
                 while (count > 1) {
@@ -217,13 +196,12 @@ public class ApiHandler {
                     }
                 }
 
-                sb.append("<br>\n");
-                sb.append("END OF FILE");
-                sb.append("<br>\n");
-                sb.append("</body>");
-                sb.append("\r\n");
-                sb.append("</html>");
-                sb.append("\r\n");
+                sb.append("""
+                        <br>
+                        END OF FILE<br>
+                        </body>
+                        </html>
+                        """);
                 return sb.toString();
             } catch (JsonProcessingException e) {
                 logger.severe("Error parsing json.");

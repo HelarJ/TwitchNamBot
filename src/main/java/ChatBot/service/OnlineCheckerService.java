@@ -1,16 +1,19 @@
-package ChatBot.Service;
+package ChatBot.service;
 
-import ChatBot.StaticUtils.Running;
 import ChatBot.dao.ApiHandler;
+import ChatBot.utils.Running;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
 
 import java.util.logging.Logger;
 
 public class OnlineCheckerService extends AbstractExecutionThreadService {
     private final Logger logger = Logger.getLogger(OnlineCheckerService.class.toString());
-    private final ApiHandler apiHandler = new ApiHandler();
-
+    private final ApiHandler apiHandler;
     public boolean running = true;
+
+    public OnlineCheckerService(ApiHandler apiHandler) {
+        this.apiHandler = apiHandler;
+    }
 
     @Override
     protected void triggerShutdown() {

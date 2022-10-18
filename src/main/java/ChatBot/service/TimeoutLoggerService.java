@@ -1,10 +1,9 @@
-package ChatBot.Service;
+package ChatBot.service;
 
-import ChatBot.Dataclass.Timeout;
-import ChatBot.StaticUtils.Running;
-import ChatBot.StaticUtils.SharedQueues;
 import ChatBot.dao.DatabaseHandler;
-import ChatBot.dao.SQLSolrHandler;
+import ChatBot.dataclass.Timeout;
+import ChatBot.utils.Running;
+import ChatBot.utils.SharedQueues;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
 
 import java.util.ArrayList;
@@ -15,14 +14,12 @@ import java.util.logging.Logger;
 
 public class TimeoutLoggerService extends AbstractExecutionThreadService {
     private final Logger logger = Logger.getLogger(TimeoutLoggerService.class.toString());
-    private final ArrayList<Timeout> timeouts;
-    private final HashSet<String> usernames;
+    private final ArrayList<Timeout> timeouts = new ArrayList<>();
+    private final HashSet<String> usernames = new HashSet<>();
     private final DatabaseHandler databaseHandler;
 
-    public TimeoutLoggerService() {
-        this.usernames = new HashSet<>();
-        timeouts = new ArrayList<>();
-        databaseHandler = new SQLSolrHandler();
+    public TimeoutLoggerService(DatabaseHandler databaseHandler) {
+        this.databaseHandler = databaseHandler;
     }
 
     @Override

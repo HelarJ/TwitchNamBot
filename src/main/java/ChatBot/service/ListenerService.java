@@ -1,11 +1,11 @@
-package ChatBot.Service;
+package ChatBot.service;
 
 import ChatBot.ConsoleMain;
-import ChatBot.Dataclass.Message;
-import ChatBot.Dataclass.Timeout;
-import ChatBot.StaticUtils.Config;
-import ChatBot.StaticUtils.Running;
-import ChatBot.StaticUtils.SharedQueues;
+import ChatBot.dataclass.Message;
+import ChatBot.dataclass.Timeout;
+import ChatBot.utils.Config;
+import ChatBot.utils.Running;
+import ChatBot.utils.SharedQueues;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
 
 import java.io.BufferedReader;
@@ -113,6 +113,7 @@ public class ListenerService extends AbstractExecutionThreadService {
                     int banTime = Integer.parseInt(output.substring(output.indexOf("=") + 1, output.indexOf(";")).strip());
                     logger.info(String.format("User %s timed out for %ds", name, banTime));
                     if (banTime >= 121059319) {
+                        //todo move this and remove commandhandler dependency
                         commandHandlerService.addDisabled("Autoban", name);
                         SharedQueues.messageLogBlockingQueue.add(new Message(name, userid, "User was permanently banned.", false, false, output));
                         Running.addPermabanCount();

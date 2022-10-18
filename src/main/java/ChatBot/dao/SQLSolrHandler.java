@@ -1,10 +1,10 @@
 package ChatBot.dao;
 
-import ChatBot.Dataclass.Message;
-import ChatBot.Dataclass.Timeout;
-import ChatBot.StaticUtils.Config;
-import ChatBot.StaticUtils.Running;
-import ChatBot.StaticUtils.Utils;
+import ChatBot.dataclass.Message;
+import ChatBot.dataclass.Timeout;
+import ChatBot.utils.Config;
+import ChatBot.utils.Running;
+import ChatBot.utils.Utils;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
@@ -24,7 +24,10 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.logging.Logger;
 
 public class SQLSolrHandler implements DatabaseHandler {
@@ -174,24 +177,89 @@ public class SQLSolrHandler implements DatabaseHandler {
             query.set("sort", "time asc");
             query.set("rows", 1);
             QueryResponse response = solr.query(query);
-
-            try {
-                SolrDocument result = response.getResults().get(0);
-                String message = (String) result.getFirstValue("message");
-                String msgName = (String) result.getFirstValue("username");
-                if (Running.disabledUsers.contains(msgName.toLowerCase())) {
-                    msgName = "<redacted>";
-                }
-                Date date = (Date) result.getFirstValue("time");
-                String dateStr = ("[" + date.toInstant().toString().replaceAll("T", " ").replaceAll("Z", "]"));
-                return String.format("@%s, first occurrence: %s %s: %s", from, dateStr, Utils.addZws(msgName), message);
-            } catch (IndexOutOfBoundsException ignored) {
+            if (response.getResults().getNumFound() == 0) {
                 return "@" + from + ", no messages found PEEPERS";
             }
+            SolrDocument result = response.getResults().get(0);
+            String message = (String) result.getFirstValue("message");
+            String msgName = (String) result.getFirstValue("username");
+            if (Running.disabledUsers.contains(msgName.toLowerCase())) {
+                msgName = "<redacted>";
+            }
+            Date date = (Date) result.getFirstValue("time");
+            String dateStr = ("[" + date.toInstant().toString().replaceAll("T", " ").replaceAll("Z", "]"));
+            return String.format("@%s, first occurrence: %s %s: %s", from, dateStr, Utils.addZws(msgName), message);
 
         } catch (IOException | BaseHttpSolrClient.RemoteSolrException | SolrServerException e) {
             logger.warning(e.getMessage());
             return "Internal error Deadlole";
         }
+    }
+
+    @Override
+    public String randomSearch(String from, String username, String msg) {
+        try (SolrClient solr = new HttpSolrClient.Builder(solrCredentials).build()) {
+            SolrQuery query = new SolrQuery();
+            String fullNameStr = Running.getAlts(username);
+            query.set("q", fullNameStr);
+            query.set("fq", Utils.getSolrPattern(msg) + " AND -message:\"!rs\" AND -message:\"!searchuser\" AND -message:\"!search\" AND -message:\"!rq\"");
+            int seed = ThreadLocalRandom.current().nextInt(0, 999999999);
+            query.set("sort", "random_" + seed + " asc");
+            query.set("rows", 1);
+            QueryResponse response = solr.query(query);
+            if (response.getResults().getNumFound() == 0) {
+                return "@" + from + ", no messages found PEEPERS";
+            }
+            SolrDocument result = response.getResults().get(0);
+            String message = (String) result.getFirstValue("message");
+            String msgName = (String) result.getFirstValue("username");
+            Date date = (Date) result.getFirstValue("time");
+            String dateStr = ("[" + date.toInstant().toString().replaceAll("T", " ").replaceAll("Z", "]"));
+            return String.format("%s %s: %s", dateStr, Utils.addZws(msgName), message);
+
+        } catch (IOException | BaseHttpSolrClient.RemoteSolrException | SolrServerException e) {
+            logger.warning(e.getMessage());
+            return "Internal error Deadlole";
+        }
+    }
+
+    @Override
+    public Map<String, String> getBlacklist() {
+        Map<String, String> resultMap = new HashMap<>();
+
+        try (Connection conn = DriverManager.getConnection(sqlCredentials);
+             PreparedStatement stmt = conn.prepareStatement("call chat_stats.sp_get_blacklist()"))
+        {
+            stmt.execute();
+            ResultSet rs = stmt.getResultSet();
+
+            while (rs.next()) {
+                String word = rs.getString("word");
+                String type = rs.getString("type");
+                resultMap.put(word, type);
+            }
+            logger.info("Blacklist pulled successfully " + resultMap.size() + " blacklisted words.");
+        } catch (SQLException e) {
+            logger.severe("SQLException: " + e.getMessage() + ", VendorError: " + e.getErrorCode());
+        }
+        return resultMap;
+    }
+
+    @Override
+    public List<String> getDisabledList() {
+        List<String> list = new ArrayList<>();
+        try (Connection conn = DriverManager.getConnection(sqlCredentials);
+             PreparedStatement stmt = conn.prepareStatement("call chat_stats.sp_get_disabled_users()"))
+        {
+            stmt.execute();
+            ResultSet rs = stmt.getResultSet();
+            while (rs.next()) {
+                String user = rs.getString("username");
+                list.add(user.toLowerCase());
+            }
+        } catch (SQLException e) {
+            logger.severe("SQLException: " + e.getMessage() + ", VendorError: " + e.getErrorCode());
+        }
+        return list;
     }
 }

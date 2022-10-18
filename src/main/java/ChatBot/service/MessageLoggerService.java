@@ -1,18 +1,20 @@
-package ChatBot.Service;
+package ChatBot.service;
 
-import ChatBot.Dataclass.Message;
-import ChatBot.StaticUtils.Running;
-import ChatBot.StaticUtils.SharedQueues;
 import ChatBot.dao.DatabaseHandler;
-import ChatBot.dao.SQLSolrHandler;
+import ChatBot.dataclass.Message;
+import ChatBot.utils.Running;
+import ChatBot.utils.SharedQueues;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
 
 import java.util.logging.Logger;
 
 public class MessageLoggerService extends AbstractExecutionThreadService {
     private final Logger logger = Logger.getLogger(CommandHandlerService.class.toString());
+    private final DatabaseHandler sqlSolrHandler;
 
-    private final DatabaseHandler sqlSolrHandler = new SQLSolrHandler();
+    public MessageLoggerService(DatabaseHandler databaseHandler) {
+        sqlSolrHandler = databaseHandler;
+    }
 
     @Override
     protected void shutDown() {

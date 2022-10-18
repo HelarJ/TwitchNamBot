@@ -1,4 +1,4 @@
-package ChatBot.StaticUtils;
+package ChatBot.utils;
 
 import java.util.ArrayList;
 import java.util.List;

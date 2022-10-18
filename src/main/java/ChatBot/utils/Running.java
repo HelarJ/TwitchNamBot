@@ -1,4 +1,4 @@
-package ChatBot.StaticUtils;
+package ChatBot.utils;
 
 import ChatBot.ConsoleMain;
 
@@ -8,6 +8,7 @@ import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.logging.FileHandler;
 import java.util.logging.Level;
@@ -29,6 +30,8 @@ public class Running {
 
     //todo switch to a database based check instead of using local state.
     public static List<String> disabledUsers = new ArrayList<>();
+    public static HashMap<String, List<String>> alts;
+    public static HashMap<String, String> mains;
 
     /**
      * Is the stream online or offline. Modified by periodic API pulls.
@@ -60,7 +63,7 @@ public class Running {
         return timeoutCount;
     }
 
-    public synchronized void addTimeoutCount() {
+    public static synchronized void addTimeoutCount() {
         timeoutCount++;
     }
 
@@ -128,4 +131,31 @@ public class Running {
             logger.info(Config.getChannelToJoin() + " is offline.");
         }
     }
+
+    public static String getAlts(String username) {
+        username = username.toLowerCase();
+        if (!mains.containsKey(username)) {
+            return "username:" + username.toLowerCase();
+        }
+        String main = mains.get(username);
+        if (main == null) {
+            return "username:" + username.toLowerCase();
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("username:");
+        sb.append(main);
+        if (Running.disabledUsers.contains(main)) {
+            return "username:" + username.toLowerCase();
+        }
+
+        for (String alt : alts.get(main)) {
+            if (!Running.disabledUsers.contains(alt)) {
+                sb.append(" OR ");
+                sb.append("username:");
+                sb.append(alt);
+            }
+        }
+        return sb.toString();
+    }
+
 }

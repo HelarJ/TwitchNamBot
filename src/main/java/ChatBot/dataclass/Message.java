@@ -1,4 +1,4 @@
-package ChatBot.Dataclass;
+package ChatBot.dataclass;
 
 import ChatBot.enums.Command;
 import ChatBot.enums.MessageType;

@@ -1,7 +1,10 @@
 package ChatBot.dao;
 
-import ChatBot.Dataclass.Message;
-import ChatBot.Dataclass.Timeout;
+import ChatBot.dataclass.Message;
+import ChatBot.dataclass.Timeout;
+
+import java.util.List;
+import java.util.Map;
 
 public interface DatabaseHandler {
     void addUsername(Timeout timeout);
@@ -17,4 +20,10 @@ public interface DatabaseHandler {
     void recordMessage(Message message);
 
     String firstOccurrence(String from, String msg);
+
+    String randomSearch(String from, String username, String msg);
+
+    Map<String, String> getBlacklist();
+
+    List<String> getDisabledList();
 }

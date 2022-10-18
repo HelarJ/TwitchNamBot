@@ -1,4 +1,4 @@
-package ChatBot.StaticUtils;
+package ChatBot.utils;
 
 import ChatBot.enums.ConfigName;
 

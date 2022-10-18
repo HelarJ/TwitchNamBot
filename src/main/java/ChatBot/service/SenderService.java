@@ -1,11 +1,11 @@
-package ChatBot.Service;
+package ChatBot.service;
 
 import ChatBot.ConsoleMain;
-import ChatBot.Dataclass.Message;
-import ChatBot.StaticUtils.Config;
-import ChatBot.StaticUtils.Running;
-import ChatBot.StaticUtils.SharedQueues;
-import ChatBot.StaticUtils.Utils;
+import ChatBot.dataclass.Message;
+import ChatBot.utils.Config;
+import ChatBot.utils.Running;
+import ChatBot.utils.SharedQueues;
+import ChatBot.utils.Utils;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
 
 import java.io.BufferedWriter;

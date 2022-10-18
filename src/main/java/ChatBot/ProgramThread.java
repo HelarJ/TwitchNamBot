@@ -1,13 +1,15 @@
 package ChatBot;
 
-import ChatBot.Service.CommandHandlerService;
-import ChatBot.Service.ListenerService;
-import ChatBot.Service.MessageLoggerService;
-import ChatBot.Service.OnlineCheckerService;
-import ChatBot.Service.SenderService;
-import ChatBot.Service.TimeoutLoggerService;
-import ChatBot.StaticUtils.Running;
-import ChatBot.StaticUtils.SharedQueues;
+import ChatBot.dao.ApiHandler;
+import ChatBot.dao.SQLSolrHandler;
+import ChatBot.service.CommandHandlerService;
+import ChatBot.service.ListenerService;
+import ChatBot.service.MessageLoggerService;
+import ChatBot.service.OnlineCheckerService;
+import ChatBot.service.SenderService;
+import ChatBot.service.TimeoutLoggerService;
+import ChatBot.utils.Running;
+import ChatBot.utils.SharedQueues;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.Service;
@@ -25,10 +27,10 @@ public class ProgramThread implements Runnable {
     private static final Logger logger = Logger.getLogger(ProgramThread.class.toString());
     private final ListenerService listenerService;
     private final SenderService senderService;
-    private final CommandHandlerService commandHandlerService = new CommandHandlerService();
-    private final MessageLoggerService messageLoggerService = new MessageLoggerService();
-    private final TimeoutLoggerService timeoutLoggerService = new TimeoutLoggerService();
-    private final OnlineCheckerService onlineCheckerService = new OnlineCheckerService();
+    private final CommandHandlerService commandHandlerService = new CommandHandlerService(new SQLSolrHandler());
+    private final MessageLoggerService messageLoggerService = new MessageLoggerService(new SQLSolrHandler());
+    private final TimeoutLoggerService timeoutLoggerService = new TimeoutLoggerService(new SQLSolrHandler());
+    private final OnlineCheckerService onlineCheckerService = new OnlineCheckerService(new ApiHandler());
     private final CountDownLatch done = new CountDownLatch(1);
     private ServiceManager serviceManager;
 
