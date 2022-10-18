@@ -2,8 +2,8 @@ package chatbot.dao;
 
 import chatbot.dataclass.Message;
 import chatbot.dataclass.Timeout;
+import chatbot.singleton.SharedStateSingleton;
 import chatbot.utils.Config;
-import chatbot.utils.SharedStateSingleton;
 import chatbot.utils.Utils;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
@@ -201,7 +201,7 @@ public class SQLSolrHandler implements DatabaseHandler {
     public String randomSearch(String from, String username, String msg) {
         try (SolrClient solr = new HttpSolrClient.Builder(solrCredentials).build()) {
             SolrQuery query = new SolrQuery();
-            String fullNameStr = state.getAlts(username);
+            String fullNameStr = state.getAltsSolrString(username);
             query.set("q", fullNameStr);
             query.set("fq", Utils.getSolrPattern(msg) + " AND -message:\"!rs\" AND -message:\"!searchuser\" AND -message:\"!search\" AND -message:\"!rq\"");
             int seed = ThreadLocalRandom.current().nextInt(0, 999999999);

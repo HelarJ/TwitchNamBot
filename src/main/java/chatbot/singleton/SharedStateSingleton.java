@@ -1,9 +1,10 @@
-package chatbot.utils;
+package chatbot.singleton;
 
 import chatbot.ConsoleMain;
 import chatbot.dataclass.Message;
 import chatbot.dataclass.Timeout;
 import chatbot.enums.MessageType;
+import chatbot.utils.Config;
 
 import java.util.HashMap;
 import java.util.List;
@@ -19,10 +20,12 @@ public class SharedStateSingleton {
     private static final Logger logger = Logger.getLogger(SharedStateSingleton.class.toString());
 
     private static final AtomicBoolean running = new AtomicBoolean(true);
+
     private final AtomicInteger messageCount = new AtomicInteger(0);
     private final AtomicInteger sentMessageCount = new AtomicInteger(0);
     private final AtomicInteger timeoutCount = new AtomicInteger(0);
     private final AtomicInteger permabanCount = new AtomicInteger(0);
+
     public AtomicBoolean online = new AtomicBoolean();
     private static boolean first = true;
 
@@ -88,7 +91,7 @@ public class SharedStateSingleton {
         this.disabledUsers.addAll(disabledUsers);
     }
 
-    public String getAlts(String username) {
+    public String getAltsSolrString(String username) {
         username = username.toLowerCase();
         if (!mains.containsKey(username)) {
             return "username:" + username.toLowerCase();
@@ -140,9 +143,6 @@ public class SharedStateSingleton {
         ConsoleMain.reconnect();
     }
 
-    /**
-     * Queue for commands.
-     */
     public BlockingQueue<Message> messageBlockingQueue;
     /**
      * Queue for sending messages to chat.

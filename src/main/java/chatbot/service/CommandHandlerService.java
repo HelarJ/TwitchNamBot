@@ -5,9 +5,9 @@ import chatbot.dao.DatabaseHandler;
 import chatbot.dao.FtpHandler;
 import chatbot.dataclass.Message;
 import chatbot.enums.Command;
+import chatbot.singleton.SharedStateSingleton;
 import chatbot.utils.Config;
 import chatbot.utils.Running;
-import chatbot.utils.SharedStateSingleton;
 import chatbot.utils.Utils;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
 import org.apache.solr.client.solrj.SolrClient;
@@ -781,7 +781,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
 
         try (SolrClient solr = new HttpSolrClient.Builder(solrCredentials).build()) {
             SolrQuery query = new SolrQuery();
-            fullNameStr = state.getAlts(username);
+            fullNameStr = state.getAltsSolrString(username);
             query.set("q", fullNameStr);
             if (year != null) {
                 query.set("fq", "-message:\"!rq\" AND -message:\"!chain\" AND -message:\"!lastmessage\" AND time:" + year);

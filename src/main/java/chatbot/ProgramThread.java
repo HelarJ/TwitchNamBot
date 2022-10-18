@@ -9,7 +9,7 @@ import chatbot.service.MessageLoggerService;
 import chatbot.service.OnlineCheckerService;
 import chatbot.service.SenderService;
 import chatbot.service.TimeoutLoggerService;
-import chatbot.utils.SharedStateSingleton;
+import chatbot.singleton.SharedStateSingleton;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.Service;

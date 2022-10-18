@@ -1,8 +1,8 @@
 package chatbot.dao;
 
 import chatbot.service.OnlineCheckerService;
+import chatbot.singleton.SharedStateSingleton;
 import chatbot.utils.Config;
-import chatbot.utils.SharedStateSingleton;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

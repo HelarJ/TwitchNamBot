@@ -3,8 +3,8 @@ package chatbot.service;
 import chatbot.ConsoleMain;
 import chatbot.dataclass.Message;
 import chatbot.dataclass.Timeout;
+import chatbot.singleton.SharedStateSingleton;
 import chatbot.utils.Config;
-import chatbot.utils.SharedStateSingleton;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
 
 import java.io.BufferedReader;

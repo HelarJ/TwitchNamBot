@@ -2,8 +2,8 @@ package chatbot.service;
 
 import chatbot.ConsoleMain;
 import chatbot.dataclass.Message;
+import chatbot.singleton.SharedStateSingleton;
 import chatbot.utils.Config;
-import chatbot.utils.SharedStateSingleton;
 import chatbot.utils.Utils;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
 

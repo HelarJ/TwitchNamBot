@@ -2,7 +2,7 @@ package chatbot.service;
 
 import chatbot.dao.DatabaseHandler;
 import chatbot.dataclass.Message;
-import chatbot.utils.SharedStateSingleton;
+import chatbot.singleton.SharedStateSingleton;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
 
 import java.util.logging.Logger;

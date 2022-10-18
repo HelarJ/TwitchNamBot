@@ -1,8 +1,8 @@
 package chatbot;
 
+import chatbot.singleton.SharedStateSingleton;
 import chatbot.utils.Config;
 import chatbot.utils.Running;
-import chatbot.utils.SharedStateSingleton;
 
 import java.io.IOException;
 import java.util.logging.Handler;
