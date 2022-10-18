@@ -9,8 +9,7 @@ import chatbot.service.MessageLoggerService;
 import chatbot.service.OnlineCheckerService;
 import chatbot.service.SenderService;
 import chatbot.service.TimeoutLoggerService;
-import chatbot.utils.Running;
-import chatbot.utils.SharedQueues;
+import chatbot.utils.SharedStateSingleton;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.Service;
@@ -34,8 +33,10 @@ public class ProgramThread implements Runnable {
     private final OnlineCheckerService onlineCheckerService;
     private final CountDownLatch done = new CountDownLatch(1);
     private ServiceManager serviceManager;
+    private final SharedStateSingleton state = SharedStateSingleton.getInstance();
 
     public ProgramThread() throws IOException {
+
         ApiHandler apiHandler = new ApiHandler();
         DatabaseHandler databaseHandler = new SQLSolrHandler();
         Socket socket = new Socket("irc.chat.twitch.tv", 6667);
@@ -60,7 +61,7 @@ public class ProgramThread implements Runnable {
 
             done.await();
 
-            SharedQueues.poisonQueues();
+            state.poisonQueues();
             serviceManager.stopAsync();
             serviceManager.awaitStopped(60, TimeUnit.SECONDS);
 
@@ -72,7 +73,7 @@ public class ProgramThread implements Runnable {
                     ". Current states: " + serviceManager.servicesByState());
 
             //Having services still running might lead to issues, so we close the program completely.
-            Running.stop();
+            state.stop();
         }
 
         logger.info("Mainthread thread ended.");

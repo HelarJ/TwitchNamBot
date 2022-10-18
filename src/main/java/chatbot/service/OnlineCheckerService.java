@@ -1,7 +1,7 @@
 package chatbot.service;
 
 import chatbot.dao.ApiHandler;
-import chatbot.utils.Running;
+import chatbot.utils.SharedStateSingleton;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
 
 import java.util.logging.Logger;
@@ -10,6 +10,7 @@ public class OnlineCheckerService extends AbstractExecutionThreadService {
     private final Logger logger = Logger.getLogger(OnlineCheckerService.class.toString());
     private final ApiHandler apiHandler;
     public boolean running = true;
+    private final SharedStateSingleton state = SharedStateSingleton.getInstance();
 
     public OnlineCheckerService(ApiHandler apiHandler) {
         this.apiHandler = apiHandler;
@@ -36,7 +37,7 @@ public class OnlineCheckerService extends AbstractExecutionThreadService {
             apiHandler.oauth = apiHandler.getOauth();
         }
 
-        while (Running.isBotStillRunning() && running) {
+        while (state.isBotStillRunning() && running) {
             apiHandler.checkOnline(this);
         }
     }

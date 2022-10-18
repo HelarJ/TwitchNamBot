@@ -2,8 +2,7 @@ package chatbot.service;
 
 import chatbot.dao.DatabaseHandler;
 import chatbot.dataclass.Timeout;
-import chatbot.utils.Running;
-import chatbot.utils.SharedQueues;
+import chatbot.utils.SharedStateSingleton;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
 
 import java.util.ArrayList;
@@ -17,6 +16,7 @@ public class TimeoutLoggerService extends AbstractExecutionThreadService {
     private final ArrayList<Timeout> timeouts = new ArrayList<>();
     private final HashSet<String> usernames = new HashSet<>();
     private final DatabaseHandler databaseHandler;
+    private final SharedStateSingleton state = SharedStateSingleton.getInstance();
 
     public TimeoutLoggerService(DatabaseHandler databaseHandler) {
         this.databaseHandler = databaseHandler;
@@ -35,9 +35,9 @@ public class TimeoutLoggerService extends AbstractExecutionThreadService {
     @Override
     public void run() {
 
-        while (Running.isBotStillRunning()) {
+        while (state.isBotStillRunning()) {
             try {
-                Timeout timeout = SharedQueues.timeoutBlockingQueue.poll(3, TimeUnit.SECONDS);
+                Timeout timeout = state.timeoutBlockingQueue.poll(3, TimeUnit.SECONDS);
                 if (timeout != null) {
                     if (timeout.isPoison()) {
                         logger.info(TimeoutLoggerService.class + " poisoned.");
@@ -46,11 +46,11 @@ public class TimeoutLoggerService extends AbstractExecutionThreadService {
                     if (timeout.getLength() > 0) {
                         databaseHandler.addTimeout(timeout);
                     }
-                    Running.addTimeoutCount();
+                    state.increaseTimeoutCount();
                     boolean active = isTimeoutForUserAlreadyActive(timeout);
 
                     //timeout expiring/adding to timeoutlist only active while stream is offline.
-                    if (timeout.getLength() > 0 && !Running.online && !active) {
+                    if (timeout.getLength() > 0 && !state.online.get() && !active) {
                         timeouts.add(timeout);
                     }
                 }

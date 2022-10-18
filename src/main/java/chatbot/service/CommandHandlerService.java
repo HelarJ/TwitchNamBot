@@ -7,7 +7,7 @@ import chatbot.dataclass.Message;
 import chatbot.enums.Command;
 import chatbot.utils.Config;
 import chatbot.utils.Running;
-import chatbot.utils.SharedQueues;
+import chatbot.utils.SharedStateSingleton;
 import chatbot.utils.Utils;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
 import org.apache.solr.client.solrj.SolrClient;
@@ -61,6 +61,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     private final String channel = Config.getChannelToJoin();
     private final DatabaseHandler sqlSolrHandler;
     private final ApiHandler apiHandler;
+    private final SharedStateSingleton state = SharedStateSingleton.getInstance();
 
     public CommandHandlerService(DatabaseHandler databaseHandler, ApiHandler apiHandler) {
         this.sqlSolrHandler = databaseHandler;
@@ -88,15 +89,15 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             initializeAlts();
             initializeBlacklist();
             if (!from.equals("Startup")) {
-                SharedQueues.sendingBlockingQueue.add(new Message("Lists refreshed HACKERMANS"));
+                state.sendingBlockingQueue.add(new Message("Lists refreshed HACKERMANS"));
             }
         }
     }
 
     @Override
     public void run() throws InterruptedException {
-        while (Running.isBotStillRunning()) {
-            Message message = SharedQueues.messageBlockingQueue.take();
+        while (state.isBotStillRunning()) {
+            Message message = state.messageBlockingQueue.take();
             if (message.isPoison()) {
                 logger.info(CommandHandlerService.class + " poisoned.");
                 break;
@@ -115,6 +116,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         String argStr = message.getArguments();
         logger.info(String.format("%s used %s with arguments [%s].", name, command, argStr));
         if (isNotAllowed(name, argStr, command)) {
+            logger.info(name + " not allowed to use command " + command);
             return;
         }
 
@@ -145,7 +147,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
 
 
     private void namCommands(String name) {
-        SharedQueues.sendingBlockingQueue.add(new Message("@" + name + ", commands for this bot: " + website.substring(0, website.length() - 5) + "/commands"));
+        state.sendingBlockingQueue.add(new Message("@" + name + ", commands for this bot: " + website.substring(0, website.length() - 5) + "/commands"));
 
 
     }
@@ -159,7 +161,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             username = Utils.cleanName(from, args);
 
             superbanned.put(username, Instant.now());
-            SharedQueues.sendingBlockingQueue.add(new Message("Banned " + username + " from using the bot for 1h."));
+            state.sendingBlockingQueue.add(new Message("Banned " + username + " from using the bot for 1h."));
         }
     }
 
@@ -194,9 +196,9 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
                 names.deleteCharAt(0);
                 names.deleteCharAt(0);
                 names.reverse();
-                SharedQueues.sendingBlockingQueue.add(new Message(names.toString()));
+                state.sendingBlockingQueue.add(new Message(names.toString()));
             } else if (amount == 0) {
-                SharedQueues.sendingBlockingQueue.add(new Message("@" + from + ", no alternate names found in logs PEEPERS"));
+                state.sendingBlockingQueue.add(new Message("@" + from + ", no alternate names found in logs PEEPERS"));
             }
         } catch (SQLException e) {
             logger.severe("SQL ERROR: " + "SQLException: " + e.getMessage() + ", VendorError: " + e.getErrorCode());
@@ -213,18 +215,18 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             return;
         }
         int choice = ThreadLocalRandom.current().nextInt(0, choices.length);
-        SharedQueues.sendingBlockingQueue.add(new Message(String.format("@%s, I choose %s", from, choices[choice])));
+        state.sendingBlockingQueue.add(new Message(String.format("@%s, I choose %s", from, choices[choice])));
         lastCommandTime = Instant.now();
     }
 
     private void ping() {
-        SharedQueues.sendingBlockingQueue.add(new Message(
+        state.sendingBlockingQueue.add(new Message(
                 String.format("NamBot online for %s | %d messages sent | %d messages logged | %d timeouts logged, of which %d were permabans.",
                         (Utils.convertTime((int) (Instant.now().minus(Running.getStartTime().toEpochMilli(), ChronoUnit.MILLIS).toEpochMilli() / 1000))),
-                        Running.getCommandCount(),
-                        Running.getMessageCount(),
-                        Running.getTimeoutCount(),
-                        Running.getPermabanCount()
+                        state.getSentMessageCount(),
+                        state.getMessageCount(),
+                        state.getTimeoutCount(),
+                        state.getPermabanCount()
                 )));
     }
 
@@ -273,7 +275,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
                 }*/
             } catch (IndexOutOfBoundsException ignored) {
             }
-            SharedQueues.sendingBlockingQueue.add(new Message(finalMessage));
+            state.sendingBlockingQueue.add(new Message(finalMessage));
 
         } catch (IOException | SolrServerException | BaseHttpSolrClient.RemoteSolrException e) {
             logger.warning(e.getMessage());
@@ -314,7 +316,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
                 }*/
             } catch (IndexOutOfBoundsException ignored) {
             }
-            SharedQueues.sendingBlockingQueue.add(new Message(finalMessage));
+            state.sendingBlockingQueue.add(new Message(finalMessage));
 
         } catch (IOException | BaseHttpSolrClient.RemoteSolrException | SolrServerException e) {
             logger.warning(e.getMessage());
@@ -325,7 +327,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         if (!godUsers.contains(from)) {
             return;
         }
-        SharedQueues.sendingBlockingQueue.add(new Message(sqlSolrHandler.firstOccurrence(from, msg)));
+        state.sendingBlockingQueue.add(new Message(sqlSolrHandler.firstOccurrence(from, msg)));
     }
 
     private void randomSearch(String from, String msg) {
@@ -346,26 +348,26 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             return;
         }
 
-        SharedQueues.sendingBlockingQueue.add(new Message(sqlSolrHandler.randomSearch(from, username, msg)));
+        state.sendingBlockingQueue.add(new Message(sqlSolrHandler.randomSearch(from, username, msg)));
     }
 
     private boolean isBot(String from, String username) {
         if (username.toLowerCase().equals(botName)) {
-            SharedQueues.sendingBlockingQueue.add(new Message("PepeSpin"));
+            state.sendingBlockingQueue.add(new Message("PepeSpin"));
             return true;
         }
 
         if (!godUsers.contains(from) && (username.contains("*") || username.contains("?") || username.contains("~") || username.contains("{")
                 || username.contains("[")))
         {
-            SharedQueues.sendingBlockingQueue.add(new Message("@" + from + ", no wildcards allowed in username NOPERS"));
+            state.sendingBlockingQueue.add(new Message("@" + from + ", no wildcards allowed in username NOPERS"));
             return true;
         }
         return false;
     }
 
     public void userNam(String from, String args) {
-        if (Running.online) {
+        if (state.online.get()) {
             logger.info("Attempted to use !NaM while stream is online");
             return;
         }
@@ -381,9 +383,9 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         int timeout = sqlSolrHandler.getTimeoutAmount(username);
         if (timeout > 0) {
             if (from.equals(username)) {
-                SharedQueues.sendingBlockingQueue.add(new Message(String.format("%s, you have spent %s in the shadow realm.", username, Utils.convertTime(timeout))));
+                state.sendingBlockingQueue.add(new Message(String.format("%s, you have spent %s in the shadow realm.", username, Utils.convertTime(timeout))));
             } else {
-                SharedQueues.sendingBlockingQueue.add(new Message(String.format("%s has spent %s in the shadow realm.", Utils.addZws(username), Utils.convertTime(timeout))));
+                state.sendingBlockingQueue.add(new Message(String.format("%s has spent %s in the shadow realm.", Utils.addZws(username), Utils.convertTime(timeout))));
             }
 
         }
@@ -414,7 +416,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
                         Utils.addZws(username),
                         convertedTime,
                         message);
-                SharedQueues.sendingBlockingQueue.add(new Message(finalMessage));
+                state.sendingBlockingQueue.add(new Message(finalMessage));
             }
 
         } catch (SQLException e) {
@@ -450,7 +452,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
                         Utils.addZws(username),
                         convertedTime,
                         message);
-                SharedQueues.sendingBlockingQueue.add(new Message(finalMessage));
+                state.sendingBlockingQueue.add(new Message(finalMessage));
             }
 
         } catch (SQLException e) {
@@ -465,7 +467,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         int count = getCount(username);
         if (count == 0) {
             logger.info("Did not find any messages for user " + username);
-            SharedQueues.sendingBlockingQueue.add(new Message("@" + from + ", no messages found PEEPERS"));
+            state.sendingBlockingQueue.add(new Message("@" + from + ", no messages found PEEPERS"));
             return true;
         }
         return false;
@@ -487,7 +489,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
                     break;
                 }
             }
-            SharedQueues.sendingBlockingQueue.add(new Message(sb.toString()));
+            state.sendingBlockingQueue.add(new Message(sb.toString()));
         } catch (SQLException e) {
             logger.severe("SQL ERROR: " + "SQLException: " +
                     e.getMessage() + ", VendorError: " + e.getErrorCode());
@@ -555,13 +557,13 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             }
         }
         replacelistSb.replace(0, 1, "");
-        Running.setBlacklist(blacklist, textBlacklist, replacelistSb.toString());
-        logger.info("Blacklist initialized. " + Running.blacklist.size() + " blacklisted words.");
+        state.setBlacklist(blacklist, textBlacklist, replacelistSb.toString());
+        logger.info("Blacklist initialized. " + state.blacklist.size() + " blacklisted words.");
     }
 
     private void initializeDisabled() {
-        Running.disabledUsers = sqlSolrHandler.getDisabledList();
-        logger.info("Disabled list initialized. " + Running.disabledUsers.size() + " disabled users.");
+        state.setDisabledUsers(sqlSolrHandler.getDisabledList());
+        logger.info("Disabled list initialized. " + state.disabledUsers.size() + " disabled users.");
     }
 
     public void addDisabled(String from, String args) {
@@ -569,7 +571,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         if (username == null) {
             username = from;
         }
-        if (Running.disabledUsers.contains(username.toLowerCase())) {
+        if (state.disabledUsers.contains(username.toLowerCase())) {
             return;
         }
         if (mods.contains(from.toLowerCase()) || from.equalsIgnoreCase(username)) {
@@ -582,11 +584,11 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
                 stmt.setString(1, from);
                 stmt.setString(2, username);
                 stmt.executeQuery();
-                Running.disabledUsers.add(username.toLowerCase());
+                state.disabledUsers.add(username.toLowerCase());
                 if (!from.equals("Autoban") && (mods.contains(from.toLowerCase()) ||
                         lastCommandTime.plus(10, ChronoUnit.SECONDS).isBefore(Instant.now())))
                 {
-                    SharedQueues.sendingBlockingQueue.add(new Message("@" + from + ", added " + username + " to ignore list."));
+                    state.sendingBlockingQueue.add(new Message("@" + from + ", added " + username + " to ignore list."));
                 }
 
             } catch (SQLException e) {
@@ -596,8 +598,8 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     }
 
     private void initializeAlts() {
-        Running.mains = new HashMap<>();
-        Running.alts = new HashMap<>();
+        state.mains = new HashMap<>();
+        state.alts = new HashMap<>();
         try (Connection conn = DriverManager.getConnection(SQLCredentials);
              PreparedStatement stmt = conn.prepareStatement("call chat_stats.sp_get_alts()"))
         {
@@ -606,19 +608,19 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             while (rs.next()) {
                 String main = rs.getString("main").toLowerCase();
                 String alt = rs.getString("alt").toLowerCase();
-                Running.mains.put(alt, main);
-                if (Running.alts.containsKey(main)) {
-                    List<String> list = Running.alts.get(main);
+                state.mains.put(alt, main);
+                if (state.alts.containsKey(main)) {
+                    List<String> list = state.alts.get(main);
                     list.add(alt);
-                    Running.alts.put(main, list);
+                    state.alts.put(main, list);
                 } else {
-                    Running.mains.put(main, main);
+                    state.mains.put(main, main);
                     List<String> list = new ArrayList<>();
                     list.add(alt);
-                    Running.alts.put(main, list);
+                    state.alts.put(main, list);
                 }
             }
-            logger.info("Initialized alts list successfully " + Running.alts.size() + " users with alts.");
+            logger.info("Initialized alts list successfully " + state.alts.size() + " users with alts.");
 
         } catch (SQLException e) {
             logger.severe("SQL ERROR: " + "SQLException: " +
@@ -638,8 +640,8 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             return;
         }
         alt = alt.toLowerCase();
-        if (Running.alts.containsKey(main)) {
-            if (Running.alts.get(main).contains(alt)) {
+        if (state.alts.containsKey(main)) {
+            if (state.alts.get(main).contains(alt)) {
                 return;
             }
         }
@@ -652,17 +654,17 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
                 stmt.setString(1, main);
                 stmt.setString(2, alt);
                 stmt.executeQuery();
-                Running.mains.put(alt, main);
-                Running.mains.put(main, main);
+                state.mains.put(alt, main);
+                state.mains.put(main, main);
                 List<String> list;
-                if (Running.alts.containsKey(main)) {
-                    list = Running.alts.get(main);
+                if (state.alts.containsKey(main)) {
+                    list = state.alts.get(main);
                 } else {
                     list = new ArrayList<>();
                 }
                 list.add(alt);
-                Running.alts.put(main, list);
-                SharedQueues.sendingBlockingQueue.add(new Message("@" + from + ", added " + alt + " as " + main + "'s alt account."));
+                state.alts.put(main, list);
+                state.sendingBlockingQueue.add(new Message("@" + from + ", added " + alt + " as " + main + "'s alt account."));
 
             } catch (SQLException e) {
                 logger.severe("SQL ERROR: " + "SQLException: " +
@@ -690,20 +692,22 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             }
         }
 
-        if (Running.online && !godUsers.contains(from.toLowerCase())) {
+        if (state.online.get() && !godUsers.contains(from.toLowerCase())) {
             logger.info("Attempted to use " + command + " while stream is online");
             return true;
         }
 
         if (checkOneManSpam(from)) {
             banned.put(from, Instant.now());
-            SharedQueues.sendingBlockingQueue.add(new Message("@" + from + ", stop one man spamming. Banned from using commands for 10 minutes peepoD"));
+            state.sendingBlockingQueue.add(new Message("@" + from + ", stop one man spamming. Banned from using commands for 10 minutes peepoD"));
             return true;
         }
 
+
         String username = Utils.getArg(argStr, 0);
+
         if (username == null) {
-            return true;
+            username = from;
         }
         username = Utils.cleanName(from, username);
 
@@ -711,10 +715,10 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             return true;
         }
 
-        if (Running.disabledUsers.contains(username.toLowerCase()) && (command == RQ || command == RS || command == LASTMESSAGE
+        if (state.disabledUsers.contains(username.toLowerCase()) && (command == RQ || command == RS || command == LASTMESSAGE
                 || command == FIRSTMESSAGE))
         {
-            SharedQueues.sendingBlockingQueue.add(
+            state.sendingBlockingQueue.add(
                     new Message("@" + from + ", that user has been removed from the "
                             + command
                             + " command (either by their own wish or by a mod). Type !adddisabled to remove yourself or !remdisabled to re-enable commands."));
@@ -723,7 +727,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         }
 
         if (command == LASTMESSAGE && username.equalsIgnoreCase(from)) {
-            SharedQueues.sendingBlockingQueue.add(new Message("PepeSpin"));
+            state.sendingBlockingQueue.add(new Message("PepeSpin"));
             return true;
         }
 
@@ -735,7 +739,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         if (username == null) {
             username = from;
         }
-        if (!Running.disabledUsers.contains(username.toLowerCase())) {
+        if (!state.disabledUsers.contains(username.toLowerCase())) {
             return;
         }
         if (mods.contains(from.toLowerCase()) || from.equalsIgnoreCase(username)) {
@@ -746,9 +750,9 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
                 stmt.setString(1, username);
                 stmt.executeQuery();
                 if (mods.contains(from.toLowerCase()) || lastCommandTime.plus(10, ChronoUnit.SECONDS).isBefore(Instant.now())) {
-                    SharedQueues.sendingBlockingQueue.add(new Message("@" + from + ", removed " + username + " from ignore list."));
+                    state.sendingBlockingQueue.add(new Message("@" + from + ", removed " + username + " from ignore list."));
                 }
-                Running.disabledUsers.remove(username.toLowerCase());
+                state.disabledUsers.remove(username.toLowerCase());
             } catch (SQLException e) {
                 logger.severe("SQL ERROR: " + "SQLException: " + e.getMessage() + ", VendorError: " + e.getErrorCode());
             } finally {
@@ -770,14 +774,14 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         int count = getCount(username);
         if (count == 0) {
             logger.info("Did not find any messages for user " + username);
-            SharedQueues.sendingBlockingQueue.add(new Message("@" + from + ", no messages found PEEPERS"));
+            state.sendingBlockingQueue.add(new Message("@" + from + ", no messages found PEEPERS"));
             return;
         }
         String fullNameStr = "";
 
         try (SolrClient solr = new HttpSolrClient.Builder(solrCredentials).build()) {
             SolrQuery query = new SolrQuery();
-            fullNameStr = Running.getAlts(username);
+            fullNameStr = state.getAlts(username);
             query.set("q", fullNameStr);
             if (year != null) {
                 query.set("fq", "-message:\"!rq\" AND -message:\"!chain\" AND -message:\"!lastmessage\" AND time:" + year);
@@ -799,12 +803,12 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
                     dateStr,
                     Utils.addZws(username),
                     message);
-            SharedQueues.sendingBlockingQueue.add(new Message(finalMessage));
+            state.sendingBlockingQueue.add(new Message(finalMessage));
 
         } catch (IOException | SolrServerException | IndexOutOfBoundsException e) {
             logger.severe("Solr error: " + e.getMessage());
             logger.info("Did not find any messages for " + fullNameStr);
-            SharedQueues.sendingBlockingQueue.add(new Message("@" + from + ", no messages found PEEPERS"));
+            state.sendingBlockingQueue.add(new Message("@" + from + ", no messages found PEEPERS"));
         }
     }
 
@@ -831,7 +835,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         String link = "stalk_" + username;
         if (text == null) {
             logger.info("No follow list found for " + username);
-            SharedQueues.sendingBlockingQueue.add(new Message("@" + from + ", no such user found PEEPERS"));
+            state.sendingBlockingQueue.add(new Message("@" + from + ", no such user found PEEPERS"));
             return;
         }
 
@@ -842,7 +846,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
                 if (ftpHandler.upload(link, text)) {
                     String output = String.format("@%s all channels followed by %s: %s%s", from, finalUsername, website, link);
                     logger.info(output);
-                    SharedQueues.sendingBlockingQueue.add(new Message(output));
+                    state.sendingBlockingQueue.add(new Message(output));
                 }
             } catch (IOException e) {
                 logger.severe("Error writing to outputstream: " + e.getMessage());
@@ -863,14 +867,14 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         int count = getCount(username);
         if (count == 0) {
             logger.info("Did not find any logs for user " + username);
-            SharedQueues.sendingBlockingQueue.add(new Message("@" + from + ", no messages found PEEPERS"));
+            state.sendingBlockingQueue.add(new Message("@" + from + ", no messages found PEEPERS"));
             return;
         }
         String link = username;
         if (count == logCache.get(username)) {
             String output = String.format("@%s logs for %s: %s%s", from, username, website, link);
             logger.info("No change to message count, not updating link.");
-            SharedQueues.sendingBlockingQueue.add(new Message(output));
+            state.sendingBlockingQueue.add(new Message(output));
             return;
         } else {
             logCache.put(username, count);
@@ -965,7 +969,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
                         String output = String.format("@%s logs for %s: %s%s", from, finalUsername, website, link);
                         logger.info(output);
                         logger.info("Total time: " + (Utils.convertTime((int) (Instant.now().minus(startTime.toEpochMilli(), ChronoUnit.MILLIS).toEpochMilli() / 1000))));
-                        SharedQueues.sendingBlockingQueue.add(new Message(output));
+                        state.sendingBlockingQueue.add(new Message(output));
                     }
                 } catch (IOException e) {
                     logger.severe("Error writing to outputstream: " + e.getMessage());

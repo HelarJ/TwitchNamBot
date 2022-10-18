@@ -3,8 +3,7 @@ package chatbot.service;
 import chatbot.ConsoleMain;
 import chatbot.dataclass.Message;
 import chatbot.utils.Config;
-import chatbot.utils.Running;
-import chatbot.utils.SharedQueues;
+import chatbot.utils.SharedStateSingleton;
 import chatbot.utils.Utils;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
 
@@ -18,6 +17,7 @@ import java.util.logging.Logger;
 public class SenderService extends AbstractExecutionThreadService {
     private static final Logger logger = Logger.getLogger(SenderService.class.toString());
     private final BufferedWriter bufferedWriter;
+    private final SharedStateSingleton state = SharedStateSingleton.getInstance();
     private final String username = Config.getTwitchUsername();
     private final String uid = Config.getTwitchUID();
     private final String channel = Config.getChannelToJoin();
@@ -34,8 +34,8 @@ public class SenderService extends AbstractExecutionThreadService {
 
     @Override
     public void run() throws InterruptedException {
-        while (Running.isBotStillRunning()) {
-            Message toSend = SharedQueues.sendingBlockingQueue.take();
+        while (state.isBotStillRunning()) {
+            Message toSend = state.sendingBlockingQueue.take();
             if (toSend.isPoison()) {
                 logger.info(SenderService.class + " poisoned.");
                 break;
@@ -76,13 +76,13 @@ public class SenderService extends AbstractExecutionThreadService {
             logger.info("Sent: " + msg.stripTrailing());
             bufferedWriter.write(msg);
             bufferedWriter.flush();
-            Running.addCommandCount();
+            state.increaseSentMessageCount();
             //logs sent bot messages to database.
-            SharedQueues.messageLogBlockingQueue.add(new Message(username.toLowerCase(), uid, uneditedMessage, true, false, uneditedMessage));
+            state.messageLogBlockingQueue.add(new Message(username.toLowerCase(), uid, uneditedMessage, true, false, uneditedMessage));
 
         } catch (IOException e) {
             logger.info("Error sending message: " + msg + " to " + channel + ": " + e.getMessage());
-            if (Running.isBotStillRunning()) {
+            if (state.isBotStillRunning()) {
                 ConsoleMain.reconnect();
             }
         }
@@ -90,10 +90,10 @@ public class SenderService extends AbstractExecutionThreadService {
 
     private String cleanMessage(String msg) {
         String cleanedMsg = msg;
-        for (String phrase : Running.blacklist) {
+        for (String phrase : state.blacklist) {
             cleanedMsg = escapeBlacklisted(cleanedMsg, phrase, true);
         }
-        for (String phrase : Running.textBlacklist) {
+        for (String phrase : state.textBlacklist) {
             cleanedMsg = escapeBlacklisted(cleanedMsg, phrase, false);
         }
         cleanedMsg = replaceWords(cleanedMsg);
@@ -145,7 +145,7 @@ public class SenderService extends AbstractExecutionThreadService {
             }
             i++;
         }
-        cleanedMessage = cleanedMessage.replaceAll("(?i)" + Running.replacelist, "BANME");
+        cleanedMessage = cleanedMessage.replaceAll("(?i)" + state.replacelist.get(), "BANME");
 
         return cleanedMessage;
     }

@@ -3,7 +3,7 @@ package chatbot.dao;
 import chatbot.dataclass.Message;
 import chatbot.dataclass.Timeout;
 import chatbot.utils.Config;
-import chatbot.utils.Running;
+import chatbot.utils.SharedStateSingleton;
 import chatbot.utils.Utils;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
@@ -38,6 +38,7 @@ public class SQLSolrHandler implements DatabaseHandler {
 
     private Instant lastCommit = Instant.now();
     private final List<SolrInputDocument> commitBacklog = new ArrayList<>();
+    private final SharedStateSingleton state = SharedStateSingleton.getInstance();
 
     public SQLSolrHandler() {
     }
@@ -84,7 +85,7 @@ public class SQLSolrHandler implements DatabaseHandler {
             stmt.setString(1, timeout.getUsername());
             stmt.setString(2, timeout.getUserid());
             stmt.setInt(3, timeout.getLength());
-            stmt.setBoolean(4, Running.online);
+            stmt.setBoolean(4, state.online.get());
             stmt.executeQuery();
         } catch (SQLException ex) {
             logger.severe("SQL ERROR: " + "SQLException: " + ex.getMessage() + ", VendorError: " + ex.getErrorCode());
@@ -135,7 +136,7 @@ public class SQLSolrHandler implements DatabaseHandler {
             stmt.setString(2, message.getSender());
             stmt.setString(3, message.getUid());
             stmt.setString(4, message.getStringMessage());
-            stmt.setBoolean(5, Running.online);
+            stmt.setBoolean(5, state.online.get());
             stmt.setBoolean(6, message.isSubscribed());
             stmt.setString(7, message.getFullMsg());
             ResultSet resultSet = stmt.executeQuery();
@@ -183,7 +184,7 @@ public class SQLSolrHandler implements DatabaseHandler {
             SolrDocument result = response.getResults().get(0);
             String message = (String) result.getFirstValue("message");
             String msgName = (String) result.getFirstValue("username");
-            if (Running.disabledUsers.contains(msgName.toLowerCase())) {
+            if (state.disabledUsers.contains(msgName.toLowerCase())) {
                 msgName = "<redacted>";
             }
             Date date = (Date) result.getFirstValue("time");
@@ -200,7 +201,7 @@ public class SQLSolrHandler implements DatabaseHandler {
     public String randomSearch(String from, String username, String msg) {
         try (SolrClient solr = new HttpSolrClient.Builder(solrCredentials).build()) {
             SolrQuery query = new SolrQuery();
-            String fullNameStr = Running.getAlts(username);
+            String fullNameStr = state.getAlts(username);
             query.set("q", fullNameStr);
             query.set("fq", Utils.getSolrPattern(msg) + " AND -message:\"!rs\" AND -message:\"!searchuser\" AND -message:\"!search\" AND -message:\"!rq\"");
             int seed = ThreadLocalRandom.current().nextInt(0, 999999999);

@@ -2,8 +2,7 @@ package chatbot.service;
 
 import chatbot.dao.DatabaseHandler;
 import chatbot.dataclass.Message;
-import chatbot.utils.Running;
-import chatbot.utils.SharedQueues;
+import chatbot.utils.SharedStateSingleton;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
 
 import java.util.logging.Logger;
@@ -11,6 +10,7 @@ import java.util.logging.Logger;
 public class MessageLoggerService extends AbstractExecutionThreadService {
     private final Logger logger = Logger.getLogger(CommandHandlerService.class.toString());
     private final DatabaseHandler sqlSolrHandler;
+    private final SharedStateSingleton state = SharedStateSingleton.getInstance();
 
     public MessageLoggerService(DatabaseHandler databaseHandler) {
         sqlSolrHandler = databaseHandler;
@@ -28,8 +28,8 @@ public class MessageLoggerService extends AbstractExecutionThreadService {
 
     @Override
     public void run() throws InterruptedException {
-        while (Running.isBotStillRunning()) {
-            Message message = SharedQueues.messageLogBlockingQueue.take();
+        while (state.isBotStillRunning()) {
+            Message message = state.messageLogBlockingQueue.take();
             if (message.isPoison()) {
                 logger.info(MessageLoggerService.class + " poisoned.");
                 break;
@@ -40,7 +40,7 @@ public class MessageLoggerService extends AbstractExecutionThreadService {
                 sqlSolrHandler.recordWhisper(message);
             } else {
                 sqlSolrHandler.recordMessage(message);
-                Running.addMessageCount();
+                state.increaseMessageCount();
             }
         }
     }

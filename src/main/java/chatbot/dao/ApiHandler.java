@@ -2,7 +2,7 @@ package chatbot.dao;
 
 import chatbot.service.OnlineCheckerService;
 import chatbot.utils.Config;
-import chatbot.utils.Running;
+import chatbot.utils.SharedStateSingleton;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -22,6 +22,7 @@ public class ApiHandler {
     private final String secret = Config.getTwitchSecret();
     private final String channel;
     public String oauth = null;
+    private final SharedStateSingleton state = SharedStateSingleton.getInstance();
 
     public ApiHandler() {
         String channel = Config.getChannelToJoin();
@@ -61,7 +62,7 @@ public class ApiHandler {
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                 .build();
 
-        while (oauthToken == null && Running.isBotStillRunning()) {
+        while (oauthToken == null && state.isBotStillRunning()) {
             try {
                 HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
                 ObjectMapper mapper = new ObjectMapper();
@@ -72,7 +73,7 @@ public class ApiHandler {
                 logger.info(expires + " " + oauthToken);
             } catch (IOException | InterruptedException | NullPointerException e) {
                 logger.severe("Exception in getting oauth. Defaulting to online mode and retrying: " + e.getMessage());
-                Running.setOnline();
+                state.setOnline();
                 oauthToken = null;
                 try {
                     Thread.sleep(1000);
@@ -241,17 +242,17 @@ public class ApiHandler {
                 .build();
 
         try {
-            while (Running.isBotStillRunning() && onlineCheckerService.running) {
+            while (state.isBotStillRunning() && onlineCheckerService.running) {
                 HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
                 String result = response.body();
                 if (result != null) {
                     if (result.length() == 27) { //0 if the API is not responding.
-                        Running.setOffline();
+                        state.setOffline();
                     } else {
-                        Running.setOnline();
+                        state.setOnline();
                     }
                 } else {
-                    Running.setOnline();
+                    state.setOnline();
                 }
                 Thread.sleep(3000);
             }

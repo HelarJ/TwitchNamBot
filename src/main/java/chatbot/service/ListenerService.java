@@ -4,8 +4,7 @@ import chatbot.ConsoleMain;
 import chatbot.dataclass.Message;
 import chatbot.dataclass.Timeout;
 import chatbot.utils.Config;
-import chatbot.utils.Running;
-import chatbot.utils.SharedQueues;
+import chatbot.utils.SharedStateSingleton;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
 
 import java.io.BufferedReader;
@@ -21,6 +20,7 @@ public class ListenerService extends AbstractExecutionThreadService {
     private final static Logger logger = Logger.getLogger(ListenerService.class.toString());
     private final BufferedReader bufferedReader;
     private final BufferedWriter bufferedWriter;
+    private final SharedStateSingleton state = SharedStateSingleton.getInstance();
     private final CommandHandlerService commandHandlerService;
     private final String username;
     private boolean running = true;
@@ -44,7 +44,7 @@ public class ListenerService extends AbstractExecutionThreadService {
         try {
             logger.info("Listener started");
             String output;
-            while (Running.isBotStillRunning() && running && (output = bufferedReader.readLine()) != null) {
+            while (state.isBotStillRunning() && running && (output = bufferedReader.readLine()) != null) {
                 if (output.equals("PING :tmi.twitch.tv")) {
                     bufferedWriter.write("PONG :tmi.twitch.tv\r\n");
                     bufferedWriter.flush();
@@ -71,11 +71,11 @@ public class ListenerService extends AbstractExecutionThreadService {
                     }
                     Message command = new Message(name, userid, outputMSG, subscribed, false, output);
 
-                    SharedQueues.messageLogBlockingQueue.add(command);
+                    state.messageLogBlockingQueue.add(command);
 
                     //records a timeout with a 0-second duration to prevent timeoutlist exploting.
-                    SharedQueues.timeoutBlockingQueue.add(new Timeout(name, userid, 0));
-                    SharedQueues.messageBlockingQueue.add(command);
+                    state.timeoutBlockingQueue.add(new Timeout(name, userid, 0));
+                    state.messageBlockingQueue.add(command);
                 } else if (output.contains(".tmi.twitch.tv WHISPER")) {
                     //@badges=premium/1;color=#FF36F2;display-name=kroom;emotes=;message-id=2;thread-id=40206877_130928910;turbo=0;user-id=40206877;user-type= :kroom!kroom@kroom.tmi.twitch.tv WHISPER moonmoon_nam :test
                     String name = output.substring(output.indexOf("display-name="));
@@ -84,13 +84,13 @@ public class ListenerService extends AbstractExecutionThreadService {
                     msg = msg.substring(msg.indexOf(":") + 1);
                     logger.info(String.format("User %s whispered %s.", name, msg));
                     Message message = new Message(name, "NULL", msg, false, true, output);
-                    SharedQueues.messageLogBlockingQueue.add(message);
+                    state.messageLogBlockingQueue.add(message);
                     if (name.equalsIgnoreCase(admin)) {
                         if (msg.equals("/shutdown")) {
-                            Running.stop();
+                            state.stop();
                         } else if (msg.startsWith("/send ")) {
                             msg = msg.substring(6);
-                            SharedQueues.sendingBlockingQueue.add(new Message(msg));
+                            state.sendingBlockingQueue.add(new Message(msg));
                         } else if (msg.startsWith("/banuser ")) {
                             logger.info("Banned user" + msg.substring(9));
                         } else if (msg.equals("/restart")) {
@@ -115,10 +115,10 @@ public class ListenerService extends AbstractExecutionThreadService {
                     if (banTime >= 121059319) {
                         //todo move this and remove commandhandler dependency
                         commandHandlerService.addDisabled("Autoban", name);
-                        SharedQueues.messageLogBlockingQueue.add(new Message(name, userid, "User was permanently banned.", false, false, output));
-                        Running.addPermabanCount();
+                        state.messageLogBlockingQueue.add(new Message(name, userid, "User was permanently banned.", false, false, output));
+                        state.increasePermabanCount();
                     }
-                    SharedQueues.timeoutBlockingQueue.add(new Timeout(name, userid, banTime));
+                    state.timeoutBlockingQueue.add(new Timeout(name, userid, banTime));
                 } else if (output.contains("USERNOTICE")) {
                     continue;
                     //String name = output.substring(output.indexOf("display-name="));
@@ -142,12 +142,12 @@ public class ListenerService extends AbstractExecutionThreadService {
             }
 
             logger.info("Listener Thread Ended.");
-            if (Running.isBotStillRunning()) {
+            if (state.isBotStillRunning()) {
                 ConsoleMain.reconnect();
             }
         } catch (IOException e) {
             logger.severe("Connection error for Listener:" + e.getMessage());
-            if (Running.isBotStillRunning()) {
+            if (state.isBotStillRunning()) {
                 ConsoleMain.reconnect();
             }
         }
