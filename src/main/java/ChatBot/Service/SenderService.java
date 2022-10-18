@@ -58,7 +58,7 @@ public class SenderService extends AbstractExecutionThreadService {
     }
 
     public void sendToChannel(Message message) {
-        String msg = message.getMessage();
+        String msg = message.getStringMessage();
         msg = cleanMessage(msg);
         if (msg == null) {
             return;

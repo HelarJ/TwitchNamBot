@@ -1,9 +1,11 @@
 package ChatBot.Dataclass;
 
+import ChatBot.enums.Command;
 import ChatBot.enums.MessageType;
 
 import javax.annotation.Nonnull;
 import java.time.Instant;
+import java.util.Locale;
 
 @Nonnull
 public class Message {
@@ -36,6 +38,7 @@ public class Message {
         this.type = MessageType.MESSAGE;
     }
 
+
     public String getFullMsg() {
         return fullMsg;
     }
@@ -48,7 +51,7 @@ public class Message {
         return sender;
     }
 
-    public String getMessage() {
+    public String getStringMessage() {
         return message;
     }
 
@@ -73,11 +76,14 @@ public class Message {
         return whisper;
     }
 
-    public String getName() {
+    public Command getCommand() {
         if (message.startsWith("!")) {
             String cmdName = message.toLowerCase().replaceAll("\uDB40\uDC00", "").stripTrailing().split(" ")[0].substring(1);
             if (cmdName.length() > 0) {
-                return cmdName;
+                try {
+                    return Command.valueOf(cmdName.toUpperCase(Locale.ROOT));
+                } catch (IllegalArgumentException ignored) {
+                }
             }
         }
         return null;

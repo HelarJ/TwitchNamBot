@@ -26,6 +26,10 @@ public class Running {
     public static List<String> blacklist = new ArrayList<>();
     public static List<String> textBlacklist = new ArrayList<>();
     public static String replacelist = "";
+
+    //todo switch to a database based check instead of using local state.
+    public static List<String> disabledUsers = new ArrayList<>();
+
     /**
      * Is the stream online or offline. Modified by periodic API pulls.
      */
@@ -40,7 +44,7 @@ public class Running {
         return commandCount;
     }
 
-    public static void addCommandCount() {
+    public synchronized static void addCommandCount() {
         commandCount++;
     }
 
@@ -48,7 +52,7 @@ public class Running {
         return messageCount;
     }
 
-    public static void addMessageCount() {
+    public synchronized static void addMessageCount() {
         messageCount++;
     }
 
@@ -56,7 +60,7 @@ public class Running {
         return timeoutCount;
     }
 
-    public static void addTimeoutCount() {
+    public synchronized void addTimeoutCount() {
         timeoutCount++;
     }
 
@@ -64,7 +68,7 @@ public class Running {
         return permabanCount;
     }
 
-    public static void addPermabanCount() {
+    public synchronized static void addPermabanCount() {
         permabanCount++;
     }
 
@@ -109,7 +113,7 @@ public class Running {
         Running.textBlacklist = textBlacklist;
     }
 
-    public static void setOnline() {
+    public synchronized static void setOnline() {
         if (!online || first) {
             online = true;
             first = false;
@@ -117,7 +121,7 @@ public class Running {
         }
     }
 
-    public static void setOffline() {
+    public synchronized static void setOffline() {
         if (online || first) {
             online = false;
             first = false;

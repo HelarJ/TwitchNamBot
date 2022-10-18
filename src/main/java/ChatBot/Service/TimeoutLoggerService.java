@@ -3,7 +3,8 @@ package ChatBot.Service;
 import ChatBot.Dataclass.Timeout;
 import ChatBot.StaticUtils.Running;
 import ChatBot.StaticUtils.SharedQueues;
-import ChatBot.dao.SQLHandler;
+import ChatBot.dao.DatabaseHandler;
+import ChatBot.dao.SQLSolrHandler;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
 
 import java.util.ArrayList;
@@ -16,12 +17,12 @@ public class TimeoutLoggerService extends AbstractExecutionThreadService {
     private final Logger logger = Logger.getLogger(TimeoutLoggerService.class.toString());
     private final ArrayList<Timeout> timeouts;
     private final HashSet<String> usernames;
-    private final SQLHandler sqlHandler;
+    private final DatabaseHandler databaseHandler;
 
     public TimeoutLoggerService() {
         this.usernames = new HashSet<>();
         timeouts = new ArrayList<>();
-        sqlHandler = new SQLHandler();
+        databaseHandler = new SQLSolrHandler();
     }
 
     @Override
@@ -46,7 +47,7 @@ public class TimeoutLoggerService extends AbstractExecutionThreadService {
                         break;
                     }
                     if (timeout.getLength() > 0) {
-                        sqlHandler.addTimeoutToDatabase(timeout);
+                        databaseHandler.addTimeout(timeout);
                     }
                     Running.addTimeoutCount();
                     boolean active = isTimeoutForUserAlreadyActive(timeout);
@@ -70,7 +71,7 @@ public class TimeoutLoggerService extends AbstractExecutionThreadService {
             Timeout timeout = iterator.next();
             if (timeout.hasExpired()) {
                 addUsernameToDatabase(timeout);
-                sqlHandler.addNamListTimeoutToDatabase(timeout);
+                databaseHandler.addNamListTimeout(timeout);
                 iterator.remove();
             }
         }
@@ -90,7 +91,7 @@ public class TimeoutLoggerService extends AbstractExecutionThreadService {
         if (usernames.contains(timeout.getUsername())) {
             return;
         }
-        sqlHandler.addUsernameToDatabase(timeout);
+        databaseHandler.addUsername(timeout);
         usernames.add(timeout.getUsername());
     }
 }
