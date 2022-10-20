@@ -143,4 +143,14 @@ public class Utils {
         }
         return null;
     }
+
+    public static String getYear(String year) {
+        try {
+            if (Integer.parseInt(year) > 2000) {
+                return "[" + year + "-01-01T00:00:00Z TO " + year + "-12-31T23:59:59Z]";
+            }
+        } catch (NumberFormatException ignored) {
+        }
+        return null;
+    }
 }

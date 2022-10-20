@@ -30,7 +30,7 @@ public class MessageLoggerService extends AbstractExecutionThreadService {
         while (state.isBotStillRunning()) {
             Message message = state.messageLogBlockingQueue.take();
             if (message.isPoison()) {
-                log.info("{} poisoned.", MessageLoggerService.class);
+                log.debug("{} poisoned.", MessageLoggerService.class);
                 break;
             }
             log.trace("{} received a message: {}", MessageLoggerService.class, message);

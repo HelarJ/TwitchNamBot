@@ -15,6 +15,7 @@ public class ConsoleMain {
     private static final SharedStateSingleton state = SharedStateSingleton.getInstance();
 
     public static void main(String[] args) throws IOException, InterruptedException {
+        log.info("Starting program.");
         Config.initializeConfig();
         state.initializeQueues();
 

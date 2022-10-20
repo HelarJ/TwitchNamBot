@@ -24,12 +24,12 @@ public class TimeoutLoggerService extends AbstractExecutionThreadService {
 
     @Override
     protected void startUp() {
-        log.info("{} started.", TimeoutLoggerService.class);
+        log.debug("{} started.", TimeoutLoggerService.class);
     }
 
     @Override
     protected void shutDown() {
-        log.info("{} stopped.", TimeoutLoggerService.class);
+        log.debug("{} stopped.", TimeoutLoggerService.class);
     }
 
     @Override
@@ -39,7 +39,7 @@ public class TimeoutLoggerService extends AbstractExecutionThreadService {
             Timeout timeout = state.timeoutBlockingQueue.poll(3, TimeUnit.SECONDS);
             if (timeout != null) {
                 if (timeout.isPoison()) {
-                    log.info("{} poisoned.", TimeoutLoggerService.class);
+                    log.debug("{} poisoned.", TimeoutLoggerService.class);
                     break;
                 }
                 if (timeout.getLength() > 0) {

@@ -26,4 +26,6 @@ public interface DatabaseHandler {
     Map<String, String> getBlacklist();
 
     List<String> getDisabledList();
+
+    List<String> getAlternateNames(String username);
 }

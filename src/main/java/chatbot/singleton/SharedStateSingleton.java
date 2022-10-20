@@ -165,6 +165,7 @@ public class SharedStateSingleton {
     }
 
     public void poisonQueues() {
+        log.info("Poisoning queues.");
         messageBlockingQueue.add(new Message(MessageType.POISON));
         sendingBlockingQueue.add(new Message(MessageType.POISON));
         messageLogBlockingQueue.add(new Message(MessageType.POISON));

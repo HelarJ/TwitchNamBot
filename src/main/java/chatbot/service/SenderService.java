@@ -23,13 +23,13 @@ public class SenderService extends AbstractExecutionThreadService {
     private final String channel = Config.getChannelToJoin();
 
     @Override
-    protected void shutDown() {
-        log.info(SenderService.class + " stopped.");
+    protected void startUp() {
+        log.debug("{} started.", SenderService.class);
     }
 
     @Override
-    protected void startUp() {
-        log.info(SenderService.class + " started.");
+    protected void shutDown() {
+        log.debug("{} stopped.", SenderService.class);
     }
 
     @Override
@@ -37,7 +37,7 @@ public class SenderService extends AbstractExecutionThreadService {
         while (state.isBotStillRunning()) {
             Message toSend = state.sendingBlockingQueue.take();
             if (toSend.isPoison()) {
-                log.info("{} poisoned.", SenderService.class);
+                log.debug("{} poisoned.", SenderService.class);
                 break;
             }
             log.debug("Received message from sendingQueue: {}", toSend);
@@ -81,7 +81,7 @@ public class SenderService extends AbstractExecutionThreadService {
             state.messageLogBlockingQueue.add(new Message(username.toLowerCase(), uid, uneditedMessage, true, false, uneditedMessage));
 
         } catch (IOException e) {
-            log.info("Error sending message {} to {}: {}", msg, channel, e.getMessage());
+            log.error("Error sending message {} to {}: {}", msg, channel, e.getMessage());
             if (state.isBotStillRunning()) {
                 ConsoleMain.reconnect();
             }

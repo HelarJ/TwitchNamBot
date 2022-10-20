@@ -35,14 +35,24 @@ public class ListenerService extends AbstractExecutionThreadService {
     }
 
     @Override
+    @SuppressWarnings("UnstableApiUsage")
     protected void triggerShutdown() {
         running = false;
     }
 
     @Override
+    protected void shutDown() {
+        log.info("{} stopped.", ListenerService.class);
+    }
+
+    @Override
+    protected void startUp() {
+        log.info("{} started.", ListenerService.class);
+    }
+
+    @Override
     public void run() {
         try {
-            log.info("Listener started");
             String output;
             while (state.isBotStillRunning() && running && (output = bufferedReader.readLine()) != null) {
                 if (output.equals("PING :tmi.twitch.tv")) {
@@ -141,7 +151,6 @@ public class ListenerService extends AbstractExecutionThreadService {
                 }
             }
 
-            log.info("Listener Thread Ended.");
             if (state.isBotStillRunning()) {
                 ConsoleMain.reconnect();
             }

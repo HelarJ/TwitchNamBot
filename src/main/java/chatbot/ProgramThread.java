@@ -16,6 +16,7 @@ import com.google.common.util.concurrent.Service;
 import com.google.common.util.concurrent.ServiceManager;
 import lombok.extern.log4j.Log4j2;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.net.Socket;
 import java.util.ArrayList;
@@ -81,7 +82,7 @@ public class ProgramThread implements Runnable {
     private void addListenersToManager(ServiceManager serviceManager) {
         serviceManager.addListener(new ServiceManager.Listener() {
             @Override
-            public void failure(Service service) {
+            public void failure(@Nonnull Service service) {
                 log.fatal("{} failed. reason {}", service, service.failureCause());
             }
 

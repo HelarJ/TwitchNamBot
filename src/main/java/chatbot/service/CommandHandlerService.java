@@ -74,12 +74,12 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
 
     @Override
     protected void shutDown() {
-        log.info(CommandHandlerService.class + " stopped.");
+        log.debug("{} stopped.", CommandHandlerService.class);
     }
 
     @Override
     protected void startUp() {
-        log.info(CommandHandlerService.class + " started.");
+        log.debug("{} started.", CommandHandlerService.class);
     }
 
     public void refreshLists(String from) {
@@ -99,7 +99,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         while (state.isBotStillRunning()) {
             Message message = state.messageBlockingQueue.take();
             if (message.isPoison()) {
-                log.info(CommandHandlerService.class + " poisoned.");
+                log.debug(CommandHandlerService.class + " poisoned.");
                 break;
             }
             handleCommand(message);
@@ -169,41 +169,22 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             return;
         }
         username = Utils.cleanName(from, username);
-
-        try (Connection conn = DriverManager.getConnection(SQLCredentials);
-             PreparedStatement stmt = conn.prepareStatement("call chat_stats.sp_get_names(?)"))
-        {
-            stmt.setString(1, username.toLowerCase());
-            ResultSet rs = stmt.executeQuery();
-            StringBuilder names = new StringBuilder("@");
-            names.append(from);
+        StringBuilder names = new StringBuilder("@");
+        names.append(from).append(", ").append(username).append("'s other names are: ");
+        var nameList = sqlSolrHandler.getAlternateNames(username);
+        var size = nameList.size();
+        for (String name : nameList) {
+            names.append(name);
             names.append(", ");
-            names.append(username);
-            names.append("'s other names are: ");
-            int amount = 0;
-            while (rs.next()) {
-                String name = rs.getString("username");
-                if (!name.equalsIgnoreCase(username)) {
-                    amount++;
-                    names.append(name);
-                    names.append(", ");
-                }
-            }
-            if (amount >= 1) {
-                names.reverse();
-                names.deleteCharAt(0);
-                names.deleteCharAt(0);
-                names.reverse();
-                state.sendingBlockingQueue.add(new Message(names.toString()));
-            } else if (amount == 0) {
-                state.sendingBlockingQueue.add(new Message("@" + from + ", no alternate names found in logs PEEPERS"));
-            }
-        } catch (SQLException e) {
-            log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
-        } finally {
-            lastCommandTime = Instant.now();
         }
-
+        if (size >= 1) {
+            names.reverse();
+            names.deleteCharAt(0).deleteCharAt(0);
+            names.reverse();
+            state.sendingBlockingQueue.add(new Message(names.toString()));
+        } else {
+            state.sendingBlockingQueue.add(new Message("@" + from + ", no alternate names found in logs PEEPERS"));
+        }
     }
 
     private void choose(String choiceMsg, String from) {
@@ -226,16 +207,6 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
                         state.getTimeoutCount(),
                         state.getPermabanCount()
                 )));
-    }
-
-    private String getYear(String year) {
-        try {
-            if (Integer.parseInt(year) > 2000) {
-                return "[" + year + "-01-01T00:00:00Z TO " + year + "-12-31T23:59:59Z]";
-            }
-        } catch (NumberFormatException ignored) {
-        }
-        return null;
     }
 
     private void searchUser(String from, String msg) {
@@ -534,14 +505,15 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         }
         godUsers.add(admin);
         godUsers.add(channel.replace("#", ""));
-        log.info("Initialized mods list successfully " + mods.size() + " mods | " + godUsers + " god users.");
+        log.info("Initialized mods list {} | god users {}.", mods, godUsers);
     }
 
     private void initializeBlacklist() {
         ArrayList<String> blacklist = new ArrayList<>();
         ArrayList<String> textBlacklist = new ArrayList<>();
         StringBuilder replacelistSb = new StringBuilder();
-        for (Map.Entry<String, String> entry : sqlSolrHandler.getBlacklist().entrySet()) {
+        Map<String, String> map = sqlSolrHandler.getBlacklist();
+        for (Map.Entry<String, String> entry : map.entrySet()) {
             switch (entry.getValue()) {
                 case "word" -> blacklist.add(entry.getKey());
                 case "text" -> textBlacklist.add(entry.getKey());
@@ -550,12 +522,12 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         }
         replacelistSb.replace(0, 1, "");
         state.setBlacklist(blacklist, textBlacklist, replacelistSb.toString());
-        log.info("Blacklist initialized. " + state.blacklist.size() + " blacklisted words.");
+        log.info("Blacklist initialized. {} total words in blacklist.", map.size());
     }
 
     private void initializeDisabled() {
         state.setDisabledUsers(sqlSolrHandler.getDisabledList());
-        log.info("Disabled list initialized. " + state.disabledUsers.size() + " disabled users.");
+        log.info("Disabled list initialized. {} disabled users.", state.disabledUsers.size());
     }
 
     public void addDisabled(String from, String args) {
@@ -612,7 +584,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
                     state.alts.put(main, list);
                 }
             }
-            log.info("Initialized alts list successfully " + state.alts.size() + " users with alts.");
+            log.info("Initialized alts list. {} users with alts.", state.alts.size());
 
         } catch (SQLException e) {
             log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
@@ -762,7 +734,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         }
         username = Utils.cleanName(from, username);
 
-        String year = getYear(Utils.getArg(args, 1));
+        String year = Utils.getYear(Utils.getArg(args, 1));
 
         int count = getCount(username);
         if (count == 0) {

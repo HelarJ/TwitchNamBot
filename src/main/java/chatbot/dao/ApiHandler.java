@@ -1,11 +1,13 @@
 package chatbot.dao;
 
-import chatbot.service.OnlineCheckerService;
 import chatbot.singleton.SharedStateSingleton;
 import chatbot.utils.Config;
+import chatbot.utils.HtmlBuilder;
+import chatbot.utils.Utils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.SneakyThrows;
 import lombok.extern.log4j.Log4j2;
 
 import java.io.IOException;
@@ -13,6 +15,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.ArrayList;
 import java.util.HashMap;
 
 @Log4j2
@@ -21,6 +24,7 @@ public class ApiHandler {
     private final String clientID = Config.getTwitchClientId();
     private final String secret = Config.getTwitchSecret();
     private final String channel;
+    private String channelUid;
     public String oauth = null;
     private final SharedStateSingleton state = SharedStateSingleton.getInstance();
 
@@ -33,55 +37,32 @@ public class ApiHandler {
         }
     }
 
-    //todo: add something to refresh the oauth automatically as it expires in a month from request.
-
     /**
      * Attempts to get an oauth from the twitch API, using credentials given in config.
-     *
-     * @return oauth key for use in twitch API requests.
      */
-    public String getOauth() {
+    @SneakyThrows(JsonProcessingException.class)
+    public void setOauth() {
         var values = new HashMap<String, String>();
         values.put("client_id", clientID);
         values.put("client_secret", secret);
         values.put("grant_type", "client_credentials");
 
-        var objectMapper = new ObjectMapper();
-
-        String requestBody = "";
-        try {
-            requestBody = objectMapper
-                    .writeValueAsString(values);
-        } catch (JsonProcessingException e) {
-            log.error("Unable to process json.");
-        }
-        String oauthToken = null;
-        int expires;
+        String requestBody = new ObjectMapper().writeValueAsString(values);
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("https://id.twitch.tv/oauth2/token?client_id=" + clientID + "&client_secret=" + secret + "&grant_type=client_credentials"))
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                 .build();
-
-        while (oauthToken == null && state.isBotStillRunning()) {
-            try {
-                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-                ObjectMapper mapper = new ObjectMapper();
-                String result = response.body();
-                JsonNode jsonNode = mapper.readTree(result);
-                oauthToken = jsonNode.get("access_token").asText();
-                expires = jsonNode.get("expires_in").asInt();
-                log.info(expires + " " + oauthToken);
-            } catch (IOException | InterruptedException | NullPointerException e) {
-                log.error("Exception in getting oauth. Defaulting to online mode and retrying: " + e.getMessage());
-                state.setOnline();
-                oauthToken = null;
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException ignored) {
-                }
-            }
+        try {
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            JsonNode jsonNode = new ObjectMapper().readTree(response.body());
+            oauth = jsonNode.get("access_token").asText();
+            int expires = jsonNode.get("expires_in").asInt();
+            //the oauth normally expires in ~60 days.
+            log.info("Oauth received successfully. Expires in: {}", Utils.convertTime(expires));
+        } catch (IOException | InterruptedException | NullPointerException e) {
+            log.error("Defaulting to online mode, exception in getting oauth: {}", e.getMessage());
+            state.setOnline();
         }
-        return oauthToken;
     }
 
     public String getUID(String username) {
@@ -98,7 +79,7 @@ public class ApiHandler {
 
             JsonNode jsonNode = mapper.readTree(result);
             String userID = jsonNode.findValue("id").asText();
-            log.info("UserID: " + userID);
+            log.debug("UserID: " + userID);
             return userID;
 
         } catch (IOException | InterruptedException | NullPointerException e) {
@@ -124,139 +105,106 @@ public class ApiHandler {
                 .setHeader("Client-ID", clientID)
                 .build();
 
-        HttpResponse<String> response = null;
+        HttpResponse<String> response;
         try {
             response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
         } catch (IOException | InterruptedException e) {
             log.error("Error getting followed list for " + username + ": " + e.getMessage());
-        }
-        String result;
-        if (response != null) {
-            result = response.body();
-            ObjectMapper mapper = new ObjectMapper();
-            int count;
-            try {
-                JsonNode jsonNode = mapper.readTree(result);
-                result = jsonNode.get("total").toString();
-                count = Integer.parseInt(result);
-                StringBuilder sb = new StringBuilder();
-                sb.append("""
-                        <!DOCTYPE html>
-                        <html>
-                        <head>
-                            <meta charset="utf-8">
-                            <title>Followlist for %s </title>
-                        </head>
-                        <body>
-                        =========================================================<br>
-                        All channels followed by %1$s.<br>
-                        Total %d channels followed.<br>
-                        =========================================================<br>
-                        <br>
-                        """.formatted(username, count));
-
-                String pagination = null;
-                int i = 0;
-                while (count > 1) {
-                    String url = "https://api.twitch.tv/helix/users/follows?first=100&from_id=" + userID;
-                    if (i > 0) {
-                        url = "https://api.twitch.tv/helix/users/follows?after=" + pagination + "&first=100&from_id=" + userID;
-                    }
-                    request = HttpRequest.newBuilder()
-                            .GET()
-                            .uri(URI.create(url))
-                            .setHeader("Authorization", "Bearer " + oauth)
-                            .setHeader("Client-ID", clientID)
-                            .build();
-                    response = null;
-                    try {
-                        response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-                    } catch (IOException | InterruptedException e) {
-                        log.error("Error getting followed list for " + username + ": " + e.getMessage());
-                    }
-                    if (response != null) {
-                        result = response.body();
-                        mapper = new ObjectMapper();
-                        jsonNode = mapper.readTree(result);
-                        JsonNode data = jsonNode.get("data");
-                        JsonNode paginationNode = jsonNode.get("pagination").get("cursor");
-                        if (paginationNode == null) {
-                            if (data == null) {
-                                break;
-                            }
-                        } else {
-                            pagination = paginationNode.asText();
-                        }
-                        int currentsize = data.size();
-                        int j = 0;
-                        while (j < currentsize) {
-                            JsonNode row = data.get(j);
-                            if (row == null) {
-                                break;
-                            }
-                            sb.append("[");
-                            sb.append(row.get("followed_at").asText().replaceAll("T", " ").replaceAll("Z", ""));
-                            sb.append("]");
-                            sb.append("\t");
-                            sb.append(row.get("to_name").asText());
-                            sb.append("<br>\n");
-                            j++;
-                            i++;
-                            count--;
-                        }
-                    }
-                }
-
-                sb.append("""
-                        <br>
-                        END OF FILE<br>
-                        </body>
-                        </html>
-                        """);
-                return sb.toString();
-            } catch (JsonProcessingException e) {
-                log.error("Error parsing json.");
-            }
-        } else {
             return null;
         }
-        return null;
+
+        String result = response.body();
+        try {
+            JsonNode jsonNode = new ObjectMapper().readTree(result);
+            int count = Integer.parseInt(jsonNode.get("total").toString());
+            var lines = new ArrayList<String>();
+            String pagination = null;
+            int i = 0;
+            while (count > 1) {
+                String url = "https://api.twitch.tv/helix/users/follows?first=100&from_id=" + userID;
+                if (i > 0) {
+                    url = "https://api.twitch.tv/helix/users/follows?after=" + pagination + "&first=100&from_id=" + userID;
+                }
+                request = HttpRequest.newBuilder()
+                        .GET()
+                        .uri(URI.create(url))
+                        .setHeader("Authorization", "Bearer " + oauth)
+                        .setHeader("Client-ID", clientID)
+                        .build();
+                try {
+                    response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+                } catch (IOException | InterruptedException e) {
+                    log.error("Error getting followed list for {}: {}", username, e.getMessage());
+                    return null;
+                }
+                jsonNode = new ObjectMapper().readTree(response.body());
+                JsonNode data = jsonNode.get("data");
+                JsonNode paginationNode = jsonNode.get("pagination").get("cursor");
+                if (paginationNode == null) {
+                    if (data == null) {
+                        break;
+                    }
+                } else {
+                    pagination = paginationNode.asText();
+                }
+                int currentsize = data.size();
+                int j = 0;
+                while (j < currentsize) {
+                    JsonNode row = data.get(j);
+                    if (row == null) {
+                        break;
+                    }
+                    lines.add("[%s]\t%s<br>\n"
+                            .formatted(
+                                    row.get("followed_at").asText().replaceAll("T", " ").replaceAll("Z", ""),
+                                    row.get("to_name").asText()));
+                    j++;
+                    i++;
+                    count--;
+                }
+            }
+
+            return new HtmlBuilder()
+                    .withTitle("Followlist for %s ".formatted(username))
+                    .withBodyIntro("""
+                            All channels followed by %s.<br>
+                            Total %d channels followed.<br>
+                            """.formatted(username, i))
+                    .withBodyContent(lines)
+                    .build();
+        } catch (JsonProcessingException e) {
+            log.error("Error parsing json.");
+            return null;
+        }
     }
 
-    public void checkOnline(OnlineCheckerService onlineCheckerService) {
-        String userID = getUID(channel);
-        if (userID == null) {
-            log.error("Error getting UID from API. Retrying in 5s.");
-            try {
-                Thread.sleep(5000);
-            } catch (InterruptedException ignored) {
-            }
+    public void checkOnline() {
+        if (channelUid == null) {
+            channelUid = getUID(channel);
+        }
+        if (channelUid == null) {
             return;
         }
 
         HttpRequest request = HttpRequest.newBuilder()
                 .GET()
-                .uri(URI.create("https://api.twitch.tv/helix/streams?user_id=" + userID))
+                .uri(URI.create("https://api.twitch.tv/helix/streams?user_id=" + channelUid))
                 .setHeader("Authorization", "Bearer " + oauth)
                 .setHeader("Client-ID", clientID)
                 .build();
 
         try {
-            while (state.isBotStillRunning() && onlineCheckerService.running) {
-                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-                String result = response.body();
-                if (result != null) {
-                    if (result.length() == 27) { //0 if the API is not responding.
-                        state.setOffline();
-                    } else {
-                        state.setOnline();
-                    }
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            String result = response.body();
+            if (result != null) {
+                if (result.length() == 27) { //0 if the API is not responding.
+                    state.setOffline();
                 } else {
                     state.setOnline();
                 }
-                Thread.sleep(3000);
+            } else {
+                state.setOnline();
             }
-
         } catch (IOException | InterruptedException | NullPointerException e) {
             log.error("Error getting online status: " + e.getMessage());
         }

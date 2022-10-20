@@ -231,7 +231,6 @@ public class SQLSolrHandler implements DatabaseHandler {
                 String type = rs.getString("type");
                 resultMap.put(word, type);
             }
-            log.info("Blacklist pulled successfully {} blacklisted words.", resultMap.size());
         } catch (SQLException e) {
             log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
         }
@@ -254,5 +253,26 @@ public class SQLSolrHandler implements DatabaseHandler {
             log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
         }
         return list;
+    }
+
+    @Override
+    public List<String> getAlternateNames(String username) {
+        List<String> names = new ArrayList<>();
+        try (Connection conn = DriverManager.getConnection(sqlCredentials);
+             PreparedStatement stmt = conn.prepareStatement("call chat_stats.sp_get_names(?)"))
+        {
+            stmt.setString(1, username.toLowerCase());
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                String name = rs.getString("username");
+                if (!name.equalsIgnoreCase(username)) {
+                    names.add(name);
+                }
+            }
+        } catch (SQLException e) {
+            log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
+        }
+        return names;
     }
 }
