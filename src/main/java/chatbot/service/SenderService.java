@@ -166,7 +166,7 @@ public class SenderService extends AbstractExecutionThreadService {
      * @throws IOException if there was a general connection issue with the Socket/bufferedwriter.
      */
     public void connect() throws IOException {
-        log.info("Starting server...");
+        log.info("Attempting to connect.");
         sendToServer("PASS " + Config.getTwitchOauth() + "\r\n");
         sendToServer("NICK " + Config.getTwitchUsername() + "\r\n");
         sendToServer("USER nambot\r\n");

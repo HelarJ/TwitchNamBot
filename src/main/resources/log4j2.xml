@@ -7,7 +7,7 @@
             </PatternLayout>
         </Console>
         <RollingRandomAccessFile name="RollingRandomAccessFile" fileName="logs/debug.log"
-                                 filePattern="logs/$${date:yyyy-MM}/debug-%d{MM-dd-yyyy}-%i.log.gz">
+                                 filePattern="logs/$${date:MM-yyyy}/debug-%d{dd-MM-yyyy}-%i.log.gz">
             <PatternLayout>
                 <Pattern>%d[%t][%c{1.}]%-5level| %m%n</Pattern>
             </PatternLayout>
@@ -17,7 +17,7 @@
             </Policies>
         </RollingRandomAccessFile>
         <RollingRandomAccessFile name="RollingRandomAccessFileForErrors" fileName="logs/error.log"
-                                 filePattern="logs/$${date:yyyy-MM}/error-%d{MM-dd-yyyy}-%i.log.gz">
+                                 filePattern="logs/$${date:MM-yyyy}/error-%d{MM-yyyy}-%i.log.gz">
             <PatternLayout>
                 <Pattern>%d[%t][%c{1.}]%-5level| %m%n</Pattern>
             </PatternLayout>

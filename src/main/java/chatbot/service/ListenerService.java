@@ -42,12 +42,12 @@ public class ListenerService extends AbstractExecutionThreadService {
 
     @Override
     protected void shutDown() {
-        log.info("{} stopped.", ListenerService.class);
+        log.debug("{} stopped.", ListenerService.class);
     }
 
     @Override
     protected void startUp() {
-        log.info("{} started.", ListenerService.class);
+        log.debug("{} started.", ListenerService.class);
     }
 
     @Override
@@ -121,7 +121,7 @@ public class ListenerService extends AbstractExecutionThreadService {
                     userid = userid.substring(8, userid.indexOf(";"));
 
                     int banTime = Integer.parseInt(output.substring(output.indexOf("=") + 1, output.indexOf(";")).strip());
-                    log.info("User {} timed out for {}s", name, banTime);
+                    log.debug("{} timed out for {}s", name, banTime);
                     if (banTime >= 121059319) {
                         //todo move this and remove commandhandler dependency
                         commandHandlerService.addDisabled("Autoban", name);

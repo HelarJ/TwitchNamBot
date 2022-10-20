@@ -40,8 +40,13 @@ import java.util.Map;
 import java.util.TimeZone;
 import java.util.concurrent.ThreadLocalRandom;
 
+import static chatbot.enums.Command.ADDALT;
+import static chatbot.enums.Command.ADDDISABLED;
 import static chatbot.enums.Command.FIRSTMESSAGE;
+import static chatbot.enums.Command.FS;
 import static chatbot.enums.Command.LASTMESSAGE;
+import static chatbot.enums.Command.NAMBAN;
+import static chatbot.enums.Command.REMDISABLED;
 import static chatbot.enums.Command.RQ;
 import static chatbot.enums.Command.RS;
 
@@ -59,6 +64,8 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     private List<String> mods;
     private final String admin = Config.getBotAdmin();
     private final String channel = Config.getChannelToJoin();
+    List<Instant> times = new ArrayList<>();
+    String previousMessage = "";
     private final DatabaseHandler sqlSolrHandler;
     private final ApiHandler apiHandler;
     private final SharedStateSingleton state = SharedStateSingleton.getInstance();
@@ -106,41 +113,48 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         }
     }
 
-    public void handleCommand(Message message) {
+    private void handleCommand(Message message) {
         Command command = message.getCommand();
         if (command == null) {
             return;
         }
 
-        String name = message.getSender();
+        String sender = message.getSender();
         String argStr = message.getArguments();
-        log.info(String.format("%s used %s with arguments [%s].", name, command, argStr));
-        if (isNotAllowed(name, argStr, command)) {
-            log.info(name + " not allowed to use command " + command);
+        log.info(String.format("%s used %s with arguments [%s].", sender, command, argStr));
+
+        String username = Utils.getArg(argStr, 0);
+        if (username == null) {
+            username = sender;
+        }
+        username = Utils.cleanName(sender, username);
+
+        if (isNotAllowed(sender, username, command)) {
+            log.info(sender + " not allowed to use command " + command);
             return;
         }
 
         switch (command) {
-            case NAMMERS -> sendTop10to();
+            case NAMMERS -> topNammers();
             case NAMPING -> ping();
-            case NAMBAN -> ban(name, argStr);
-            case NAMES -> names(name, argStr);
-            case NAMREFRESH -> refreshLists(name);
-            case NAMCOMMANDS -> namCommands(name);
-            case NAMCHOOSE -> choose(argStr, name);
-            case NAM -> userNam(name, argStr);
-            case LASTMESSAGE -> lastMessage(name, argStr);
-            case FIRSTMESSAGE -> firstMessage(name, argStr);
-            case LOG, LOGS -> getLogs(argStr, name);
-            case RQ -> randomQuote(name, argStr);
-            case RS -> randomSearch(name, argStr);
-            case ADDDISABLED -> addDisabled(name, argStr);
-            case REMDISABLED -> removeDisabled(name, argStr);
-            case FS -> firstOccurrence(name, argStr);
-            case SEARCH -> search(name, argStr);
-            case SEARCHUSER -> searchUser(name, argStr);
-            case ADDALT -> addAlt(name, argStr);
-            case STALKLIST -> getFollowList(argStr, name);
+            case NAMBAN -> ban(username);
+            case NAMES -> names(sender, username);
+            case NAMREFRESH -> refreshLists(sender);
+            case NAMCOMMANDS -> namCommands(sender);
+            case NAMCHOOSE -> choose(argStr, sender);
+            case NAM -> userNam(sender, username);
+            case LASTMESSAGE -> lastMessage(sender, username);
+            case FIRSTMESSAGE -> firstMessage(sender, username);
+            case LOG, LOGS -> getLogs(sender, username);
+            case RQ -> randomQuote(sender, username, argStr);
+            case RS -> randomSearch(sender, argStr);
+            case ADDDISABLED -> addDisabled(sender, username);
+            case REMDISABLED -> removeDisabled(sender, username);
+            case FS -> firstOccurrence(sender, argStr);
+            case SEARCH -> search(sender, argStr);
+            case SEARCHUSER -> searchUser(sender, argStr);
+            case ADDALT -> addAlt(sender, argStr);
+            case STALKLIST -> getFollowList(sender, username);
         }
         lastCommandTime = Instant.now();
     }
@@ -150,37 +164,20 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
 
     }
 
-    private void ban(String from, String args) {
-        if (godUsers.contains(from.toLowerCase())) {
-            String username = Utils.getArg(args, 0);
-            if (username == null) {
-                return;
-            }
-            username = Utils.cleanName(from, args);
-
-            superbanned.put(username, Instant.now());
-            state.sendingBlockingQueue.add(new Message("Banned " + username + " from using the bot for 1h."));
-        }
+    private void ban(String username) {
+        superbanned.put(username, Instant.now());
+        state.sendingBlockingQueue.add(new Message("Banned " + username + " from using the bot for 1h."));
     }
 
-    private void names(String from, String args) {
-        String username = Utils.getArg(args, 0);
-        if (username == null) {
-            return;
-        }
-        username = Utils.cleanName(from, username);
+    private void names(String from, String username) {
         StringBuilder names = new StringBuilder("@");
         names.append(from).append(", ").append(username).append("'s other names are: ");
         var nameList = sqlSolrHandler.getAlternateNames(username);
-        var size = nameList.size();
         for (String name : nameList) {
-            names.append(name);
-            names.append(", ");
+            names.append(name).append(", ");
         }
-        if (size >= 1) {
-            names.reverse();
-            names.deleteCharAt(0).deleteCharAt(0);
-            names.reverse();
+        if (nameList.size() >= 1) {
+            names.setLength(names.length() - 2);
             state.sendingBlockingQueue.add(new Message(names.toString()));
         } else {
             state.sendingBlockingQueue.add(new Message("@" + from + ", no alternate names found in logs PEEPERS"));
@@ -195,7 +192,6 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         }
         int choice = ThreadLocalRandom.current().nextInt(0, choices.length);
         state.sendingBlockingQueue.add(new Message(String.format("@%s, I choose %s", from, choices[choice])));
-        lastCommandTime = Instant.now();
     }
 
     private void ping() {
@@ -214,16 +210,9 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         if (username == null) {
             return;
         }
-
-        msg = getMsgWithoutName(msg, username);
-
+        msg = Utils.getMsgWithoutName(msg, username);
         username = Utils.cleanName(from, username);
-
         String phrase = Utils.getSolrPattern(msg);
-
-        if (isBot(from, username)) {
-            return;
-        }
 
         try (SolrClient solr = new HttpSolrClient.Builder(solrCredentials).build()) {
             SolrQuery query = new SolrQuery();
@@ -232,36 +221,21 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             query.set("rows", 1);
             QueryResponse response = solr.query(query);
             String finalMessage = "@" + from + ", no messages found PEEPERS";
-            try {
-                SolrDocumentList result = response.getResults();
-                long rowcount = result.getNumFound();
-                finalMessage = "@" + from + ", " + username + " has used " + Utils.getWordList(msg) + " in " + rowcount + " messages.";
-                SolrDocument result1 = response.getResults().get(0);
-                /*
-                long wordcount = (long) result1.get("ttf(message,"+phrase+")");
-                if (wordcount > 0){
-                    finalMessage = "@"+from+", "+username.charAt(0)+zws1+zws2+username.substring(1)+" has used "+phrase+" in "+rowcount+" messages. Total count: "+wordcount+".";
-                }*/
-            } catch (IndexOutOfBoundsException ignored) {
-            }
+            SolrDocumentList result = response.getResults();
+            long rowcount = result.getNumFound();
+            finalMessage = "@" + from + ", " + username + " has used " + Utils.getWordList(msg) + " in " + rowcount + " messages.";
+            /*
+            SolrDocument result1 = response.getResults().get(0);
+            long wordcount = (long) result1.get("ttf(message,"+phrase+")");
+            if (wordcount > 0){
+                finalMessage = "@"+from+", "+username.charAt(0)+zws1+zws2+username.substring(1)+" has used "+phrase+" in "+rowcount+" messages. Total count: "+wordcount+".";
+            }*/
+
             state.sendingBlockingQueue.add(new Message(finalMessage));
 
         } catch (IOException | SolrServerException | BaseHttpSolrClient.RemoteSolrException e) {
             log.error(e.getMessage());
         }
-    }
-
-    private static String getMsgWithoutName(String msg, String username) {
-        try {
-            if (msg.startsWith("me ".toLowerCase())) {
-                msg = msg.substring(3);
-            } else {
-                msg = msg.substring(username.length() + 1);
-            }
-        } catch (StringIndexOutOfBoundsException e) {
-            msg = "*";
-        }
-        return msg;
     }
 
     private void search(String from, String msg) {
@@ -273,19 +247,19 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             //query.set("fl", "*,ttf(message,"+phrase+")");
             query.set("rows", 1);
             QueryResponse response = solr.query(query);
-            String finalMessage = "@" + from + ", no messages found PEEPERS";
-            try {
-                SolrDocumentList result = response.getResults();
-                long rowcount = result.getNumFound();
-                finalMessage = "@" + from + " found " + Utils.getWordList(msg) + " in " + rowcount + " rows.";
-                SolrDocument result1 = response.getResults().get(0);
-                /*long wordcount = (long) result1.get("ttf(message,"+phrase+")");
-                if (wordcount > 0){
-                    finalMessage = "@"+from+" found word "+msg+" in "+rowcount+" rows. Total count: "+wordcount+".";
-                }*/
-            } catch (IndexOutOfBoundsException ignored) {
+            SolrDocumentList result = response.getResults();
+            long rowcount = result.getNumFound();
+            /*
+            SolrDocument result1 = response.getResults().get(0);
+            long wordcount = (long) result1.get("ttf(message,"+phrase+")");
+            if (wordcount > 0){
+                finalMessage = "@"+from+" found word "+msg+" in "+rowcount+" rows. Total count: "+wordcount+".";
+            }*/
+            if (rowcount == 0) {
+                state.sendingBlockingQueue.add(new Message("@" + from + ", no messages found PEEPERS"));
+            } else {
+                state.sendingBlockingQueue.add(new Message("@" + from + " found " + Utils.getWordList(msg) + " in " + rowcount + " rows."));
             }
-            state.sendingBlockingQueue.add(new Message(finalMessage));
 
         } catch (IOException | BaseHttpSolrClient.RemoteSolrException | SolrServerException e) {
             log.error(e.getMessage());
@@ -293,9 +267,6 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     }
 
     private void firstOccurrence(String from, String msg) {
-        if (!godUsers.contains(from)) {
-            return;
-        }
         state.sendingBlockingQueue.add(new Message(sqlSolrHandler.firstOccurrence(from, msg)));
     }
 
@@ -305,68 +276,36 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             return;
         }
 
-        msg = getMsgWithoutName(msg, username);
-
+        msg = Utils.getMsgWithoutName(msg, username);
         username = Utils.cleanName(from, username);
-
-        if (!godUsers.contains(from) && !username.equalsIgnoreCase(from)) {
-            return;
-        }
-
-        if (isBot(from, username)) {
-            return;
-        }
 
         state.sendingBlockingQueue.add(new Message(sqlSolrHandler.randomSearch(from, username, msg)));
     }
 
-    private boolean isBot(String from, String username) {
+    private boolean isBot(String username) {
         if (username.toLowerCase().equals(botName)) {
             state.sendingBlockingQueue.add(new Message("PepeSpin"));
-            return true;
-        }
-
-        if (!godUsers.contains(from) && (username.contains("*") || username.contains("?") || username.contains("~") || username.contains("{")
-                || username.contains("[")))
-        {
-            state.sendingBlockingQueue.add(new Message("@" + from + ", no wildcards allowed in username NOPERS"));
             return true;
         }
         return false;
     }
 
-    public void userNam(String from, String args) {
-        if (state.online.get()) {
-            log.info("Attempted to use !NaM while stream is online");
-            return;
-        }
-        if (lastCommandTime.plus(2, ChronoUnit.SECONDS).isAfter(Instant.now())) {
-            log.info("Attempted to use !NaM before cooldown was over");
-            return;
-        }
-
-        String username = Utils.getArg(args, 0);
-        if (username == null) {
-            username = from;
-        }
+    private void userNam(String from, String username) {
         int timeout = sqlSolrHandler.getTimeoutAmount(username);
         if (timeout > 0) {
+            Message message;
             if (from.equals(username)) {
-                state.sendingBlockingQueue.add(new Message(String.format("%s, you have spent %s in the shadow realm.", username, Utils.convertTime(timeout))));
+                message = new Message(String.format("@%s, you have spent %s in the shadow realm.", username, Utils.convertTime(timeout)));
             } else {
-                state.sendingBlockingQueue.add(new Message(String.format("%s has spent %s in the shadow realm.", username, Utils.convertTime(timeout))));
+                message = new Message(String.format("%s has spent %s in the shadow realm.", username, Utils.convertTime(timeout)));
             }
+            state.sendingBlockingQueue.add(message);
 
         }
         lastCommandTime = Instant.now();
     }
 
-    public void firstMessage(String from, String args) {
-        String username = Utils.getArg(args, 0);
-        if (username == null) {
-            username = from;
-        }
-        username = Utils.cleanName(from, username);
+    private void firstMessage(String from, String username) {
         if (hasNoMessages(from, username)) {
             return;
         }
@@ -393,13 +332,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         }
     }
 
-    public void lastMessage(String from, String args) {
-        String username = Utils.getArg(args, 0);
-        if (username == null) {
-            return;
-        }
-        username = Utils.cleanName(from, username);
-
+    private void lastMessage(String from, String username) {
         if (hasNoMessages(from, username)) {
             return;
         }
@@ -439,7 +372,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         return false;
     }
 
-    private void sendTop10to() {
+    private void topNammers() {
         try (Connection conn = DriverManager.getConnection(SQLCredentials);
              Statement stmt = conn.createStatement())
         {
@@ -508,91 +441,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         log.info("Initialized mods list {} | god users {}.", mods, godUsers);
     }
 
-    private void initializeBlacklist() {
-        ArrayList<String> blacklist = new ArrayList<>();
-        ArrayList<String> textBlacklist = new ArrayList<>();
-        StringBuilder replacelistSb = new StringBuilder();
-        Map<String, String> map = sqlSolrHandler.getBlacklist();
-        for (Map.Entry<String, String> entry : map.entrySet()) {
-            switch (entry.getValue()) {
-                case "word" -> blacklist.add(entry.getKey());
-                case "text" -> textBlacklist.add(entry.getKey());
-                case "replace" -> replacelistSb.append("|").append(entry.getKey());
-            }
-        }
-        replacelistSb.replace(0, 1, "");
-        state.setBlacklist(blacklist, textBlacklist, replacelistSb.toString());
-        log.info("Blacklist initialized. {} total words in blacklist.", map.size());
-    }
-
-    private void initializeDisabled() {
-        state.setDisabledUsers(sqlSolrHandler.getDisabledList());
-        log.info("Disabled list initialized. {} disabled users.", state.disabledUsers.size());
-    }
-
-    public void addDisabled(String from, String args) {
-        String username = Utils.getArg(args, 0);
-        if (username == null) {
-            username = from;
-        }
-        if (state.disabledUsers.contains(username.toLowerCase())) {
-            return;
-        }
-        if (mods.contains(from.toLowerCase()) || from.equalsIgnoreCase(username)) {
-            log.info(from + " added " + username + " to disabled list");
-
-            try (Connection conn = DriverManager.getConnection(SQLCredentials);
-                 PreparedStatement stmt = conn.prepareStatement("CALL chat_stats.sp_add_disabled(?,?);"))
-            {
-
-                stmt.setString(1, from);
-                stmt.setString(2, username);
-                stmt.executeQuery();
-                state.disabledUsers.add(username.toLowerCase());
-                if (!from.equals("Autoban") && (mods.contains(from.toLowerCase()) ||
-                        lastCommandTime.plus(10, ChronoUnit.SECONDS).isBefore(Instant.now())))
-                {
-                    state.sendingBlockingQueue.add(new Message("@" + from + ", added " + username + " to ignore list."));
-                }
-
-            } catch (SQLException e) {
-                log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
-            }
-        }
-    }
-
-    private void initializeAlts() {
-        state.mains = new HashMap<>();
-        state.alts = new HashMap<>();
-        try (Connection conn = DriverManager.getConnection(SQLCredentials);
-             PreparedStatement stmt = conn.prepareStatement("call chat_stats.sp_get_alts()"))
-        {
-            stmt.execute();
-            ResultSet rs = stmt.getResultSet();
-            while (rs.next()) {
-                String main = rs.getString("main").toLowerCase();
-                String alt = rs.getString("alt").toLowerCase();
-                state.mains.put(alt, main);
-                if (state.alts.containsKey(main)) {
-                    List<String> list = state.alts.get(main);
-                    list.add(alt);
-                    state.alts.put(main, list);
-                } else {
-                    state.mains.put(main, main);
-                    List<String> list = new ArrayList<>();
-                    list.add(alt);
-                    state.alts.put(main, list);
-                }
-            }
-            log.info("Initialized alts list. {} users with alts.", state.alts.size());
-
-        } catch (SQLException e) {
-            log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
-        }
-    }
-
     private void addAlt(String from, String args) {
-        from = from.toLowerCase();
         String main = Utils.getArg(args, 0);
         if (main == null) {
             return;
@@ -608,132 +457,67 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
                 return;
             }
         }
-        if (mods.contains(from.toLowerCase())) {
-            log.info(from + " added " + alt + " to " + main + "'s alt list");
-
-            try (Connection conn = DriverManager.getConnection(SQLCredentials);
-                 PreparedStatement stmt = conn.prepareStatement("CALL chat_stats.sp_add_alt(?,?);"))
-            {
-                stmt.setString(1, main);
-                stmt.setString(2, alt);
-                stmt.executeQuery();
-                state.mains.put(alt, main);
-                state.mains.put(main, main);
-                List<String> list;
-                if (state.alts.containsKey(main)) {
-                    list = state.alts.get(main);
-                } else {
-                    list = new ArrayList<>();
-                }
-                list.add(alt);
-                state.alts.put(main, list);
-                state.sendingBlockingQueue.add(new Message("@" + from + ", added " + alt + " as " + main + "'s alt account."));
-
-            } catch (SQLException e) {
-                log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
-            }
+        log.info("{} adding {} to {}'s alt list", from, alt, main);
+        if (!sqlSolrHandler.addAlt(main, alt)) {
+            log.error("Adding alt was unsuccessful: {} - {}.", main, alt);
+            state.sendingBlockingQueue.add(new Message("Internal error Deadlole"));
+            return;
         }
+        state.mains.put(alt, main);
+        state.mains.putIfAbsent(main, main);
+        List<String> list = state.alts.getOrDefault(main, new ArrayList<>());
+        list.add(alt);
+        state.alts.putIfAbsent(main, list);
+        state.sendingBlockingQueue.add(new Message("@" + from + ", added " + alt + " as " + main + "'s alt account."));
     }
 
-    private boolean isNotAllowed(String from, String argStr, Command command) {
-        if (banned.containsKey(from.toLowerCase())) {
-            if (banned.get(from).plus(600, ChronoUnit.SECONDS).isAfter(Instant.now())) {
-                log.info("Banned user " + from + " attempted to use a command.");
-                return true;
-            } else {
-                banned.remove(from);
-            }
+    private void addDisabled(String from, String username) {
+        //already opted out
+        if (state.disabledUsers.contains(username.toLowerCase())) {
+            return;
         }
+        log.info(from + " added " + username + " to disabled list");
 
-        if (superbanned.containsKey(from.toLowerCase())) {
-            if (superbanned.get(from).plus(3600, ChronoUnit.SECONDS).isAfter(Instant.now())) {
-                log.info("superbanned user " + from + " attempted to use a command.");
-                return true;
-            } else {
-                superbanned.remove(from);
-            }
-        }
-
-        if (state.online.get() && !godUsers.contains(from.toLowerCase())) {
-            log.info("Attempted to use " + command + " while stream is online");
-            return true;
-        }
-
-        //10 second cooldown
-        if (lastCommandTime.plus(10, ChronoUnit.SECONDS).isAfter(Instant.now()) && !godUsers.contains(from)) {
-            return true;
-        }
-
-        if (checkOneManSpam(from)) {
-            banned.put(from, Instant.now());
-            state.sendingBlockingQueue.add(new Message("@" + from + ", stop one man spamming. Banned from using commands for 10 minutes peepoD"));
-            return true;
-        }
-
-        String username = Utils.getArg(argStr, 0);
-
-        if (username == null) {
-            username = from;
-        }
-        username = Utils.cleanName(from, username);
-
-        if (isBot(from, username)) {
-            return true;
-        }
-
-        if (state.disabledUsers.contains(username.toLowerCase()) && (command == RQ || command == RS || command == LASTMESSAGE
-                || command == FIRSTMESSAGE))
+        try (Connection conn = DriverManager.getConnection(SQLCredentials);
+             PreparedStatement stmt = conn.prepareStatement("CALL chat_stats.sp_add_disabled(?,?);"))
         {
-            state.sendingBlockingQueue.add(
-                    new Message("@" + from + ", that user has been removed from the "
-                            + command
-                            + " command (either by their own wish or by a mod). Type !adddisabled to remove yourself or !remdisabled to re-enable commands."));
-            lastCommandTime = Instant.now();
-            return true;
-        }
 
-        if (command == LASTMESSAGE && username.equalsIgnoreCase(from)) {
-            state.sendingBlockingQueue.add(new Message("PepeSpin"));
-            return true;
-        }
+            stmt.setString(1, from);
+            stmt.setString(2, username);
+            stmt.executeQuery();
+            state.disabledUsers.add(username.toLowerCase());
+            if (!from.equals("Autoban") && (mods.contains(from.toLowerCase()) ||
+                    lastCommandTime.plus(10, ChronoUnit.SECONDS).isBefore(Instant.now())))
+            {
+                state.sendingBlockingQueue.add(new Message("@" + from + ", added " + username + " to ignore list."));
+            }
 
-        return false;
+        } catch (SQLException e) {
+            log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
+        }
     }
 
-    private void removeDisabled(String from, String args) {
-        String username = Utils.getArg(args, 0);
-        if (username == null) {
-            username = from;
-        }
+    private void removeDisabled(String from, String username) {
         if (!state.disabledUsers.contains(username.toLowerCase())) {
             return;
         }
-        if (mods.contains(from.toLowerCase()) || from.equalsIgnoreCase(username)) {
-            log.info(from + " removed " + username + " from disabled list");
-            try (Connection conn = DriverManager.getConnection(SQLCredentials);
-                 PreparedStatement stmt = conn.prepareStatement("CALL chat_stats.sp_remove_disabled(?);"))
-            {
-                stmt.setString(1, username);
-                stmt.executeQuery();
-                if (mods.contains(from.toLowerCase()) || lastCommandTime.plus(10, ChronoUnit.SECONDS).isBefore(Instant.now())) {
-                    state.sendingBlockingQueue.add(new Message("@" + from + ", removed " + username + " from ignore list."));
-                }
-                state.disabledUsers.remove(username.toLowerCase());
-            } catch (SQLException e) {
-                log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
-            } finally {
-                lastCommandTime = Instant.now();
+
+        log.info("{} removing {} from disabled list", from, username);
+        try (Connection conn = DriverManager.getConnection(SQLCredentials);
+             PreparedStatement stmt = conn.prepareStatement("CALL chat_stats.sp_remove_disabled(?);"))
+        {
+            stmt.setString(1, username);
+            stmt.executeQuery();
+            if (mods.contains(from.toLowerCase()) || lastCommandTime.plus(10, ChronoUnit.SECONDS).isBefore(Instant.now())) {
+                state.sendingBlockingQueue.add(new Message("@" + from + ", removed " + username + " from ignore list."));
             }
+            state.disabledUsers.remove(username.toLowerCase());
+        } catch (SQLException e) {
+            log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
         }
     }
 
-    private void randomQuote(String from, String args) {
-        String username = Utils.getArg(args, 0);
-        if (username == null) {
-            username = from;
-        }
-        username = Utils.cleanName(from, username);
-
+    private void randomQuote(String from, String username, String args) {
         String year = Utils.getYear(Utils.getArg(args, 1));
 
         int count = getCount(username);
@@ -742,11 +526,10 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             state.sendingBlockingQueue.add(new Message("@" + from + ", no messages found PEEPERS"));
             return;
         }
-        String fullNameStr = "";
 
         try (SolrClient solr = new HttpSolrClient.Builder(solrCredentials).build()) {
             SolrQuery query = new SolrQuery();
-            fullNameStr = state.getAltsSolrString(username);
+            String fullNameStr = state.getAltsSolrString(username);
             query.set("q", fullNameStr);
             if (year != null) {
                 query.set("fq", "-message:\"!rq\" AND -message:\"!chain\" AND -message:\"!lastmessage\" AND time:" + year);
@@ -780,9 +563,6 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         }
     }
 
-    List<Instant> times = new ArrayList<>();
-    String previousMessage = "";
-
     private boolean checkOneManSpam(String from) {
         if (!previousMessage.equals(from)) {
             previousMessage = from;
@@ -793,12 +573,8 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         return times.size() >= 5;
     }
 
-    private void getFollowList(String args, String from) {
-        String username = Utils.getArg(args, 0);
-        if (username == null) {
-            username = from;
-        }
-        username = Utils.cleanName(from, username);
+    private void getFollowList(String from, String username) {
+
         String text = apiHandler.getFollowList(username);
         String link = "stalk_" + username;
         if (text == null) {
@@ -807,12 +583,11 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             return;
         }
 
-        String finalUsername = username;
         new Thread(() -> {
             try {
                 FtpHandler ftpHandler = new FtpHandler();
                 if (ftpHandler.upload(link, text)) {
-                    String output = String.format("@%s all channels followed by %s: %s%s", from, finalUsername, website, link);
+                    String output = String.format("@%s all channels followed by %s: %s%s", from, username, website, link);
                     log.info(output);
                     state.sendingBlockingQueue.add(new Message(output));
                 }
@@ -824,13 +599,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         }).start();
     }
 
-    private void getLogs(String args, String from) {
-        String username = Utils.getArg(args, 0);
-        if (username == null) {
-            return;
-        }
-        username = Utils.cleanName(from, username);
-
+    private void getLogs(String from, String username) {
         logCache.putIfAbsent(username, 0);
         int count = getCount(username);
         if (count == 0) {
@@ -838,9 +607,8 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             state.sendingBlockingQueue.add(new Message("@" + from + ", no messages found PEEPERS"));
             return;
         }
-        String link = username;
         if (count == logCache.get(username)) {
-            String output = String.format("@%s logs for %s: %s%s", from, username, website, link);
+            String output = String.format("@%s logs for %s: %s%s", from, username, website, username);
             log.info("No change to message count, not updating link.");
             state.sendingBlockingQueue.add(new Message(output));
             return;
@@ -929,12 +697,11 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             sb.append("\r\n");
             log.info("Data compilation took: " + (Utils.convertTime((int) (Instant.now().minus(queryEndTime.toEpochMilli(), ChronoUnit.MILLIS).toEpochMilli() / 1000))));
 
-            String finalUsername = username;
             new Thread(() -> {
                 try {
                     FtpHandler ftpHandler = new FtpHandler();
-                    if (ftpHandler.upload(link, sb.toString())) {
-                        String output = String.format("@%s logs for %s: %s%s", from, finalUsername, website, link);
+                    if (ftpHandler.upload(username, sb.toString())) {
+                        String output = String.format("@%s logs for %s: %s%s", from, username, website, username);
                         log.info(output);
                         log.info("Total time: " + (Utils.convertTime((int) (Instant.now().minus(startTime.toEpochMilli(), ChronoUnit.MILLIS).toEpochMilli() / 1000))));
                         state.sendingBlockingQueue.add(new Message(output));
@@ -948,5 +715,162 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         } catch (SQLException e) {
             log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
         }
+    }
+
+    private void initializeBlacklist() {
+        ArrayList<String> blacklist = new ArrayList<>();
+        ArrayList<String> textBlacklist = new ArrayList<>();
+        StringBuilder replacelistSb = new StringBuilder();
+        Map<String, String> map = sqlSolrHandler.getBlacklist();
+        for (Map.Entry<String, String> entry : map.entrySet()) {
+            switch (entry.getValue()) {
+                case "word" -> blacklist.add(entry.getKey());
+                case "text" -> textBlacklist.add(entry.getKey());
+                case "replace" -> replacelistSb.append("|").append(entry.getKey());
+            }
+        }
+        replacelistSb.replace(0, 1, "");
+        state.setBlacklist(blacklist, textBlacklist, replacelistSb.toString());
+        log.info("Blacklist initialized. {} total words in blacklist.", map.size());
+    }
+
+    private void initializeDisabled() {
+        state.setDisabledUsers(sqlSolrHandler.getDisabledList());
+        log.info("Disabled list initialized. {} disabled users.", state.disabledUsers.size());
+    }
+
+    private void initializeAlts() {
+        state.mains = new HashMap<>();
+        state.alts = new HashMap<>();
+        try (Connection conn = DriverManager.getConnection(SQLCredentials);
+             PreparedStatement stmt = conn.prepareStatement("call chat_stats.sp_get_alts()"))
+        {
+            stmt.execute();
+            ResultSet rs = stmt.getResultSet();
+            while (rs.next()) {
+                String main = rs.getString("main").toLowerCase();
+                String alt = rs.getString("alt").toLowerCase();
+                state.mains.put(alt, main);
+                if (state.alts.containsKey(main)) {
+                    List<String> list = state.alts.get(main);
+                    list.add(alt);
+                    state.alts.put(main, list);
+                } else {
+                    state.mains.put(main, main);
+                    List<String> list = new ArrayList<>();
+                    list.add(alt);
+                    state.alts.put(main, list);
+                }
+            }
+            log.info("Initialized alts list. {} users with alts.", state.alts.size());
+
+        } catch (SQLException e) {
+            log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
+        }
+    }
+
+    private boolean isNotAllowed(String from, String username, Command command) {
+        //admins are not affected by any rules.
+        if (godUsers.contains(from.toLowerCase())) {
+            return false;
+        }
+
+        //previous spammer check
+        if (banned.containsKey(from.toLowerCase())) {
+            if (banned.get(from).plus(600, ChronoUnit.SECONDS).isAfter(Instant.now())) {
+                log.info("Banned user " + from + " attempted to use a command.");
+                return true;
+            } else {
+                banned.remove(from);
+            }
+        }
+
+        //manually banned check
+        if (superbanned.containsKey(from.toLowerCase())) {
+            if (superbanned.get(from).plus(3600, ChronoUnit.SECONDS).isAfter(Instant.now())) {
+                log.info("superbanned user " + from + " attempted to use a command.");
+                return true;
+            } else {
+                superbanned.remove(from);
+            }
+        }
+
+        //online check
+        if (state.online.get()) {
+            log.info("Attempted to use " + command + " while stream is online");
+            return true;
+        }
+
+        //10 second cooldown
+        if (lastCommandTime.plus(10, ChronoUnit.SECONDS).isAfter(Instant.now())
+                && !godUsers.contains(from)
+                && command != Command.ADDDISABLED
+                && command != Command.REMDISABLED)
+        {
+            return true;
+        }
+
+        //new spammer check
+        if (checkOneManSpam(from)) {
+            banned.put(from, Instant.now());
+            state.sendingBlockingQueue.add(new Message("@" + from + ", stop one man spamming. Banned from using commands for 10 minutes peepoD"));
+            return true;
+        }
+
+        if (isBot(username)) {
+            return true;
+        }
+
+        //wildcard in username not allowed
+        if (username.contains("*") || username.contains("?") || username.contains("~") || username.contains("{")
+                || username.contains("["))
+        {
+            return true;
+        }
+
+        //disabled (opted out) users check
+        if (state.disabledUsers.contains(username.toLowerCase())
+                && (command == RQ || command == RS || command == LASTMESSAGE || command == FIRSTMESSAGE))
+        {
+            state.sendingBlockingQueue.add(
+                    new Message("@" + from + ", that user has been removed from the "
+                            + command
+                            + " command (either by their own wish or by a mod). Type !adddisabled to remove yourself or !remdisabled to re-enable commands."));
+            lastCommandTime = Instant.now();
+            return true;
+        }
+
+        //disable lastmessage for self
+        if (command == LASTMESSAGE && username.equalsIgnoreCase(from)) {
+            state.sendingBlockingQueue.add(new Message("PepeSpin"));
+            return true;
+        }
+
+        //disable being able to use these commands on anyone but yourself
+        if (!username.equalsIgnoreCase(from)
+                && (command == RS))
+        {
+            return true;
+        }
+
+        //disable for everyone (but admin)
+        if (command == FS) {
+            return true;
+        }
+        //disable for everyone but mod
+        if (!mods.contains(from.toLowerCase())
+                && (command == ADDALT || command == NAMBAN))
+        {
+            return true;
+        }
+        //disable for everyone but mod and the user
+        if (!from.equalsIgnoreCase(username)
+                && !mods.contains(from.toLowerCase())
+                && (command == ADDDISABLED || command == REMDISABLED))
+        {
+            return true;
+        }
+
+        return false;
     }
 }

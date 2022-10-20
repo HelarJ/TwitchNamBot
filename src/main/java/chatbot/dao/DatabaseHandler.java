@@ -28,4 +28,6 @@ public interface DatabaseHandler {
     List<String> getDisabledList();
 
     List<String> getAlternateNames(String username);
+
+    boolean addAlt(String main, String alt);
 }

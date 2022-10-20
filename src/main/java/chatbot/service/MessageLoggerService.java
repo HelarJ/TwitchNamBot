@@ -17,12 +17,12 @@ public class MessageLoggerService extends AbstractExecutionThreadService {
 
     @Override
     protected void shutDown() {
-        log.info("{} stopped.", MessageLoggerService.class);
+        log.debug("{} stopped.", MessageLoggerService.class);
     }
 
     @Override
     protected void startUp() {
-        log.info("{} started.", MessageLoggerService.class);
+        log.debug("{} started.", MessageLoggerService.class);
     }
 
     @Override

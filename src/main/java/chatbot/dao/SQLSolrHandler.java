@@ -275,4 +275,19 @@ public class SQLSolrHandler implements DatabaseHandler {
         }
         return names;
     }
+
+    @Override
+    public boolean addAlt(String main, String alt) {
+        try (Connection conn = DriverManager.getConnection(sqlCredentials);
+             PreparedStatement stmt = conn.prepareStatement("CALL chat_stats.sp_add_alt(?,?);"))
+        {
+            stmt.setString(1, main);
+            stmt.setString(2, alt);
+            stmt.executeQuery();
+            return true;
+        } catch (SQLException e) {
+            log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
+        }
+        return false;
+    }
 }

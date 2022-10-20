@@ -76,9 +76,18 @@ public class Message {
         return whisper;
     }
 
+    /**
+     * Parses the message and if it contains a command starting with a ! followed by a command specified in the Command enum returns it.
+     *
+     * @return Command or null if the message didn't contain a recognizable command.
+     */
     public Command getCommand() {
         if (message.startsWith("!")) {
-            String cmdName = message.toLowerCase().replaceAll("\uDB40\uDC00", "").stripTrailing().split(" ")[0].substring(1);
+            String cmdName = message.toLowerCase()
+                    .replaceAll("\uDB40\uDC00", "")
+                    .stripTrailing()
+                    .split(" ")[0]
+                    .substring(1);
             if (cmdName.length() > 0) {
                 try {
                     return Command.valueOf(cmdName.toUpperCase(Locale.ROOT));

@@ -27,11 +27,15 @@ public class Timeout {
     }
 
     /**
-     * For duplicate timeouts.
+     * For tracked timeouts that should currently be active.
+     * If the timeout was reset it means that the user probably got untimeouted or timed out with a lower time.
      *
      * @param length new timeout length.
      */
     public void resetTimeout(int length) {
+        if (length == this.length) {
+            return;
+        }
         int prevlength = this.length;
         this.length = length;
         log.info("Set {}s's {}d timeout to {}s.", username, prevlength, length);
