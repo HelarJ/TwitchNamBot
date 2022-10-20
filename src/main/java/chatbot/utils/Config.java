@@ -1,17 +1,17 @@
 package chatbot.utils;
 
+import chatbot.ConsoleMain;
 import chatbot.enums.ConfigName;
+import lombok.extern.log4j.Log4j2;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
-import java.util.logging.Logger;
 
+@Log4j2
 public class Config {
-    private static final Logger logger = Logger.getLogger(Config.class.toString());
-
     private static Properties properties;
     private static final Map<ConfigName, String> configMap = new HashMap<>();
 
@@ -29,13 +29,13 @@ public class Config {
     }
 
     private static void readProperties() {
-        try (InputStream input = Running.class.getClassLoader().getResourceAsStream("config.properties")) {
+        try (InputStream input = ConsoleMain.class.getClassLoader().getResourceAsStream("config.properties")) {
             properties = new Properties();
             if (input != null) {
                 properties.load(input);
             }
         } catch (IOException e) {
-            logger.severe("Error reading properties");
+            log.error("Error reading properties");
             properties = null;
         }
     }
@@ -43,7 +43,7 @@ public class Config {
     public static String getChannelToJoin() {
         String channel = configMap.get(ConfigName.NAM_TWITCH_CHANNEL_TO_JOIN);
         if (channel == null) {
-            logger.severe("No channelname specified in config.");
+            log.fatal("No channelname specified in config.");
             throw new RuntimeException("No channelname specified. Cannot continue");
         }
         return channel.toLowerCase();

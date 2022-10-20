@@ -4,15 +4,15 @@ import chatbot.dao.DatabaseHandler;
 import chatbot.dataclass.Timeout;
 import chatbot.singleton.SharedStateSingleton;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
+import lombok.extern.log4j.Log4j2;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Logger;
 
+@Log4j2
 public class TimeoutLoggerService extends AbstractExecutionThreadService {
-    private final Logger logger = Logger.getLogger(TimeoutLoggerService.class.toString());
     private final ArrayList<Timeout> timeouts = new ArrayList<>();
     private final HashSet<String> usernames = new HashSet<>();
     private final DatabaseHandler databaseHandler;
@@ -24,38 +24,34 @@ public class TimeoutLoggerService extends AbstractExecutionThreadService {
 
     @Override
     protected void startUp() {
-        logger.info(TimeoutLoggerService.class + " started.");
+        log.info("{} started.", TimeoutLoggerService.class);
     }
 
     @Override
     protected void shutDown() {
-        logger.info(TimeoutLoggerService.class + " stopped.");
+        log.info("{} stopped.", TimeoutLoggerService.class);
     }
 
     @Override
-    public void run() {
+    public void run() throws InterruptedException {
 
         while (state.isBotStillRunning()) {
-            try {
-                Timeout timeout = state.timeoutBlockingQueue.poll(3, TimeUnit.SECONDS);
-                if (timeout != null) {
-                    if (timeout.isPoison()) {
-                        logger.info(TimeoutLoggerService.class + " poisoned.");
-                        break;
-                    }
-                    if (timeout.getLength() > 0) {
-                        databaseHandler.addTimeout(timeout);
-                    }
-                    state.increaseTimeoutCount();
-                    boolean active = isTimeoutForUserAlreadyActive(timeout);
-
-                    //timeout expiring/adding to timeoutlist only active while stream is offline.
-                    if (timeout.getLength() > 0 && !state.online.get() && !active) {
-                        timeouts.add(timeout);
-                    }
+            Timeout timeout = state.timeoutBlockingQueue.poll(3, TimeUnit.SECONDS);
+            if (timeout != null) {
+                if (timeout.isPoison()) {
+                    log.info("{} poisoned.", TimeoutLoggerService.class);
+                    break;
                 }
-            } catch (InterruptedException e) {
-                logger.warning("Thread interrupted");
+                if (timeout.getLength() > 0) {
+                    databaseHandler.addTimeout(timeout);
+                    state.increaseTimeoutCount();
+                }
+                boolean active = isTimeoutForUserAlreadyActive(timeout);
+
+                //timeout expiring/adding to timeoutlist only active while stream is offline.
+                if (timeout.getLength() > 0 && !state.online.get() && !active) {
+                    timeouts.add(timeout);
+                }
             }
 
             checkForExpiredTimeouts();
@@ -68,7 +64,9 @@ public class TimeoutLoggerService extends AbstractExecutionThreadService {
             Timeout timeout = iterator.next();
             if (timeout.hasExpired()) {
                 addUsernameToDatabase(timeout);
-                databaseHandler.addNamListTimeout(timeout);
+                if (timeout.getLength() > 0) {
+                    databaseHandler.addNamListTimeout(timeout);
+                }
                 iterator.remove();
             }
         }

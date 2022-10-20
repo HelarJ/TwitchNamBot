@@ -1,6 +1,7 @@
 package chatbot.dao;
 
 import chatbot.utils.Config;
+import lombok.extern.log4j.Log4j2;
 import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.net.ftp.FTPFile;
 import org.apache.commons.net.ftp.FTPReply;
@@ -10,10 +11,9 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.logging.Logger;
 
+@Log4j2
 public class FtpHandler {
-    private final static Logger logger = Logger.getLogger(FtpHandler.class.toString());
     private final FTPClient ftpClient;
 
     public FtpHandler() {
@@ -27,7 +27,7 @@ public class FtpHandler {
             }
             ftpClient.login(Config.getFtpUsername(), Config.getFtpPassword());
         } catch (IOException e) {
-            logger.warning("Error connecting to FTP: " + e.getMessage());
+            log.error("Error connecting to FTP: " + e.getMessage());
         }
     }
 
@@ -35,7 +35,7 @@ public class FtpHandler {
 
         ftpClient.enterLocalPassiveMode();
         boolean success = ftpClient.storeFile(filename, new ByteArrayInputStream(text.getBytes(StandardCharsets.UTF_8)));
-        logger.info(ftpClient.getReplyString());
+        log.info(ftpClient.getReplyString());
         ftpClient.enterLocalActiveMode();
 
         return success;
@@ -47,7 +47,7 @@ public class FtpHandler {
         try {
             files = ftpClient.listFiles(".");
         } catch (IOException e) {
-            logger.warning("IO Error while getting list of files from ftp.");
+            log.error("IO Error while getting list of files from ftp.");
         }
 
         try {
@@ -57,12 +57,12 @@ public class FtpHandler {
                     continue;
                 }
                 if (file.getTimestamp().toInstant().plus(240, ChronoUnit.HOURS).isBefore(Instant.now())) {
-                    logger.info("Deleted" + filename);
+                    log.info("Deleted" + filename);
                     ftpClient.deleteFile(filename);
                 }
             }
         } catch (IOException e) {
-            logger.warning("Error deleting file");
+            log.error("Error deleting file");
         } finally {
             ftpClient.enterLocalActiveMode();
         }

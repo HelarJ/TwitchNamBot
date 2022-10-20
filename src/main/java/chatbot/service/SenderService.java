@@ -6,16 +6,16 @@ import chatbot.singleton.SharedStateSingleton;
 import chatbot.utils.Config;
 import chatbot.utils.Utils;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
+import lombok.extern.log4j.Log4j2;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
-import java.util.logging.Logger;
 
+@Log4j2
 public class SenderService extends AbstractExecutionThreadService {
-    private static final Logger logger = Logger.getLogger(SenderService.class.toString());
     private final BufferedWriter bufferedWriter;
     private final SharedStateSingleton state = SharedStateSingleton.getInstance();
     private final String username = Config.getTwitchUsername();
@@ -24,12 +24,12 @@ public class SenderService extends AbstractExecutionThreadService {
 
     @Override
     protected void shutDown() {
-        logger.info(SenderService.class + " stopped.");
+        log.info(SenderService.class + " stopped.");
     }
 
     @Override
     protected void startUp() {
-        logger.info(SenderService.class + " started.");
+        log.info(SenderService.class + " started.");
     }
 
     @Override
@@ -37,10 +37,10 @@ public class SenderService extends AbstractExecutionThreadService {
         while (state.isBotStillRunning()) {
             Message toSend = state.sendingBlockingQueue.take();
             if (toSend.isPoison()) {
-                logger.info(SenderService.class + " poisoned.");
+                log.info("{} poisoned.", SenderService.class);
                 break;
             }
-            logger.fine("Received message from sendingQueue: " + toSend);
+            log.debug("Received message from sendingQueue: {}", toSend);
             sendToChannel(toSend);
         }
     }
@@ -73,7 +73,7 @@ public class SenderService extends AbstractExecutionThreadService {
             msg = ("PRIVMSG " + channel + " :" + msg);
         }
         try {
-            logger.info("Sent: " + msg.stripTrailing());
+            log.info("Sent: {}", msg.stripTrailing());
             bufferedWriter.write(msg);
             bufferedWriter.flush();
             state.increaseSentMessageCount();
@@ -81,7 +81,7 @@ public class SenderService extends AbstractExecutionThreadService {
             state.messageLogBlockingQueue.add(new Message(username.toLowerCase(), uid, uneditedMessage, true, false, uneditedMessage));
 
         } catch (IOException e) {
-            logger.info("Error sending message: " + msg + " to " + channel + ": " + e.getMessage());
+            log.info("Error sending message {} to {}: {}", msg, channel, e.getMessage());
             if (state.isBotStillRunning()) {
                 ConsoleMain.reconnect();
             }
@@ -117,7 +117,7 @@ public class SenderService extends AbstractExecutionThreadService {
             }
         }
         if (count > 24 && count > latincount * 0.30) {
-            logger.info("Too many symbols: " + msg);
+            log.info("Too many symbols: {}", msg);
             int location = msg.indexOf(":");
             if (msg.startsWith("was", location - 3)) {
                 return msg.substring(0, location) + " not posted due to NOPERS symbol spam NOPERS";
@@ -136,14 +136,12 @@ public class SenderService extends AbstractExecutionThreadService {
                 "\\b[kḰḱǨǩĶķḲḳḴḵƘƙⱩⱪᶄꝀꝁꝂꝃꝄꝅꞢꞣ]+[❗❕‼️i⁉️Ííi̇́Ììi̇̀ĬĭÎîǏǐÏïḮḯĨĩi̇̃ĮįĮ́į̇́Į̃į̇̃ĪīĪ̀ī̀ỈỉȈȉI̋i̋ȊȋỊịꞼꞽḬḭƗɨᶖİiIıＩｉ1lĺľļḷḹl̃ḽḻłŀƚꝉⱡɫɬꞎꬷꬸꬹᶅɭȴＬｌyÝýỲỳŶŷY̊ẙŸÿỸỹẎẏȲȳỶỷỴỵɎɏƳƴỾỿ]+[kḰḱǨǩĶķḲḳḴḵƘƙⱩⱪᶄꝀꝁꝂꝃꝄꝅꞢꞣ]+[e3ЄєЕеÉéÈèĔĕÊêẾếỀềỄễỂểÊ̄ê̄Ê̌ê̌ĚěËëẼẽĖėĖ́ė́Ė̃ė̃ȨȩḜḝĘęĘ́ę́Ę̃ę̃ĒēḖḗḔḕẺẻȄȅE̋e̋ȆȇẸẹỆệḘḙḚḛɆɇE̩e̩È̩è̩É̩é̩ᶒⱸꬴꬳＥｅ]([rŔŕŘřṘṙŖŗȐȑȒȓṚṛṜṝṞṟR̃r̃ɌɍꞦꞧⱤɽᵲᶉꭉ]+[yÝýỲỳŶŷY̊ẙŸÿỸỹẎẏȲȳỶỷỴỵɎɏƳƴỾỿ]+|[rŔŕŘřṘṙŖŗȐȑȒȓṚṛṜṝṞṟR̃r̃ɌɍꞦꞧⱤɽᵲᶉꭉ]+[‼️❗❕i⁉️Ííi̇́Ììi̇̀ĬĭÎîǏǐÏïḮḯĨĩi̇̃ĮįĮ́į̇́Į̃į̇̃ĪīĪ̀ī̀ỈỉȈȉI̋i̋ȊȋỊịꞼꞽḬḭƗɨᶖİiIıＩｉ1lĺľļḷḹl̃ḽḻłŀƚꝉⱡɫɬꞎꬷꬸꬹᶅɭȴＬｌ]+[e3ЄєЕеÉéÈèĔĕÊêẾếỀềỄễỂểÊ̄ê̄Ê̌ê̌ĚěËëẼẽĖėĖ́ė́Ė̃ė̃ȨȩḜḝĘęĘ́ę́Ę̃ę̃ĒēḖḗḔḕẺẻȄȅE̋e̋ȆȇẸẹỆệḘḙḚḛɆɇE̩e̩È̩è̩É̩é̩ᶒⱸꬴꬳＥｅ]+)?[sŚśṤṥŜŝŠšṦṧṠṡŞşṢṣṨṩȘșS̩s̩ꞨꞩⱾȿꟅʂᶊᵴ]*",
                 "\\b[cĆćĈĉČčĊċÇçḈḉȻȼꞒꞓ\uA7C4ꞔƇƈɕ]+[hĤĥȞȟḦḧḢḣḨḩḤḥḪḫH̱ẖĦħⱧⱨꞪɦꞕΗНн]+[❗❕‼️i⁉️Ííi̇́Ììi̇̀ĬĭÎîǏǐÏïḮḯĨĩi̇̃ĮįĮ́į̇́Į̃į̇̃ĪīĪ̀ī̀ỈỉȈȉI̋i̋ȊȋỊị\uA7BC\uA7BDḬḭƗɨᶖİiIıＩｉ1lĺľļḷḹl̃ḽḻłŀƚꝉⱡɫɬꞎꬷꬸꬹᶅɭȴＬｌ]+[nŃńǸǹŇňÑñṄṅŅņṆṇṊṋṈṉN̈n̈ƝɲŊŋꞐꞑꞤꞥᵰᶇɳȵꬻꬼИиПпＮｎ]+[kḰḱǨǩĶķḲḳḴḵƘƙⱩⱪᶄꝀꝁꝂꝃꝄꝅꞢꞣ]+[sŚśṤṥŜŝŠšṦṧṠṡŞşṢṣṨṩȘșS̩s̩ꞨꞩⱾȿ\uA7C5ʂᶊᵴ]*"};
         String cleanedMessage = msg;
-        int i = 0;
         for (String blacklisted : bigReplacelist) {
             String oldMessage = cleanedMessage;
             cleanedMessage = cleanedMessage.replaceAll(blacklisted, "BADWORD");
             if (!oldMessage.equals(cleanedMessage)) {
-                logger.warning("blacklist match " + i + " for message \"" + msg + "\"");
+                log.info("blacklist match '{}' for message '{}'", blacklisted, msg);
             }
-            i++;
         }
         cleanedMessage = cleanedMessage.replaceAll("(?i)" + state.replacelist.get(), "BANME");
 
@@ -168,13 +166,13 @@ public class SenderService extends AbstractExecutionThreadService {
      * @throws IOException if there was a general connection issue with the Socket/bufferedwriter.
      */
     public void connect() throws IOException {
-        logger.info("Starting server...");
+        log.info("Starting server...");
         sendToServer("PASS " + Config.getTwitchOauth() + "\r\n");
         sendToServer("NICK " + Config.getTwitchUsername() + "\r\n");
         sendToServer("USER nambot\r\n");
         sendToServer("JOIN " + channel + "\r\n");
         sendToServer("CAP REQ :twitch.tv/membership\r\n");
         sendToServer("CAP REQ :twitch.tv/tags twitch.tv/commands\r\n");
-        logger.info("Credentials sent.");
+        log.info("Credentials sent.");
     }
 }

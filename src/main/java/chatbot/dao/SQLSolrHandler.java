@@ -5,6 +5,7 @@ import chatbot.dataclass.Timeout;
 import chatbot.singleton.SharedStateSingleton;
 import chatbot.utils.Config;
 import chatbot.utils.Utils;
+import lombok.extern.log4j.Log4j2;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
@@ -28,11 +29,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.logging.Logger;
 
+@Log4j2
 public class SQLSolrHandler implements DatabaseHandler {
-
-    private static final Logger logger = Logger.getLogger(SQLSolrHandler.class.toString());
     private final String sqlCredentials = Config.getSQLCredentials();
     private final String solrCredentials = Config.getSolrCredentials();
 
@@ -53,16 +52,11 @@ public class SQLSolrHandler implements DatabaseHandler {
 
             stmt.setString(1, username);
             stmt.setInt(2, length);
-            ResultSet result = stmt.executeQuery();
-            result.next();
-            if (result.getBoolean(1)) {
-                logger.info("Added " + username + " with a timeout of " + length + "s to db.");
-            } else {
-                logger.warning("Failed to add " + username + " with a timeout of " + length + "s to db.");
-            }
+            stmt.executeQuery();
+            log.info("Added {} with a timeout of {}s to db.", username, length);
 
         } catch (SQLException e) {
-            logger.severe("SQLException: " + e.getMessage() + ", VendorError: " + e.getErrorCode());
+            log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
         }
     }
 
@@ -87,8 +81,8 @@ public class SQLSolrHandler implements DatabaseHandler {
             stmt.setInt(3, timeout.getLength());
             stmt.setBoolean(4, state.online.get());
             stmt.executeQuery();
-        } catch (SQLException ex) {
-            logger.severe("SQL ERROR: " + "SQLException: " + ex.getMessage() + ", VendorError: " + ex.getErrorCode());
+        } catch (SQLException e) {
+            log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
         }
     }
 
@@ -102,8 +96,8 @@ public class SQLSolrHandler implements DatabaseHandler {
             rs.next();
             return rs.getInt("timeout");
 
-        } catch (SQLException ex) {
-            logger.warning("SQL ERROR: " + "SQLException: " + ex.getMessage() + ", VendorError: " + ex.getErrorCode());
+        } catch (SQLException e) {
+            log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
         }
         return 0;
     }
@@ -120,9 +114,8 @@ public class SQLSolrHandler implements DatabaseHandler {
             stmt.setString(2, username);
             stmt.setString(3, message);
             stmt.executeQuery();
-        } catch (SQLException ex) {
-            logger.severe("SQL ERROR: " + "SQLException: " + ex.getMessage() + ", VendorError: " + ex.getErrorCode() + "\r\n WHISPER"
-                    + username + " " + message);
+        } catch (SQLException e) {
+            log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
         }
     }
 
@@ -142,9 +135,8 @@ public class SQLSolrHandler implements DatabaseHandler {
             ResultSet resultSet = stmt.executeQuery();
             resultSet.next();
             id = resultSet.getInt(1);
-        } catch (SQLException ex) {
-            logger.severe("SQL ERROR: " + "SQLException: " + ex.getMessage() + ", VendorError: " + ex.getErrorCode() + "\r\n"
-                    + message);
+        } catch (SQLException e) {
+            log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
         }
 
         SolrInputDocument in = new SolrInputDocument();
@@ -161,7 +153,7 @@ public class SQLSolrHandler implements DatabaseHandler {
                 solr.commit();
                 commitBacklog.clear();
             } catch (IOException | SolrServerException | BaseHttpSolrClient.RemoteSolrException e) {
-                logger.severe("Solr error: " + e.getMessage());
+                log.error("Solr error: {}", e.getMessage());
             } finally {
                 lastCommit = Instant.now();
             }
@@ -189,10 +181,10 @@ public class SQLSolrHandler implements DatabaseHandler {
             }
             Date date = (Date) result.getFirstValue("time");
             String dateStr = ("[" + date.toInstant().toString().replaceAll("T", " ").replaceAll("Z", "]"));
-            return String.format("@%s, first occurrence: %s %s: %s", from, dateStr, Utils.addZws(msgName), message);
+            return String.format("@%s, first occurrence: %s %s: %s", from, dateStr, msgName, message);
 
         } catch (IOException | BaseHttpSolrClient.RemoteSolrException | SolrServerException e) {
-            logger.warning(e.getMessage());
+            log.error(e.getMessage());
             return "Internal error Deadlole";
         }
     }
@@ -216,10 +208,10 @@ public class SQLSolrHandler implements DatabaseHandler {
             String msgName = (String) result.getFirstValue("username");
             Date date = (Date) result.getFirstValue("time");
             String dateStr = ("[" + date.toInstant().toString().replaceAll("T", " ").replaceAll("Z", "]"));
-            return String.format("%s %s: %s", dateStr, Utils.addZws(msgName), message);
+            return String.format("%s %s: %s", dateStr, msgName, message);
 
         } catch (IOException | BaseHttpSolrClient.RemoteSolrException | SolrServerException e) {
-            logger.warning(e.getMessage());
+            log.error(e.getMessage());
             return "Internal error Deadlole";
         }
     }
@@ -239,9 +231,9 @@ public class SQLSolrHandler implements DatabaseHandler {
                 String type = rs.getString("type");
                 resultMap.put(word, type);
             }
-            logger.info("Blacklist pulled successfully " + resultMap.size() + " blacklisted words.");
+            log.info("Blacklist pulled successfully {} blacklisted words.", resultMap.size());
         } catch (SQLException e) {
-            logger.severe("SQLException: " + e.getMessage() + ", VendorError: " + e.getErrorCode());
+            log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
         }
         return resultMap;
     }
@@ -259,7 +251,7 @@ public class SQLSolrHandler implements DatabaseHandler {
                 list.add(user.toLowerCase());
             }
         } catch (SQLException e) {
-            logger.severe("SQLException: " + e.getMessage() + ", VendorError: " + e.getErrorCode());
+            log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
         }
         return list;
     }

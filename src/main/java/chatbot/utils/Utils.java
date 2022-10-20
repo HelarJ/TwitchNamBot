@@ -24,22 +24,33 @@ public class Utils {
                     int days = hours / 24;
                     sb.append(days);
                     sb.append("d");
-                    sb.append(hours % 24);
+                    if (hours % 24 > 0) {
+                        sb.append(hours % 24);
+                    }
                 } else {
                     sb.append(hours);
                 }
-                sb.append("h");
-                sb.append(minutes % 60);
+                if (hours % 24 > 0) {
+                    sb.append("h");
+                }
+                if (minutes % 60 > 0) {
+                    sb.append(minutes % 60);
+                }
             } else {
                 sb.append(minutes);
             }
-            sb.append("m");
-            sb.append(seconds % 60);
+            if (minutes % 60 > 0) {
+                sb.append("m");
+            }
+            if (seconds % 60 > 0) {
+                sb.append(seconds % 60);
+            }
         } else {
             sb.append(seconds);
         }
-
-        sb.append("s");
+        if (seconds % 60 > 0) {
+            sb.append("s");
+        }
 
         return sb.toString();
     }
@@ -53,11 +64,11 @@ public class Utils {
      */
     public static List<String> getWordList(String msg) {
         String phrase = msg.replaceAll(" \uDB40\uDC00", "");
-        phrase = phrase.replaceAll("[:!()^||&&]", "");
+        phrase = phrase.replaceAll("[:~!()^||&&]", "");
         List<String> phraseList = new ArrayList<>();
         Matcher m = Pattern.compile("([^\"]\\S*|\".+?\")\\s*").matcher(phrase);
         while (m.find()) {
-            phraseList.add(m.group(1));
+            phraseList.add(m.group(1).strip());
         }
         return phraseList;
     }
@@ -122,6 +133,7 @@ public class Utils {
      * @return Argument as a single word or null if not found.
      */
     public static String getArg(String args, int position) {
+        args = args.strip();
         String[] split = args.split(" ");
         if (split.length >= position + 1) {
             if (split[position].length() == 0) {

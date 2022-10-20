@@ -3,11 +3,10 @@ package chatbot.service;
 import chatbot.dao.ApiHandler;
 import chatbot.singleton.SharedStateSingleton;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
+import lombok.extern.log4j.Log4j2;
 
-import java.util.logging.Logger;
-
+@Log4j2
 public class OnlineCheckerService extends AbstractExecutionThreadService {
-    private final Logger logger = Logger.getLogger(OnlineCheckerService.class.toString());
     private final ApiHandler apiHandler;
     public boolean running = true;
     private final SharedStateSingleton state = SharedStateSingleton.getInstance();
@@ -23,12 +22,12 @@ public class OnlineCheckerService extends AbstractExecutionThreadService {
 
     @Override
     protected void startUp() {
-        logger.info(OnlineCheckerService.class + " started.");
+        log.info("{} started.", OnlineCheckerService.class);
     }
 
     @Override
     protected void shutDown() {
-        logger.info(OnlineCheckerService.class + " stopped.");
+        log.info("{} stopped.", OnlineCheckerService.class);
     }
 
     @Override

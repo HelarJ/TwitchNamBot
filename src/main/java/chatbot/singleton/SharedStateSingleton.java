@@ -5,6 +5,7 @@ import chatbot.dataclass.Message;
 import chatbot.dataclass.Timeout;
 import chatbot.enums.MessageType;
 import chatbot.utils.Config;
+import lombok.extern.log4j.Log4j2;
 
 import java.util.HashMap;
 import java.util.List;
@@ -14,11 +15,9 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.logging.Logger;
 
+@Log4j2
 public class SharedStateSingleton {
-    private static final Logger logger = Logger.getLogger(SharedStateSingleton.class.toString());
-
     private static final AtomicBoolean running = new AtomicBoolean(true);
 
     private final AtomicInteger messageCount = new AtomicInteger(0);
@@ -121,7 +120,7 @@ public class SharedStateSingleton {
         if (!online.get() || first) {
             online.set(true);
             first = false;
-            logger.info(Config.getChannelToJoin() + " is online.");
+            log.info(Config.getChannelToJoin() + " is online.");
         }
     }
 
@@ -129,7 +128,7 @@ public class SharedStateSingleton {
         if (online.get() || first) {
             online.set(false);
             first = false;
-            logger.info(Config.getChannelToJoin() + " is offline.");
+            log.info(Config.getChannelToJoin() + " is offline.");
         }
     }
 
@@ -138,7 +137,7 @@ public class SharedStateSingleton {
     }
 
     public void stop() {
-        logger.info("Starting shutdown procedure.");
+        log.info("Starting shutdown procedure.");
         running.set(false);
         ConsoleMain.reconnect();
     }

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="info">
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout>
+                <Pattern>%highlight{%d{dd-MM-yy HH:mm:ss} %-5level| %m%n}</Pattern>
+            </PatternLayout>
+        </Console>
+        <RollingRandomAccessFile name="RollingRandomAccessFile" fileName="logs/debug.log"
+                                 filePattern="logs/$${date:yyyy-MM}/debug-%d{MM-dd-yyyy}-%i.log.gz">
+            <PatternLayout>
+                <Pattern>%d[%t][%c{1.}]%-5level| %m%n</Pattern>
+            </PatternLayout>
+            <Policies>
+                <TimeBasedTriggeringPolicy/>
+                <SizeBasedTriggeringPolicy size="250 MB"/>
+            </Policies>
+        </RollingRandomAccessFile>
+        <RollingRandomAccessFile name="RollingRandomAccessFileForErrors" fileName="logs/error.log"
+                                 filePattern="logs/$${date:yyyy-MM}/error-%d{MM-dd-yyyy}-%i.log.gz">
+            <PatternLayout>
+                <Pattern>%d[%t][%c{1.}]%-5level| %m%n</Pattern>
+            </PatternLayout>
+            <Policies>
+                <TimeBasedTriggeringPolicy/>
+                <SizeBasedTriggeringPolicy size="250 MB"/>
+            </Policies>
+        </RollingRandomAccessFile>
+    </Appenders>
+    <Loggers>
+        <Root level="all">
+            <AppenderRef ref="Console" level="info"/>
+            <AppenderRef ref="RollingRandomAccessFile" level="debug"/>
+            <AppenderRef ref="RollingRandomAccessFileForErrors" level="error"/>
+        </Root>
+    </Loggers>
+</Configuration>

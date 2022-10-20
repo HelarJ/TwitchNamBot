@@ -1,13 +1,13 @@
 package chatbot.dataclass;
 
 import chatbot.enums.MessageType;
+import lombok.extern.log4j.Log4j2;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.logging.Logger;
 
+@Log4j2
 public class Timeout {
-    private final static Logger logger = Logger.getLogger(Timeout.class.toString());
     private String username;
     private Instant timeout;
     private int length;
@@ -34,7 +34,7 @@ public class Timeout {
     public void resetTimeout(int length) {
         int prevlength = this.length;
         this.length = length;
-        logger.info(String.format("Set %s's %d timeout to %ds.", username, prevlength, length));
+        log.info("Set {}s's {}d timeout to {}s.", username, prevlength, length);
         this.timeout = Instant.now();
     }
 

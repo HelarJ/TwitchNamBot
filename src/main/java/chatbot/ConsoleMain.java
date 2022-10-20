@@ -2,41 +2,36 @@ package chatbot;
 
 import chatbot.singleton.SharedStateSingleton;
 import chatbot.utils.Config;
-import chatbot.utils.Running;
+import lombok.extern.log4j.Log4j2;
 
 import java.io.IOException;
-import java.util.logging.Handler;
-import java.util.logging.Logger;
+import java.time.Instant;
 
+@Log4j2
 public class ConsoleMain {
-    private static final Logger logger = Logger.getLogger(ConsoleMain.class.toString());
+    private static final Instant startingTime = Instant.now();
     private static ProgramThread programThread;
+
     private static final SharedStateSingleton state = SharedStateSingleton.getInstance();
 
-    public static void main(String[] args) throws IOException {
-        Running.startLog();
+    public static void main(String[] args) throws IOException, InterruptedException {
         Config.initializeConfig();
         state.initializeQueues();
-        SharedStateSingleton state = SharedStateSingleton.getInstance();
 
         while (state.isBotStillRunning()) {
             programThread = new ProgramThread();
             Thread programThread = new Thread(ConsoleMain.programThread);
-            try {
-                programThread.start();
-                programThread.join();
-            } catch (InterruptedException e) {
-                logger.severe("Program thread interrupted. " + e.getMessage());
-                state.poisonQueues();
-            } finally {
-                if (state.isBotStillRunning()) {
-                    logger.info("Attempting to reconnect...");
-                }
+            programThread.start();
+            programThread.join();
+
+            if (state.isBotStillRunning()) {
+                log.info("Attempting to reconnect...");
             }
         }
-        for (Handler handler : logger.getHandlers()) {
-            handler.close();
-        }
+    }
+
+    public static Instant getStartTime() {
+        return startingTime;
     }
 
     public static void reconnect() {

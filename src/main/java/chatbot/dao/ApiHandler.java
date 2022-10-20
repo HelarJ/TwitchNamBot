@@ -6,6 +6,7 @@ import chatbot.utils.Config;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.log4j.Log4j2;
 
 import java.io.IOException;
 import java.net.URI;
@@ -13,10 +14,9 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.HashMap;
-import java.util.logging.Logger;
 
+@Log4j2
 public class ApiHandler {
-    private final Logger logger = Logger.getLogger(ApiHandler.class.toString());
     private final HttpClient httpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_2).build();
     private final String clientID = Config.getTwitchClientId();
     private final String secret = Config.getTwitchSecret();
@@ -53,7 +53,7 @@ public class ApiHandler {
             requestBody = objectMapper
                     .writeValueAsString(values);
         } catch (JsonProcessingException e) {
-            logger.severe("Unable to process json.");
+            log.error("Unable to process json.");
         }
         String oauthToken = null;
         int expires;
@@ -70,9 +70,9 @@ public class ApiHandler {
                 JsonNode jsonNode = mapper.readTree(result);
                 oauthToken = jsonNode.get("access_token").asText();
                 expires = jsonNode.get("expires_in").asInt();
-                logger.info(expires + " " + oauthToken);
+                log.info(expires + " " + oauthToken);
             } catch (IOException | InterruptedException | NullPointerException e) {
-                logger.severe("Exception in getting oauth. Defaulting to online mode and retrying: " + e.getMessage());
+                log.error("Exception in getting oauth. Defaulting to online mode and retrying: " + e.getMessage());
                 state.setOnline();
                 oauthToken = null;
                 try {
@@ -98,11 +98,11 @@ public class ApiHandler {
 
             JsonNode jsonNode = mapper.readTree(result);
             String userID = jsonNode.findValue("id").asText();
-            logger.info("UserID: " + userID);
+            log.info("UserID: " + userID);
             return userID;
 
         } catch (IOException | InterruptedException | NullPointerException e) {
-            logger.severe("Exception in getting UID from name: " + e.getMessage());
+            log.error("Exception in getting UID from name: " + e.getMessage());
             return null;
         }
     }
@@ -113,7 +113,7 @@ public class ApiHandler {
             return null;
         }
         if (oauth == null) {
-            logger.warning("No oauth for followlist.");
+            log.fatal("No oauth for followlist.");
             return null;
         }
 
@@ -128,7 +128,7 @@ public class ApiHandler {
         try {
             response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
         } catch (IOException | InterruptedException e) {
-            logger.warning("Error getting followed list for " + username + ": " + e.getMessage());
+            log.error("Error getting followed list for " + username + ": " + e.getMessage());
         }
         String result;
         if (response != null) {
@@ -172,7 +172,7 @@ public class ApiHandler {
                     try {
                         response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
                     } catch (IOException | InterruptedException e) {
-                        logger.warning("Error getting followed list for " + username + ": " + e.getMessage());
+                        log.error("Error getting followed list for " + username + ": " + e.getMessage());
                     }
                     if (response != null) {
                         result = response.body();
@@ -215,7 +215,7 @@ public class ApiHandler {
                         """);
                 return sb.toString();
             } catch (JsonProcessingException e) {
-                logger.severe("Error parsing json.");
+                log.error("Error parsing json.");
             }
         } else {
             return null;
@@ -226,7 +226,7 @@ public class ApiHandler {
     public void checkOnline(OnlineCheckerService onlineCheckerService) {
         String userID = getUID(channel);
         if (userID == null) {
-            logger.warning("Error getting UID from API. Retrying in 5s.");
+            log.error("Error getting UID from API. Retrying in 5s.");
             try {
                 Thread.sleep(5000);
             } catch (InterruptedException ignored) {
@@ -258,7 +258,7 @@ public class ApiHandler {
             }
 
         } catch (IOException | InterruptedException | NullPointerException e) {
-            logger.severe("Error getting online status: " + e.getMessage());
+            log.error("Error getting online status: " + e.getMessage());
         }
     }
 }

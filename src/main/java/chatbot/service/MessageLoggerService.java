@@ -4,11 +4,10 @@ import chatbot.dao.DatabaseHandler;
 import chatbot.dataclass.Message;
 import chatbot.singleton.SharedStateSingleton;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
+import lombok.extern.log4j.Log4j2;
 
-import java.util.logging.Logger;
-
+@Log4j2
 public class MessageLoggerService extends AbstractExecutionThreadService {
-    private final Logger logger = Logger.getLogger(CommandHandlerService.class.toString());
     private final DatabaseHandler sqlSolrHandler;
     private final SharedStateSingleton state = SharedStateSingleton.getInstance();
 
@@ -18,12 +17,12 @@ public class MessageLoggerService extends AbstractExecutionThreadService {
 
     @Override
     protected void shutDown() {
-        logger.info(MessageLoggerService.class + " stopped.");
+        log.info("{} stopped.", MessageLoggerService.class);
     }
 
     @Override
     protected void startUp() {
-        logger.info(MessageLoggerService.class + " started.");
+        log.info("{} started.", MessageLoggerService.class);
     }
 
     @Override
@@ -31,10 +30,10 @@ public class MessageLoggerService extends AbstractExecutionThreadService {
         while (state.isBotStillRunning()) {
             Message message = state.messageLogBlockingQueue.take();
             if (message.isPoison()) {
-                logger.info(MessageLoggerService.class + " poisoned.");
+                log.info("{} poisoned.", MessageLoggerService.class);
                 break;
             }
-            logger.fine(MessageLoggerService.class + " received a message: " + message);
+            log.trace("{} received a message: {}", MessageLoggerService.class, message);
 
             if (message.isWhisper()) {
                 sqlSolrHandler.recordWhisper(message);

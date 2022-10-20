@@ -14,6 +14,7 @@ import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.Service;
 import com.google.common.util.concurrent.ServiceManager;
+import lombok.extern.log4j.Log4j2;
 
 import java.io.IOException;
 import java.net.Socket;
@@ -21,10 +22,9 @@ import java.util.ArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.logging.Logger;
 
+@Log4j2
 public class ProgramThread implements Runnable {
-    private static final Logger logger = Logger.getLogger(ProgramThread.class.toString());
     private final ListenerService listenerService;
     private final SenderService senderService;
     private final CommandHandlerService commandHandlerService;
@@ -36,7 +36,7 @@ public class ProgramThread implements Runnable {
     private final SharedStateSingleton state = SharedStateSingleton.getInstance();
 
     public ProgramThread() throws IOException {
-
+        state.initializeQueues();
         ApiHandler apiHandler = new ApiHandler();
         DatabaseHandler databaseHandler = new SQLSolrHandler();
         Socket socket = new Socket("irc.chat.twitch.tv", 6667);
@@ -66,35 +66,33 @@ public class ProgramThread implements Runnable {
             serviceManager.awaitStopped(60, TimeUnit.SECONDS);
 
         } catch (IOException | InterruptedException e) {
-            logger.severe("Connection error: " + e.getMessage());
+            log.error("Connection error: {}", e.getMessage());
             shutdown();
         } catch (TimeoutException e) {
-            logger.severe("Closing services timed out. " + e.getMessage() +
-                    ". Current states: " + serviceManager.servicesByState());
+            log.fatal("Closing services timed out: {} . Current states: {}", e.getMessage(), serviceManager.servicesByState());
 
             //Having services still running might lead to issues, so we close the program completely.
             state.stop();
         }
 
-        logger.info("Mainthread thread ended.");
+        log.info("Mainthread thread ended.");
     }
 
     private void addListenersToManager(ServiceManager serviceManager) {
         serviceManager.addListener(new ServiceManager.Listener() {
             @Override
             public void failure(Service service) {
-                logger.severe(service + " failed. reason " + service.failureCause());
+                log.fatal("{} failed. reason {}", service, service.failureCause());
             }
 
             @Override
             public void healthy() {
-                logger.info("Started services");
-                logger.info(String.valueOf(serviceManager.startupDurations()));
+                log.info("Started services: {}", serviceManager.startupDurations());
             }
 
             @Override
             public void stopped() {
-                logger.info("Stopped services");
+                log.info("Stopped services");
             }
 
         }, MoreExecutors.directExecutor());
