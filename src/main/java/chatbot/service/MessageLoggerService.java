@@ -1,10 +1,13 @@
 package chatbot.service;
 
+import chatbot.ConsoleMain;
 import chatbot.dao.DatabaseHandler;
 import chatbot.dataclass.Message;
 import chatbot.singleton.SharedStateSingleton;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
 import lombok.extern.log4j.Log4j2;
+
+import java.util.concurrent.TimeUnit;
 
 @Log4j2
 public class MessageLoggerService extends AbstractExecutionThreadService {
@@ -28,7 +31,14 @@ public class MessageLoggerService extends AbstractExecutionThreadService {
     @Override
     public void run() throws InterruptedException {
         while (state.isBotStillRunning()) {
-            Message message = state.messageLogBlockingQueue.take();
+            Message message = state.messageLogBlockingQueue.poll(10, TimeUnit.MINUTES);
+            if (message == null) {
+                log.error("10 minutes have passed without a message for messagelogger. " +
+                        "Assuming connection has been lost and reconnecting.");
+                ConsoleMain.reconnect();
+                return;
+            }
+
             if (message.isPoison()) {
                 log.debug("{} poisoned.", MessageLoggerService.class);
                 break;

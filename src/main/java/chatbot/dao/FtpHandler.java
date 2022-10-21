@@ -31,13 +31,19 @@ public class FtpHandler {
         }
     }
 
-    public boolean upload(String filename, String text) throws IOException, NullPointerException {
+    public boolean upload(String filename, String text) {
 
-        ftpClient.enterLocalPassiveMode();
-        boolean success = ftpClient.storeFile(filename, new ByteArrayInputStream(text.getBytes(StandardCharsets.UTF_8)));
-        log.info(ftpClient.getReplyString());
-        ftpClient.enterLocalActiveMode();
-
+        boolean success = false;
+        try {
+            ftpClient.enterLocalPassiveMode();
+            success = ftpClient.storeFile(filename, new ByteArrayInputStream(text.getBytes(StandardCharsets.UTF_8)));
+            log.info(ftpClient.getReplyString());
+            ftpClient.enterLocalActiveMode();
+        } catch (IOException e) {
+            log.error("Error writing to outputstream: " + e.getMessage());
+        } catch (NullPointerException e) {
+            log.error("Error uploading to ftp");
+        }
         return success;
     }
 

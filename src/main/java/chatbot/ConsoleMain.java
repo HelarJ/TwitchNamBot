@@ -14,19 +14,24 @@ public class ConsoleMain {
 
     private static final SharedStateSingleton state = SharedStateSingleton.getInstance();
 
-    public static void main(String[] args) throws IOException, InterruptedException {
+    public static void main(String[] args) {
         log.info("Starting program.");
         Config.initializeConfig();
         state.initializeQueues();
 
         while (state.isBotStillRunning()) {
-            programThread = new ProgramThread();
-            Thread programThread = new Thread(ConsoleMain.programThread);
-            programThread.start();
-            programThread.join();
-
-            if (state.isBotStillRunning()) {
-                log.info("Attempting to reconnect...");
+            try {
+                programThread = new ProgramThread();
+                Thread programThread = new Thread(ConsoleMain.programThread);
+                programThread.start();
+                programThread.join();
+            } catch (IOException | InterruptedException e) {
+                log.fatal("Exception in programthread: {}", e.getMessage());
+                state.poisonQueues();
+            } finally {
+                if (state.isBotStillRunning()) {
+                    log.info("Attempting to reconnect...");
+                }
             }
         }
     }

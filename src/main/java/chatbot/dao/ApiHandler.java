@@ -58,9 +58,9 @@ public class ApiHandler {
             oauth = jsonNode.get("access_token").asText();
             int expires = jsonNode.get("expires_in").asInt();
             //the oauth normally expires in ~60 days.
-            log.info("Oauth received successfully. Expires in: {}", Utils.convertTime(expires));
+            log.info("Oauth received. Expires in: {}", Utils.convertTime(expires));
         } catch (IOException | InterruptedException | NullPointerException e) {
-            log.error("Defaulting to online mode, exception in getting oauth: {}", e.getMessage());
+            log.error("Exception in getting oauth: {}", e.getMessage());
             state.setOnline();
         }
     }
@@ -147,9 +147,7 @@ public class ApiHandler {
                 } else {
                     pagination = paginationNode.asText();
                 }
-                int currentsize = data.size();
-                int j = 0;
-                while (j < currentsize) {
+                for (int j = 0; j < data.size(); j++) {
                     JsonNode row = data.get(j);
                     if (row == null) {
                         break;
@@ -158,7 +156,6 @@ public class ApiHandler {
                             .formatted(
                                     row.get("followed_at").asText().replaceAll("T", " ").replaceAll("Z", ""),
                                     row.get("to_name").asText()));
-                    j++;
                     i++;
                     count--;
                 }
@@ -173,7 +170,7 @@ public class ApiHandler {
                     .withBodyContent(lines)
                     .build();
         } catch (JsonProcessingException e) {
-            log.error("Error parsing json.");
+            log.error("Error parsing json: {}", e.getMessage());
             return null;
         }
     }
@@ -197,7 +194,7 @@ public class ApiHandler {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             String result = response.body();
             if (result != null) {
-                if (result.length() == 27) { //0 if the API is not responding.
+                if (result.length() == 27) {
                     state.setOffline();
                 } else {
                     state.setOnline();

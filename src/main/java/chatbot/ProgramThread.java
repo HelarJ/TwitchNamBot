@@ -41,6 +41,7 @@ public class ProgramThread implements Runnable {
         ApiHandler apiHandler = new ApiHandler();
         DatabaseHandler databaseHandler = new SQLSolrHandler();
         Socket socket = new Socket("irc.chat.twitch.tv", 6667);
+        socket.setKeepAlive(true);
         this.senderService = new SenderService(socket);
         this.commandHandlerService = new CommandHandlerService(databaseHandler, apiHandler);
         this.onlineCheckerService = new OnlineCheckerService(apiHandler);

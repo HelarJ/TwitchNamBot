@@ -142,7 +142,7 @@ public class SharedStateSingleton {
         ConsoleMain.reconnect();
     }
 
-    public BlockingQueue<Message> messageBlockingQueue;
+    public BlockingQueue<Message> commandHandlerBlockingQueue;
     /**
      * Queue for sending messages to chat.
      */
@@ -158,7 +158,7 @@ public class SharedStateSingleton {
      * Initializes shared blockingqueues with empty ones.
      */
     public void initializeQueues() {
-        messageBlockingQueue = new LinkedBlockingQueue<>();
+        commandHandlerBlockingQueue = new LinkedBlockingQueue<>();
         sendingBlockingQueue = new LinkedBlockingQueue<>();
         messageLogBlockingQueue = new LinkedBlockingQueue<>();
         timeoutBlockingQueue = new LinkedBlockingQueue<>();
@@ -166,7 +166,7 @@ public class SharedStateSingleton {
 
     public void poisonQueues() {
         log.info("Poisoning queues.");
-        messageBlockingQueue.add(new Message(MessageType.POISON));
+        commandHandlerBlockingQueue.add(new Message(MessageType.POISON));
         sendingBlockingQueue.add(new Message(MessageType.POISON));
         messageLogBlockingQueue.add(new Message(MessageType.POISON));
         timeoutBlockingQueue.add(new Timeout(MessageType.POISON));

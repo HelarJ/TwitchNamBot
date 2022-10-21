@@ -40,15 +40,7 @@ import java.util.Map;
 import java.util.TimeZone;
 import java.util.concurrent.ThreadLocalRandom;
 
-import static chatbot.enums.Command.ADDALT;
-import static chatbot.enums.Command.ADDDISABLED;
-import static chatbot.enums.Command.FIRSTMESSAGE;
-import static chatbot.enums.Command.FS;
-import static chatbot.enums.Command.LASTMESSAGE;
-import static chatbot.enums.Command.NAMBAN;
-import static chatbot.enums.Command.REMDISABLED;
-import static chatbot.enums.Command.RQ;
-import static chatbot.enums.Command.RS;
+import static chatbot.enums.Command.*;
 
 @Log4j2
 public class CommandHandlerService extends AbstractExecutionThreadService {
@@ -75,7 +67,6 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         this.apiHandler = apiHandler;
         FtpHandler ftpHandler = new FtpHandler();
         ftpHandler.cleanLogs();
-
         refreshLists("Startup");
     }
 
@@ -104,7 +95,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     @Override
     public void run() throws InterruptedException {
         while (state.isBotStillRunning()) {
-            Message message = state.messageBlockingQueue.take();
+            Message message = state.commandHandlerBlockingQueue.take();
             if (message.isPoison()) {
                 log.debug(CommandHandlerService.class + " poisoned.");
                 break;
@@ -119,18 +110,18 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             return;
         }
 
-        String sender = message.getSender();
+        String from = message.getSender();
         String argStr = message.getArguments();
-        log.info(String.format("%s used %s with arguments [%s].", sender, command, argStr));
+        log.info(String.format("%s used %s with arguments [%s].", from, command, argStr));
 
         String username = Utils.getArg(argStr, 0);
         if (username == null) {
-            username = sender;
+            username = from;
         }
-        username = Utils.cleanName(sender, username);
+        username = Utils.cleanName(from, username);
 
-        if (isNotAllowed(sender, username, command)) {
-            log.info(sender + " not allowed to use command " + command);
+        if (isNotAllowed(from, username, command)) {
+            log.info(from + " not allowed to use command " + command);
             return;
         }
 
@@ -138,23 +129,23 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             case NAMMERS -> topNammers();
             case NAMPING -> ping();
             case NAMBAN -> ban(username);
-            case NAMES -> names(sender, username);
-            case NAMREFRESH -> refreshLists(sender);
-            case NAMCOMMANDS -> namCommands(sender);
-            case NAMCHOOSE -> choose(argStr, sender);
-            case NAM -> userNam(sender, username);
-            case LASTMESSAGE -> lastMessage(sender, username);
-            case FIRSTMESSAGE -> firstMessage(sender, username);
-            case LOG, LOGS -> getLogs(sender, username);
-            case RQ -> randomQuote(sender, username, argStr);
-            case RS -> randomSearch(sender, argStr);
-            case ADDDISABLED -> addDisabled(sender, username);
-            case REMDISABLED -> removeDisabled(sender, username);
-            case FS -> firstOccurrence(sender, argStr);
-            case SEARCH -> search(sender, argStr);
-            case SEARCHUSER -> searchUser(sender, argStr);
-            case ADDALT -> addAlt(sender, argStr);
-            case STALKLIST -> getFollowList(sender, username);
+            case NAMES -> names(from, username);
+            case NAMREFRESH -> refreshLists(from);
+            case NAMCOMMANDS -> namCommands(from);
+            case NAMCHOOSE -> choose(argStr, from);
+            case NAM -> userNam(from, username);
+            case LASTMESSAGE -> lastMessage(from, username);
+            case FIRSTMESSAGE -> firstMessage(from, username);
+            case LOG, LOGS -> getLogs(from, username);
+            case RQ -> randomQuote(from, username, argStr);
+            case RS -> randomSearch(from, argStr);
+            case ADDDISABLED -> addDisabled(from, username);
+            case REMDISABLED -> removeDisabled(from, username);
+            case FS -> firstOccurrence(from, argStr);
+            case SEARCH -> search(from, argStr);
+            case SEARCHUSER -> searchUser(from, argStr);
+            case ADDALT -> addAlt(from, argStr);
+            case STALKLIST -> getFollowList(from, username);
         }
         lastCommandTime = Instant.now();
     }
@@ -220,10 +211,8 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             //query.set("fl", "*,ttf(message,"+phrase+")");
             query.set("rows", 1);
             QueryResponse response = solr.query(query);
-            String finalMessage = "@" + from + ", no messages found PEEPERS";
             SolrDocumentList result = response.getResults();
             long rowcount = result.getNumFound();
-            finalMessage = "@" + from + ", " + username + " has used " + Utils.getWordList(msg) + " in " + rowcount + " messages.";
             /*
             SolrDocument result1 = response.getResults().get(0);
             long wordcount = (long) result1.get("ttf(message,"+phrase+")");
@@ -231,7 +220,11 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
                 finalMessage = "@"+from+", "+username.charAt(0)+zws1+zws2+username.substring(1)+" has used "+phrase+" in "+rowcount+" messages. Total count: "+wordcount+".";
             }*/
 
-            state.sendingBlockingQueue.add(new Message(finalMessage));
+            if (rowcount == 0) {
+                state.sendingBlockingQueue.add(new Message("@" + from + ", no messages found PEEPERS"));
+            } else {
+                state.sendingBlockingQueue.add(new Message("@" + from + ", " + username + " has used " + Utils.getWordList(msg) + " in " + rowcount + " messages."));
+            }
 
         } catch (IOException | SolrServerException | BaseHttpSolrClient.RemoteSolrException e) {
             log.error(e.getMessage());
@@ -471,12 +464,12 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         state.sendingBlockingQueue.add(new Message("@" + from + ", added " + alt + " as " + main + "'s alt account."));
     }
 
-    private void addDisabled(String from, String username) {
+    void addDisabled(String from, String username) {
         //already opted out
         if (state.disabledUsers.contains(username.toLowerCase())) {
             return;
         }
-        log.info(from + " added " + username + " to disabled list");
+        log.info("{} added {} to disabled list", from, username);
 
         try (Connection conn = DriverManager.getConnection(SQLCredentials);
              PreparedStatement stmt = conn.prepareStatement("CALL chat_stats.sp_add_disabled(?,?);"))
@@ -563,38 +556,19 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         }
     }
 
-    private boolean checkOneManSpam(String from) {
-        if (!previousMessage.equals(from)) {
-            previousMessage = from;
-            times.clear();
-        }
-        times.add(Instant.now());
-        times.removeIf(instant -> instant.plus(300, ChronoUnit.SECONDS).isAfter(Instant.now()));
-        return times.size() >= 5;
-    }
-
     private void getFollowList(String from, String username) {
-
-        String text = apiHandler.getFollowList(username);
-        String link = "stalk_" + username;
-        if (text == null) {
-            log.info("No follow list found for " + username);
-            state.sendingBlockingQueue.add(new Message("@" + from + ", no such user found PEEPERS"));
+        String content = apiHandler.getFollowList(username);
+        if (content == null) {
+            log.info("No follow list found for {}", username);
+            state.sendingBlockingQueue.add(new Message("@%s, no such user found PEEPERS".formatted(username)));
             return;
         }
-
+        String link = "stalk_" + username;
         new Thread(() -> {
-            try {
-                FtpHandler ftpHandler = new FtpHandler();
-                if (ftpHandler.upload(link, text)) {
-                    String output = String.format("@%s all channels followed by %s: %s%s", from, username, website, link);
-                    log.info(output);
-                    state.sendingBlockingQueue.add(new Message(output));
-                }
-            } catch (IOException e) {
-                log.error("Error writing to outputstream: " + e.getMessage());
-            } catch (NullPointerException e) {
-                log.error("Error uploading logs to ftp");
+            FtpHandler ftpHandler = new FtpHandler();
+            if (ftpHandler.upload(link, content)) {
+                state.sendingBlockingQueue.add(
+                        new Message("@%s all channels followed by %s: %s%s".formatted(from, username, website, link)));
             }
         }).start();
     }
@@ -698,19 +672,14 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             log.info("Data compilation took: " + (Utils.convertTime((int) (Instant.now().minus(queryEndTime.toEpochMilli(), ChronoUnit.MILLIS).toEpochMilli() / 1000))));
 
             new Thread(() -> {
-                try {
-                    FtpHandler ftpHandler = new FtpHandler();
-                    if (ftpHandler.upload(username, sb.toString())) {
-                        String output = String.format("@%s logs for %s: %s%s", from, username, website, username);
-                        log.info(output);
-                        log.info("Total time: " + (Utils.convertTime((int) (Instant.now().minus(startTime.toEpochMilli(), ChronoUnit.MILLIS).toEpochMilli() / 1000))));
-                        state.sendingBlockingQueue.add(new Message(output));
-                    }
-                } catch (IOException e) {
-                    log.error("Error writing to outputstream: " + e.getMessage());
-                } catch (NullPointerException e) {
-                    log.error("Error uploading logs to ftp");
+                FtpHandler ftpHandler = new FtpHandler();
+                if (ftpHandler.upload(username, sb.toString())) {
+                    String output = String.format("@%s logs for %s: %s%s", from, username, website, username);
+                    log.info(output);
+                    log.info("Total time: " + (Utils.convertTime((int) (Instant.now().minus(startTime.toEpochMilli(), ChronoUnit.MILLIS).toEpochMilli() / 1000))));
+                    state.sendingBlockingQueue.add(new Message(output));
                 }
+
             }).start();
         } catch (SQLException e) {
             log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
@@ -769,6 +738,16 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         }
     }
 
+    private boolean checkOneManSpam(String from) {
+        if (!previousMessage.equals(from)) {
+            previousMessage = from;
+            times.clear();
+        }
+        times.add(Instant.now());
+        times.removeIf(instant -> instant.plus(300, ChronoUnit.SECONDS).isAfter(Instant.now()));
+        return times.size() >= 5;
+    }
+
     private boolean isNotAllowed(String from, String username, Command command) {
         //admins are not affected by any rules.
         if (godUsers.contains(from.toLowerCase())) {
@@ -796,7 +775,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         }
 
         //online check
-        if (state.online.get()) {
+        if (state.online.get() && !(command == LOG || command == LOGS)) {
             log.info("Attempted to use " + command + " while stream is online");
             return true;
         }
