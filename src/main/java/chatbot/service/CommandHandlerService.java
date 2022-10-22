@@ -40,8 +40,6 @@ import java.util.Map;
 import java.util.TimeZone;
 import java.util.concurrent.ThreadLocalRandom;
 
-import static chatbot.enums.Command.*;
-
 @Log4j2
 public class CommandHandlerService extends AbstractExecutionThreadService {
     private final String solrCredentials = Config.getSolrCredentials();
@@ -120,7 +118,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         }
         username = Utils.cleanName(from, username);
 
-        if (isNotAllowed(from, username, command)) {
+        if (!isAllowed(from, username, command)) {
             log.info(from + " not allowed to use command " + command);
             return;
         }
@@ -465,8 +463,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     }
 
     void addDisabled(String from, String username) {
-        //already opted out
-        if (state.disabledUsers.contains(username.toLowerCase())) {
+        if (state.disabledUsers.contains(username)) {
             return;
         }
         log.info("{} added {} to disabled list", from, username);
@@ -491,7 +488,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     }
 
     private void removeDisabled(String from, String username) {
-        if (!state.disabledUsers.contains(username.toLowerCase())) {
+        if (!state.disabledUsers.contains(username)) {
             return;
         }
 
@@ -748,12 +745,67 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         return times.size() >= 5;
     }
 
-    private boolean isNotAllowed(String from, String username, Command command) {
-        //admins are not affected by any rules.
-        if (godUsers.contains(from.toLowerCase())) {
+    private boolean isAllowed(String from, String username, Command command) {
+        //admins are not affected by any rules except optout rules.
+        if (godUsers.contains(from.toLowerCase())
+                && !command.isOptedOut(username, state.disabledUsers))
+        {
+            return true;
+        }
+
+        if (isBanned(from)) {
             return false;
         }
 
+        //online check
+        if (state.online.get() && !command.isOnlineAllowed()) {
+            log.info("Attempted to use " + command + " while stream is online");
+            return false;
+        }
+
+        //10 second cooldown
+        if (lastCommandTime.plus(10, ChronoUnit.SECONDS).isAfter(Instant.now())
+                && !godUsers.contains(from)
+                //These commands have their own logic for cooldown.
+                && command != Command.ADDDISABLED
+                && command != Command.REMDISABLED)
+        {
+            return false;
+        }
+
+        //new spammer check
+        if (checkOneManSpam(from)) {
+            banned.put(from, Instant.now());
+            state.sendingBlockingQueue.add(new Message("@" + from + ", stop one man spamming. Banned from using commands for 10 minutes peepoD"));
+            return false;
+        }
+
+        if (isBot(username)) {
+            return false;
+        }
+
+        //wildcard in username not allowed
+        if (username.contains("*") || username.contains("?") || username.contains("~") || username.contains("{")
+                || username.contains("["))
+        {
+            return false;
+        }
+
+        if (command.isOptedOut(username, state.disabledUsers)) {
+            state.sendingBlockingQueue.add(
+                    new Message("@" + from + ", that user has been removed from the "
+                            + command
+                            + " command. Type !adddisabled to remove yourself or !remdisabled to re-enable commands."));
+            lastCommandTime = Instant.now();
+            return false;
+        }
+
+        return command.isSelfAllowed(from, username)
+                || command.isOthersAllowed()
+                || command.isModsAllowed(from, mods);
+    }
+
+    private boolean isBanned(String from) {
         //previous spammer check
         if (banned.containsKey(from.toLowerCase())) {
             if (banned.get(from).plus(600, ChronoUnit.SECONDS).isAfter(Instant.now())) {
@@ -773,83 +825,6 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
                 superbanned.remove(from);
             }
         }
-
-        //online check
-        if (state.online.get() && !(command == LOG || command == LOGS)) {
-            log.info("Attempted to use " + command + " while stream is online");
-            return true;
-        }
-
-        //10 second cooldown
-        if (lastCommandTime.plus(10, ChronoUnit.SECONDS).isAfter(Instant.now())
-                && !godUsers.contains(from)
-                && command != Command.ADDDISABLED
-                && command != Command.REMDISABLED)
-        {
-            return true;
-        }
-
-        //new spammer check
-        if (checkOneManSpam(from)) {
-            banned.put(from, Instant.now());
-            state.sendingBlockingQueue.add(new Message("@" + from + ", stop one man spamming. Banned from using commands for 10 minutes peepoD"));
-            return true;
-        }
-
-        if (isBot(username)) {
-            return true;
-        }
-
-        //wildcard in username not allowed
-        if (username.contains("*") || username.contains("?") || username.contains("~") || username.contains("{")
-                || username.contains("["))
-        {
-            return true;
-        }
-
-        //disabled (opted out) users check
-        if (state.disabledUsers.contains(username.toLowerCase())
-                && (command == RQ || command == RS || command == LASTMESSAGE || command == FIRSTMESSAGE))
-        {
-            state.sendingBlockingQueue.add(
-                    new Message("@" + from + ", that user has been removed from the "
-                            + command
-                            + " command (either by their own wish or by a mod). Type !adddisabled to remove yourself or !remdisabled to re-enable commands."));
-            lastCommandTime = Instant.now();
-            return true;
-        }
-
-        //disable lastmessage for self
-        if (command == LASTMESSAGE && username.equalsIgnoreCase(from)) {
-            state.sendingBlockingQueue.add(new Message("PepeSpin"));
-            return true;
-        }
-
-        //disable being able to use these commands on anyone but yourself
-        if (!username.equalsIgnoreCase(from)
-                && (command == RS))
-        {
-            return true;
-        }
-
-        //disable for everyone (but admin)
-        if (command == FS) {
-            return true;
-        }
-        //disable for everyone but mod
-        if (!mods.contains(from.toLowerCase())
-                && (command == ADDALT || command == NAMBAN))
-        {
-            return true;
-        }
-        //disable for everyone but mod and the user
-        if (!from.equalsIgnoreCase(username)
-                && !mods.contains(from.toLowerCase())
-                && (command == ADDDISABLED || command == REMDISABLED))
-        {
-            return true;
-        }
-
         return false;
     }
 }

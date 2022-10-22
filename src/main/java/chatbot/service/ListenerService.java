@@ -24,7 +24,6 @@ public class ListenerService extends AbstractExecutionThreadService {
     private final SharedStateSingleton state = SharedStateSingleton.getInstance();
     private final CommandHandlerService commandHandlerService;
     private final String username;
-    private boolean running = true;
     private final String admin;
 
     public ListenerService(Socket socket, CommandHandlerService commandHandlerService) throws IOException {
@@ -34,13 +33,10 @@ public class ListenerService extends AbstractExecutionThreadService {
         this.username = Config.getTwitchUsername().toLowerCase();
         this.admin = Config.getBotAdmin().toLowerCase();
     }
-
-    @SneakyThrows(IOException.class)
     @Override
     @SuppressWarnings("UnstableApiUsage")
     protected void triggerShutdown() {
-        running = false;
-        bufferedReader.close();
+        closeBuffered();
     }
 
     @Override
@@ -55,8 +51,11 @@ public class ListenerService extends AbstractExecutionThreadService {
 
     @Override
     public void run() {
-        while (state.isBotStillRunning() && running) {
+        while (state.isBotStillRunning()) {
             String output = getOutput();
+            if (output == null) {
+                return;
+            }
             if (output.equals("PING :tmi.twitch.tv")) {
                 handlePing();
                 continue;
@@ -157,10 +156,11 @@ public class ListenerService extends AbstractExecutionThreadService {
         Message command = new Message(name, userid, outputMSG, subscribed, false, output);
 
         state.messageLogBlockingQueue.add(command);
+        state.commandHandlerBlockingQueue.add(command);
 
         //records a timeout with a 0-second duration to prevent timeoutlist exploting.
         state.timeoutBlockingQueue.add(new Timeout(name, userid, 0));
-        state.commandHandlerBlockingQueue.add(command);
+
     }
 
     private String getOutput() {
@@ -170,7 +170,6 @@ public class ListenerService extends AbstractExecutionThreadService {
         } catch (IOException e) {
             log.fatal("Connection error for Listener: {}", e.getMessage());
             if (state.isBotStillRunning()) {
-                running = false;
                 ConsoleMain.reconnect();
             }
         }
@@ -184,9 +183,15 @@ public class ListenerService extends AbstractExecutionThreadService {
         } catch (IOException e) {
             log.fatal("Error sending ping: {}", e.getMessage());
             if (state.isBotStillRunning()) {
-                running = false;
+                closeBuffered();
                 ConsoleMain.reconnect();
             }
         }
+    }
+
+    @SneakyThrows(IOException.class)
+    private void closeBuffered() {
+        log.debug("Closing bufferedreader.");
+        bufferedReader.close();
     }
 }
