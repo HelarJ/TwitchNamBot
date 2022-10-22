@@ -38,7 +38,7 @@ public class Timeout {
         }
         int prevlength = this.length;
         this.length = length;
-        log.info("Set {}s's {}d timeout to {}s.", username, prevlength, length);
+        log.info("Set {}'s {}s timeout to {}s.", username, prevlength, length);
         this.timeout = Instant.now();
     }
 

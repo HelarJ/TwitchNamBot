@@ -1,6 +1,7 @@
 package chatbot.dao;
 
 import chatbot.utils.Config;
+import lombok.SneakyThrows;
 import lombok.extern.log4j.Log4j2;
 import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.net.ftp.FTPFile;
@@ -14,10 +15,13 @@ import java.time.temporal.ChronoUnit;
 
 @Log4j2
 public class FtpHandler {
-    private final FTPClient ftpClient;
+    private final FTPClient ftpClient = new FTPClient();
 
     public FtpHandler() {
-        ftpClient = new FTPClient();
+        connect();
+    }
+
+    public void connect() {
         try {
             ftpClient.connect(Config.getFtpServer(), Integer.parseInt(Config.getFtpPort()));
             int reply = ftpClient.getReplyCode();
@@ -31,8 +35,14 @@ public class FtpHandler {
         }
     }
 
-    public boolean upload(String filename, String text) {
+    @SneakyThrows(IOException.class)
+    public void disconnect() {
+        if (ftpClient.isConnected()) {
+            ftpClient.disconnect();
+        }
+    }
 
+    public boolean upload(String filename, String text) {
         boolean success = false;
         try {
             ftpClient.enterLocalPassiveMode();
@@ -43,11 +53,16 @@ public class FtpHandler {
             log.error("Error writing to outputstream: " + e.getMessage());
         } catch (NullPointerException e) {
             log.error("Error uploading to ftp");
+        } finally {
+            disconnect();
         }
         return success;
     }
 
     public void cleanLogs() {
+        if (!ftpClient.isConnected()) {
+            connect();
+        }
         ftpClient.enterLocalPassiveMode();
         FTPFile[] files = new FTPFile[0];
         try {
@@ -67,12 +82,12 @@ public class FtpHandler {
                     ftpClient.deleteFile(filename);
                 }
             }
+            ftpClient.enterLocalActiveMode();
         } catch (IOException e) {
             log.error("Error deleting file");
         } finally {
-            ftpClient.enterLocalActiveMode();
+            disconnect();
         }
-
     }
 }
 

@@ -412,7 +412,7 @@ public class SQLSolrHandler implements DatabaseHandler {
                     .withBodyIntro("""
                             Logs for %s in the channel %s.<br>
                             %d messages listed out of %d total.<br>
-                            Generated %s. All times UTC.
+                            Generated %s. All times UTC.<br>
                             """.formatted(username, Config.getChannelToJoin(),
                             currentCount, count,
                             generationDate.format(date)))
