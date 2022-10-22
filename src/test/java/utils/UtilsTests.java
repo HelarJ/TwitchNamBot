@@ -13,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 public class UtilsTests {
     @Test
     public void convertTimeTest() {
+        assertEquals("0s", convertTime(0));
         assertEquals("10s", convertTime(10));
         assertEquals("1m", convertTime(60));
         assertEquals("1m1s", convertTime(61));

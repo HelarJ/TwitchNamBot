@@ -11,41 +11,18 @@ import chatbot.utils.Config;
 import chatbot.utils.Utils;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
 import lombok.extern.log4j.Log4j2;
-import org.apache.solr.client.solrj.SolrClient;
-import org.apache.solr.client.solrj.SolrQuery;
-import org.apache.solr.client.solrj.SolrServerException;
-import org.apache.solr.client.solrj.impl.BaseHttpSolrClient;
-import org.apache.solr.client.solrj.impl.HttpSolrClient;
-import org.apache.solr.client.solrj.response.QueryResponse;
-import org.apache.solr.common.SolrDocument;
-import org.apache.solr.common.SolrDocumentList;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TimeZone;
 import java.util.concurrent.ThreadLocalRandom;
 
 @Log4j2
 public class CommandHandlerService extends AbstractExecutionThreadService {
-    private final String solrCredentials = Config.getSolrCredentials();
     private Instant lastCommandTime = Instant.now().minus(30, ChronoUnit.SECONDS);
-    private final String SQLCredentials = Config.getSQLCredentials();
-    private final HashMap<String, Integer> logCache = new HashMap<>();
     private final HashMap<String, Instant> banned = new HashMap<>();
     private final HashMap<String, Instant> superbanned = new HashMap<>();
     private final String website = Config.getBotWebsite();
@@ -54,8 +31,8 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     private List<String> mods;
     private final String admin = Config.getBotAdmin();
     private final String channel = Config.getChannelToJoin();
-    List<Instant> times = new ArrayList<>();
-    String previousMessage = "";
+    private final List<Instant> previousMessageTimes = new ArrayList<>();
+    private String previousMessage = "";
     private final DatabaseHandler sqlSolrHandler;
     private final ApiHandler apiHandler;
     private final SharedStateSingleton state = SharedStateSingleton.getInstance();
@@ -174,7 +151,6 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     }
 
     private void choose(String choiceMsg, String from) {
-        choiceMsg = choiceMsg.replaceAll(" \uDB40\uDC00", "");
         String[] choices = choiceMsg.split(" ");
         if (choices.length == 0) {
             return;
@@ -201,64 +177,26 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         }
         msg = Utils.getMsgWithoutName(msg, username);
         username = Utils.cleanName(from, username);
-        String phrase = Utils.getSolrPattern(msg);
 
-        try (SolrClient solr = new HttpSolrClient.Builder(solrCredentials).build()) {
-            SolrQuery query = new SolrQuery();
-            query.set("q", phrase + " AND username:" + username + " AND -username:" + botName + " AND -message:\"!search\" AND -message:\"!searchuser\" AND -message:\"!rs\"");
-            //query.set("fl", "*,ttf(message,"+phrase+")");
-            query.set("rows", 1);
-            QueryResponse response = solr.query(query);
-            SolrDocumentList result = response.getResults();
-            long rowcount = result.getNumFound();
-            /*
-            SolrDocument result1 = response.getResults().get(0);
-            long wordcount = (long) result1.get("ttf(message,"+phrase+")");
-            if (wordcount > 0){
-                finalMessage = "@"+from+", "+username.charAt(0)+zws1+zws2+username.substring(1)+" has used "+phrase+" in "+rowcount+" messages. Total count: "+wordcount+".";
-            }*/
-
-            if (rowcount == 0) {
-                state.sendingBlockingQueue.add(new Message("@" + from + ", no messages found PEEPERS"));
-            } else {
-                state.sendingBlockingQueue.add(new Message("@" + from + ", " + username + " has used " + Utils.getWordList(msg) + " in " + rowcount + " messages."));
-            }
-
-        } catch (IOException | SolrServerException | BaseHttpSolrClient.RemoteSolrException e) {
-            log.error(e.getMessage());
+        long count = sqlSolrHandler.searchUser(username, msg);
+        if (count == 0) {
+            state.sendingBlockingQueue.add(new Message("@" + from + ", no messages found PEEPERS"));
+        } else {
+            state.sendingBlockingQueue.add(new Message("@" + from + ", " + username + " has used " + Utils.getWordList(msg) + " in " + count + " messages."));
         }
     }
 
     private void search(String from, String msg) {
-        String phrase = Utils.getSolrPattern(msg);
-
-        try (SolrClient solr = new HttpSolrClient.Builder(solrCredentials).build()) {
-            SolrQuery query = new SolrQuery();
-            query.set("q", phrase + " AND -username:" + botName + " AND -message:\"!search\" AND -message:\"!searchuser\" AND -message:\"!rs\"");
-            //query.set("fl", "*,ttf(message,"+phrase+")");
-            query.set("rows", 1);
-            QueryResponse response = solr.query(query);
-            SolrDocumentList result = response.getResults();
-            long rowcount = result.getNumFound();
-            /*
-            SolrDocument result1 = response.getResults().get(0);
-            long wordcount = (long) result1.get("ttf(message,"+phrase+")");
-            if (wordcount > 0){
-                finalMessage = "@"+from+" found word "+msg+" in "+rowcount+" rows. Total count: "+wordcount+".";
-            }*/
-            if (rowcount == 0) {
-                state.sendingBlockingQueue.add(new Message("@" + from + ", no messages found PEEPERS"));
-            } else {
-                state.sendingBlockingQueue.add(new Message("@" + from + " found " + Utils.getWordList(msg) + " in " + rowcount + " rows."));
-            }
-
-        } catch (IOException | BaseHttpSolrClient.RemoteSolrException | SolrServerException e) {
-            log.error(e.getMessage());
+        long count = sqlSolrHandler.search(msg);
+        if (count == 0) {
+            state.sendingBlockingQueue.add(new Message("@" + from + ", no messages found PEEPERS"));
+        } else {
+            state.sendingBlockingQueue.add(new Message("@" + from + " found " + Utils.getWordList(msg) + " in " + count + " rows."));
         }
     }
 
     private void firstOccurrence(String from, String msg) {
-        state.sendingBlockingQueue.add(new Message(sqlSolrHandler.firstOccurrence(from, msg)));
+        state.sendingBlockingQueue.add(new Message("@%s, %s".formatted(from, sqlSolrHandler.firstOccurrence(msg))));
     }
 
     private void randomSearch(String from, String msg) {
@@ -270,7 +208,24 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         msg = Utils.getMsgWithoutName(msg, username);
         username = Utils.cleanName(from, username);
 
-        state.sendingBlockingQueue.add(new Message(sqlSolrHandler.randomSearch(from, username, msg)));
+        String result = sqlSolrHandler.randomSearch(username, msg);
+        if (!result.startsWith("[")) {
+            result = "%s, %s".formatted(from, result);
+        }
+        state.sendingBlockingQueue.add(new Message(result));
+    }
+
+    private void randomQuote(String from, String username, String args) {
+        if (hasNoMessages(from, username)) {
+            return;
+        }
+        String year = Utils.getYear(Utils.getArg(args, 1));
+
+        String result = sqlSolrHandler.randomQuote(username, year);
+        if (!result.startsWith("[")) {
+            result = "%s, %s".formatted(from, result);
+        }
+        state.sendingBlockingQueue.add(new Message(result));
     }
 
     private boolean isBot(String username) {
@@ -300,57 +255,14 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         if (hasNoMessages(from, username)) {
             return;
         }
-
-        try (Connection conn = DriverManager.getConnection(SQLCredentials);
-             PreparedStatement stmt = conn.prepareStatement("call chat_stats.sp_get_first_message(?)"))
-        {
-            stmt.setString(1, username);
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) {
-                String convertedTime = Utils.convertTime((int) (Instant.now().minus(rs.getTimestamp("time",
-                                Calendar.getInstance(TimeZone.getTimeZone("UTC"))).getTime(),
-                        ChronoUnit.MILLIS).toEpochMilli() / 1000));
-                String message = rs.getString("message");
-                String finalMessage = String.format("%s's first message %s ago was: %s",
-                        username,
-                        convertedTime,
-                        message);
-                state.sendingBlockingQueue.add(new Message(finalMessage));
-            }
-
-        } catch (SQLException e) {
-            log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
-        }
+        state.sendingBlockingQueue.add(new Message("%s, %s".formatted(from, sqlSolrHandler.firstMessage(username))));
     }
 
     private void lastMessage(String from, String username) {
         if (hasNoMessages(from, username)) {
             return;
         }
-
-        try (Connection conn = DriverManager.getConnection(SQLCredentials);
-             PreparedStatement stmt = conn.prepareStatement("call chat_stats.sp_get_last_message(?)"))
-        {
-            stmt.setString(1, username);
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) {
-                String convertedTime = Utils.convertTime((int) (Instant.now().minus(rs.getTimestamp("time",
-                                Calendar.getInstance(TimeZone.getTimeZone("UTC"))).getTime(),
-                        ChronoUnit.MILLIS).toEpochMilli() / 1000));
-                String message = rs.getString("message");
-
-                String finalMessage = String.format("%s's last message %s ago was: %s",
-                        username,
-                        convertedTime,
-                        message);
-                state.sendingBlockingQueue.add(new Message(finalMessage));
-            }
-
-        } catch (SQLException e) {
-            log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
-        } finally {
-            lastCommandTime = Instant.now();
-        }
+        state.sendingBlockingQueue.add(new Message("@%s, %s".formatted(from, sqlSolrHandler.lastMessage(username))));
     }
 
     private boolean hasNoMessages(String from, String username) {
@@ -364,47 +276,15 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     }
 
     private void topNammers() {
-        try (Connection conn = DriverManager.getConnection(SQLCredentials);
-             Statement stmt = conn.createStatement())
-        {
-            ResultSet results = stmt.executeQuery("call chat_stats.sp_get_top10to()");
-            StringBuilder sb = new StringBuilder();
-            sb.append("Top NaMmers: ");
-            while (results.next()) {
-                sb.append(results.getString("username"));
-                sb.append(": ");
-                sb.append(Utils.convertTime(results.getInt("timeout")));
-                sb.append(" | ");
-                if (sb.length() >= 270) {
-                    break;
-                }
-            }
-            state.sendingBlockingQueue.add(new Message(sb.toString()));
-        } catch (SQLException e) {
-            log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
+        String topTimeoutList = sqlSolrHandler.getTopTimeouts();
+        if (topTimeoutList == null) {
+            return;
         }
+        state.sendingBlockingQueue.add(new Message(topTimeoutList));
     }
 
     private int getCount(String username) {
-        int count = 0;
-        String stmtStr = "call chat_stats.sp_get_message_count(?)";
-        if (username.equalsIgnoreCase("all")) {
-            stmtStr = "call chat_stats.sp_get_all_count(?)";
-        }
-
-        try (Connection conn = DriverManager.getConnection(SQLCredentials);
-             PreparedStatement stmt = conn.prepareStatement(stmtStr))
-        {
-            stmt.setString(1, username);
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()) {
-                count = rs.getInt("count");
-            }
-
-        } catch (SQLException e) {
-            log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
-        }
-        return count;
+        return sqlSolrHandler.getMessageCount(username);
     }
 
     private void initializeMods() {
@@ -413,20 +293,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         mods.add(admin);
         mods.add(channel.replace("#", ""));
         mods.add("autoban");
-        try (Connection conn = DriverManager.getConnection(SQLCredentials);
-             PreparedStatement stmt = conn.prepareStatement("call chat_stats.sp_get_mods()"))
-        {
-            stmt.execute();
-            ResultSet rs = stmt.getResultSet();
-
-            while (rs.next()) {
-                String name = rs.getString("name");
-                mods.add(name.toLowerCase());
-            }
-
-        } catch (SQLException e) {
-            log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
-        }
+        mods.addAll(sqlSolrHandler.getModList());
         godUsers.add(admin);
         godUsers.add(channel.replace("#", ""));
         log.info("Initialized mods list {} | god users {}.", mods, godUsers);
@@ -456,9 +323,8 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         }
         state.mains.put(alt, main);
         state.mains.putIfAbsent(main, main);
-        List<String> list = state.alts.getOrDefault(main, new ArrayList<>());
-        list.add(alt);
-        state.alts.putIfAbsent(main, list);
+        state.alts.putIfAbsent(main, new ArrayList<>());
+        state.alts.get(main).add(alt);
         state.sendingBlockingQueue.add(new Message("@" + from + ", added " + alt + " as " + main + "'s alt account."));
     }
 
@@ -466,91 +332,29 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         if (state.disabledUsers.contains(username)) {
             return;
         }
-        log.info("{} added {} to disabled list", from, username);
 
-        try (Connection conn = DriverManager.getConnection(SQLCredentials);
-             PreparedStatement stmt = conn.prepareStatement("CALL chat_stats.sp_add_disabled(?,?);"))
+        state.disabledUsers.add(username.toLowerCase());
+        sqlSolrHandler.addDisabled(from, username);
+
+        if (!from.equals("Autoban") && (mods.contains(from.toLowerCase()) ||
+                lastCommandTime.plus(10, ChronoUnit.SECONDS).isBefore(Instant.now())))
         {
-
-            stmt.setString(1, from);
-            stmt.setString(2, username);
-            stmt.executeQuery();
-            state.disabledUsers.add(username.toLowerCase());
-            if (!from.equals("Autoban") && (mods.contains(from.toLowerCase()) ||
-                    lastCommandTime.plus(10, ChronoUnit.SECONDS).isBefore(Instant.now())))
-            {
-                state.sendingBlockingQueue.add(new Message("@" + from + ", added " + username + " to ignore list."));
-            }
-
-        } catch (SQLException e) {
-            log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
+            state.sendingBlockingQueue.add(new Message("@" + from + ", added " + username + " to ignore list."));
         }
+        log.info("{} added {} to disabled list", from, username);
     }
 
     private void removeDisabled(String from, String username) {
         if (!state.disabledUsers.contains(username)) {
             return;
         }
-
-        log.info("{} removing {} from disabled list", from, username);
-        try (Connection conn = DriverManager.getConnection(SQLCredentials);
-             PreparedStatement stmt = conn.prepareStatement("CALL chat_stats.sp_remove_disabled(?);"))
-        {
-            stmt.setString(1, username);
-            stmt.executeQuery();
-            if (mods.contains(from.toLowerCase()) || lastCommandTime.plus(10, ChronoUnit.SECONDS).isBefore(Instant.now())) {
-                state.sendingBlockingQueue.add(new Message("@" + from + ", removed " + username + " from ignore list."));
-            }
-            state.disabledUsers.remove(username.toLowerCase());
-        } catch (SQLException e) {
-            log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
+        state.disabledUsers.remove(username.toLowerCase());
+        if (mods.contains(from.toLowerCase()) || lastCommandTime.plus(10, ChronoUnit.SECONDS).isBefore(Instant.now())) {
+            state.sendingBlockingQueue.add(new Message("@" + from + ", removed " + username + " from ignore list."));
         }
-    }
+        sqlSolrHandler.removeDisabled(username);
+        log.info("{} removed {} from disabled list", from, username);
 
-    private void randomQuote(String from, String username, String args) {
-        String year = Utils.getYear(Utils.getArg(args, 1));
-
-        int count = getCount(username);
-        if (count == 0) {
-            log.info("Did not find any messages for user " + username);
-            state.sendingBlockingQueue.add(new Message("@" + from + ", no messages found PEEPERS"));
-            return;
-        }
-
-        try (SolrClient solr = new HttpSolrClient.Builder(solrCredentials).build()) {
-            SolrQuery query = new SolrQuery();
-            String fullNameStr = state.getAltsSolrString(username);
-            query.set("q", fullNameStr);
-            if (year != null) {
-                query.set("fq", "-message:\"!rq\" AND -message:\"!chain\" AND -message:\"!lastmessage\" AND time:" + year);
-            } else {
-                query.set("fq", "-message:\"!rq\" AND -message:\"!chain\" AND -message:\"!lastmessage\"");
-            }
-            int seed = ThreadLocalRandom.current().nextInt(0, 9999999);
-            query.set("sort", "random_" + seed + " asc");
-            int amount = 50;
-            query.set("rows", amount);
-            QueryResponse response = solr.query(query);
-            SolrDocumentList results = response.getResults();
-
-            if (results.getNumFound() == 0) {
-                log.info("Did not find any messages for " + fullNameStr);
-                state.sendingBlockingQueue.add(new Message("@" + from + ", no messages found PEEPERS"));
-                return;
-            }
-            SolrDocument result = results.get(0);
-            String message = (String) result.getFirstValue("message");
-            Date date = (Date) result.getFirstValue("time");
-            username = (String) result.getFirstValue("username");
-            String dateStr = ("[" + date.toInstant().toString().replaceAll("T", " ").replaceAll("Z", "]"));
-            String finalMessage = String.format("%s %s: %s",
-                    dateStr,
-                    username,
-                    message);
-            state.sendingBlockingQueue.add(new Message(finalMessage));
-        } catch (IOException | SolrServerException e) {
-            log.error("Solr error: " + e.getMessage());
-        }
     }
 
     private void getFollowList(String from, String username) {
@@ -571,116 +375,37 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     }
 
     private void getLogs(String from, String username) {
-        logCache.putIfAbsent(username, 0);
+        state.logCache.putIfAbsent(username, 0);
         int count = getCount(username);
         if (count == 0) {
             log.info("Did not find any logs for user " + username);
             state.sendingBlockingQueue.add(new Message("@" + from + ", no messages found PEEPERS"));
             return;
         }
-        if (count == logCache.get(username)) {
+        if (count == state.logCache.get(username)) {
             String output = String.format("@%s logs for %s: %s%s", from, username, website, username);
             log.info("No change to message count, not updating link.");
             state.sendingBlockingQueue.add(new Message(output));
             return;
         } else {
-            logCache.put(username, count);
+            state.logCache.put(username, count);
         }
 
         Instant startTime = Instant.now();
-        try (Connection conn = DriverManager.getConnection(SQLCredentials)) {
-            PreparedStatement stmt;
-            if (username.equalsIgnoreCase("all")) {
-                stmt = conn.prepareStatement("CALL chat_stats.sp_get_logs();");
-            } else {
-                stmt = conn.prepareStatement("CALL chat_stats.sp_get_user_logs(?);");
-                stmt.setString(1, username);
-            }
-            ResultSet rs = stmt.executeQuery();
-            Instant queryEndTime = Instant.now();
-            log.info("Query took: " + (Utils.convertTime((int) (queryEndTime.minus(startTime.toEpochMilli(), ChronoUnit.MILLIS).toEpochMilli() / 1000))));
-            StringBuilder sb = new StringBuilder();
-            sb.append("<!DOCTYPE html>");
-            sb.append("\r\n");
-            sb.append("<html>");
-            sb.append("\r\n");
-            sb.append("<head>");
-            sb.append("\r\n");
-            sb.append("<meta charset=\"utf-8\">");
-            sb.append("\r\n");
-            sb.append("<title>");
-            sb.append("Logs for ");
-            sb.append(username);
-            sb.append("</title>");
-            sb.append("\r\n");
-            sb.append("<!-- if you read this you are gat robDab -->");
-            sb.append("\r\n");
-            sb.append("</head>");
-            sb.append("\r\n");
-            sb.append("<body>");
-            sb.append("=========================================================");
-            sb.append("<br>\r\n");
-            sb.append("Logs for ");
-            sb.append(username);
-            sb.append(" in the channel ");
-            sb.append(channel);
-            sb.append("<br>\n");
-            int currentCount;
-            if (rs.last()) {
-                currentCount = rs.getRow();
-                sb.append(currentCount);
-                sb.append(" messages listed out of ");
-                sb.append(count);
-                sb.append(" total.");
-                rs.beforeFirst();
-            }
-            java.util.Date date = new Date();
-            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-            sb.append("<br>\n");
-            dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
-            sb.append("Generated ");
-            sb.append(dateFormat.format(date));
-            sb.append(". All times UTC.");
-            sb.append("<br>\n");
-            sb.append("=========================================================");
-            sb.append("<br>\n");
-            sb.append("<br>\n");
-            while (rs.next()) {
-                String time = rs.getTimestamp("time").toString();
-                time = "[" + time.substring(0, time.length() - 2) + "]";
-                sb.append(time);
-                sb.append(" ");
-                sb.append(new String(rs.getBytes("username"), StandardCharsets.UTF_8));
-                sb.append(": ");
-                String message = new String(rs.getBytes("message"), StandardCharsets.UTF_8).
-                        replaceAll("&", "&amp;").
-                        replaceAll("<", "&lt;").
-                        replaceAll(">", "&gt;");
-                sb.append(message);
-                sb.append("<br>\n");
-            }
-            sb.append("<br>\n");
-            sb.append("END OF FILE");
-            sb.append("<br>\n");
-            sb.append("</body>");
-            sb.append("\r\n");
-            sb.append("</html>");
-            sb.append("\r\n");
-            log.info("Data compilation took: " + (Utils.convertTime((int) (Instant.now().minus(queryEndTime.toEpochMilli(), ChronoUnit.MILLIS).toEpochMilli() / 1000))));
-
-            new Thread(() -> {
-                FtpHandler ftpHandler = new FtpHandler();
-                if (ftpHandler.upload(username, sb.toString())) {
-                    String output = String.format("@%s logs for %s: %s%s", from, username, website, username);
-                    log.info(output);
-                    log.info("Total time: " + (Utils.convertTime((int) (Instant.now().minus(startTime.toEpochMilli(), ChronoUnit.MILLIS).toEpochMilli() / 1000))));
-                    state.sendingBlockingQueue.add(new Message(output));
-                }
-
-            }).start();
-        } catch (SQLException e) {
-            log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
+        String logs = sqlSolrHandler.getLogs(username, count);
+        if (logs == null) {
+            return;
         }
+
+        new Thread(() -> {
+            FtpHandler ftpHandler = new FtpHandler();
+            if (ftpHandler.upload(username, logs)) {
+                String output = String.format("@%s logs for %s: %s%s", from, username, website, username);
+                log.info(output);
+                log.info("Total time: " + (Utils.convertTime((int) (Instant.now().minus(startTime.toEpochMilli(), ChronoUnit.MILLIS).toEpochMilli() / 1000))));
+                state.sendingBlockingQueue.add(new Message(output));
+            }
+        }).start();
     }
 
     private void initializeBlacklist() {
@@ -708,41 +433,30 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     private void initializeAlts() {
         state.mains = new HashMap<>();
         state.alts = new HashMap<>();
-        try (Connection conn = DriverManager.getConnection(SQLCredentials);
-             PreparedStatement stmt = conn.prepareStatement("call chat_stats.sp_get_alts()"))
-        {
-            stmt.execute();
-            ResultSet rs = stmt.getResultSet();
-            while (rs.next()) {
-                String main = rs.getString("main").toLowerCase();
-                String alt = rs.getString("alt").toLowerCase();
-                state.mains.put(alt, main);
-                if (state.alts.containsKey(main)) {
-                    List<String> list = state.alts.get(main);
-                    list.add(alt);
-                    state.alts.put(main, list);
-                } else {
-                    state.mains.put(main, main);
-                    List<String> list = new ArrayList<>();
-                    list.add(alt);
-                    state.alts.put(main, list);
-                }
-            }
-            log.info("Initialized alts list. {} users with alts.", state.alts.size());
 
-        } catch (SQLException e) {
-            log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
+        List<String> mainsAltsCsv = sqlSolrHandler.getAltsList();
+
+        for (String csv : mainsAltsCsv) {
+            String[] values = csv.split(",");
+            String main = values[0];
+            String alt = values[1];
+
+            state.mains.putIfAbsent(alt, main);
+            state.mains.putIfAbsent(main, main);
+            state.alts.putIfAbsent(main, new ArrayList<>());
+            state.alts.get(main).add(alt);
         }
+        log.info("Initialized alts list. {} users with alts.", state.alts.size());
     }
 
     private boolean checkOneManSpam(String from) {
         if (!previousMessage.equals(from)) {
             previousMessage = from;
-            times.clear();
+            previousMessageTimes.clear();
         }
-        times.add(Instant.now());
-        times.removeIf(instant -> instant.plus(300, ChronoUnit.SECONDS).isAfter(Instant.now()));
-        return times.size() >= 5;
+        previousMessageTimes.add(Instant.now());
+        previousMessageTimes.removeIf(instant -> instant.plus(300, ChronoUnit.SECONDS).isAfter(Instant.now()));
+        return previousMessageTimes.size() >= 5;
     }
 
     private boolean isAllowed(String from, String username, Command command) {

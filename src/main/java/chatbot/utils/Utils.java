@@ -51,7 +51,9 @@ public class Utils {
         if (seconds % 60 > 0) {
             sb.append("s");
         }
-
+        if (seconds == 0) {
+            sb.append("s");
+        }
         return sb.toString();
     }
 

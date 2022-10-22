@@ -35,6 +35,7 @@ public class SharedStateSingleton {
 
     public HashMap<String, List<String>> alts = new HashMap<>();
     public HashMap<String, String> mains = new HashMap<>();
+    public HashMap<String, Integer> logCache = new HashMap<>();
 
     private static SharedStateSingleton instance = new SharedStateSingleton();
 
@@ -102,16 +103,11 @@ public class SharedStateSingleton {
         StringBuilder sb = new StringBuilder();
         sb.append("username:");
         sb.append(main);
-        if (disabledUsers.contains(main)) {
-            return "username:" + username.toLowerCase();
-        }
 
         for (String alt : alts.get(main)) {
-            if (!disabledUsers.contains(alt)) {
-                sb.append(" OR ");
-                sb.append("username:");
-                sb.append(alt);
-            }
+            sb.append(" OR ");
+            sb.append("username:");
+            sb.append(alt);
         }
         return sb.toString();
     }
