@@ -7,14 +7,12 @@ import com.google.common.util.concurrent.AbstractExecutionThreadService;
 import lombok.extern.log4j.Log4j2;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 
 @Log4j2
 public class TimeoutLoggerService extends AbstractExecutionThreadService {
     private final ArrayList<Timeout> timeouts = new ArrayList<>();
-    private final HashSet<String> usernames = new HashSet<>();
     private final DatabaseHandler databaseHandler;
     private final SharedStateSingleton state = SharedStateSingleton.getInstance();
 
@@ -63,7 +61,6 @@ public class TimeoutLoggerService extends AbstractExecutionThreadService {
         while (iterator.hasNext()) {
             Timeout timeout = iterator.next();
             if (timeout.hasExpired()) {
-                addUsernameToDatabase(timeout);
                 if (timeout.getLength() > 0) {
                     databaseHandler.addNamListTimeout(timeout);
                 }
@@ -80,13 +77,5 @@ public class TimeoutLoggerService extends AbstractExecutionThreadService {
             }
         }
         return false;
-    }
-
-    private void addUsernameToDatabase(Timeout timeout) {
-        if (usernames.contains(timeout.getUsername())) {
-            return;
-        }
-        databaseHandler.addUsername(timeout);
-        usernames.add(timeout.getUsername());
     }
 }

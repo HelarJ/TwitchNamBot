@@ -13,8 +13,6 @@ public interface DatabaseHandler {
 
     List<String> getAltsList();
 
-    void addUsername(Timeout timeout);
-
     void addTimeout(Timeout timeout);
 
     int getTimeoutAmount(String username);

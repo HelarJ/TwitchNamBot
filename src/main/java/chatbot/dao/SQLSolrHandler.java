@@ -127,17 +127,6 @@ public class SQLSolrHandler implements DatabaseHandler {
     }
 
     @Override
-    public void addUsername(Timeout timeout) {
-        try (Connection conn = DriverManager.getConnection(sqlCredentials);
-             PreparedStatement stmt = conn.prepareStatement("select chat_stats.f_add_user(?);"))
-        {
-            stmt.setString(1, timeout.getUsername());
-            stmt.executeQuery();
-        } catch (SQLException ignored) {
-        }
-    }
-
-    @Override
     public void addTimeout(Timeout timeout) {
         try (Connection conn = DriverManager.getConnection(sqlCredentials);
              PreparedStatement stmt = conn.prepareStatement("CALL chat_stats.sp_log_timeout(?,?,?,?);"))
