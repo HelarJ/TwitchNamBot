@@ -179,7 +179,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
                     message.setResponse("@%s, %s has used %s in %d messages".
                             formatted(message.getSender(),
                                     message.getUsername(),
-                                    message.getWordList(),
+                                    Utils.getWordList(message.getMessageWithoutUsername()),
                                     count)));
         }
     }
@@ -189,7 +189,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         if (count == 0) {
             state.sendingBlockingQueue.add(message.setResponse("@" + message.getSender() + ", no messages found PEEPERS"));
         } else {
-            state.sendingBlockingQueue.add(message.setResponse("@" + message.getSender() + " found " + message.getWordList() + " in " + count + " rows."));
+            state.sendingBlockingQueue.add(message.setResponse("@" + message.getSender() + " found " + Utils.getWordList(message.getMessageWithoutCommand()) + " in " + count + " rows."));
         }
     }
 

@@ -4,7 +4,6 @@ import chatbot.enums.Command;
 import chatbot.utils.Utils;
 import lombok.extern.log4j.Log4j2;
 
-import java.util.List;
 import java.util.Locale;
 
 @Log4j2
@@ -81,10 +80,6 @@ public class CommandMessage implements Message {
             return message;
         }
         return message.replaceFirst(command, "").strip();
-    }
-
-    public List<String> getWordList() {
-        return Utils.getWordList(getMessageWithoutUsername());
     }
 
     @Override

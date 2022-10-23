@@ -6,13 +6,11 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import java.util.List;
 import java.util.stream.Stream;
 
 import static chatbot.enums.Command.RQ;
 import static chatbot.enums.Command.RS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 
 public class CommandMessageTest {
 
@@ -107,30 +105,13 @@ public class CommandMessageTest {
         );
     }
 
-    @ParameterizedTest
-    @MethodSource("commandMessagesforWordList")
-    void getWordList(List<String> expected, String input) {
-        assertIterableEquals(expected, makeCommandMessage(input).getWordList());
-
-    }
-
-    static Stream<Arguments> commandMessagesforWordList() {
-        return Stream.of(
-                Arguments.of(List.of("2022"), "!rs hello 2022"),
-                Arguments.of(List.of("longer", "message"), "!rs me longer message"),
-                Arguments.of(List.of("longer", "message"), "!rs me longer message \uDB40\uDC00"),
-                Arguments.of(List.of("longer", "message", "\"with quotes\"", "yeah"), "!rs me longer message \"with quotes\" yeah"),
-                Arguments.of(List.of(), "!rs me")
-        );
-    }
-
     @Test
-    void testGetSender() {
+    void getSenderTest() {
         assertEquals("tester", makeCommandMessage("").getSender());
     }
 
     @Test
-    void testStringMessage() {
+    void stringMessageTest() {
         CommandMessage message = makeCommandMessage("!rq me this \"is a message\" with some quotes");
         assertEquals("!rq me this \"is a message\" with some quotes", message.getStringMessage());
         message.setResponse("response");
@@ -138,7 +119,7 @@ public class CommandMessageTest {
     }
 
     @Test
-    void testToString() {
+    void toStringTest() {
         CommandMessage message = makeCommandMessage("!rq me this \"is a message\" with some quotes");
         assertEquals("tester: !rq me this \"is a message\" with some quotes", message.toString());
     }
