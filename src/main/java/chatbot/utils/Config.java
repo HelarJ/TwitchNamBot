@@ -93,13 +93,19 @@ public class Config {
         return configMap.get(ConfigName.NAM_BOT_WEBSITE);
     }
 
-    public static String getSQLCredentials() {
-        return String.format("jdbc:mariadb://%s:%s/%s?user=%s&password=%s",
+    public static String getSqlUrl() {
+        return String.format("jdbc:mariadb://%s:%s/%s",
                 configMap.get(ConfigName.NAM_DB_IP),
                 configMap.get(ConfigName.NAM_DB_PORT),
-                configMap.get(ConfigName.NAM_DB_NAME),
-                configMap.get(ConfigName.NAM_DB_USER),
-                configMap.get(ConfigName.NAM_DB_PASSWORD));
+                configMap.get(ConfigName.NAM_DB_NAME));
+    }
+
+    public static String getSqlUsername() {
+        return configMap.get(ConfigName.NAM_DB_USER);
+    }
+
+    public static String getSqlPassword() {
+        return configMap.get(ConfigName.NAM_DB_PASSWORD);
     }
 
     public static String getSolrCredentials() {

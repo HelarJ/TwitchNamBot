@@ -7,6 +7,7 @@ import chatbot.utils.Config;
 import chatbot.utils.HtmlBuilder;
 import chatbot.utils.Utils;
 import lombok.extern.log4j.Log4j2;
+import org.apache.commons.dbcp2.BasicDataSource;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
@@ -20,7 +21,6 @@ import org.apache.solr.common.SolrInputDocument;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -39,19 +39,26 @@ import java.util.concurrent.ThreadLocalRandom;
 
 @Log4j2
 public class SQLSolrHandler implements DatabaseHandler {
-    private final String sqlCredentials = Config.getSQLCredentials();
     private final String solrCredentials = Config.getSolrCredentials();
 
     private Instant lastCommit = Instant.now();
     private final List<SolrInputDocument> commitBacklog = new ArrayList<>();
     private final SharedStateSingleton state = SharedStateSingleton.getInstance();
 
+    private final BasicDataSource dataSource = new BasicDataSource();
+
     public SQLSolrHandler() {
+        dataSource.setUrl(Config.getSqlUrl());
+        dataSource.setUsername(Config.getSqlUsername());
+        dataSource.setPassword(Config.getSqlPassword());
+        dataSource.setInitialSize(5);
+        dataSource.setMinIdle(5);
+        dataSource.setMaxIdle(20);
     }
 
     @Override
     public void addNamListTimeout(TimeoutMessage timeout) {
-        try (Connection conn = DriverManager.getConnection(sqlCredentials);
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement("call chat_stats.sp_add_timeout(?,?);"))
         {
             String username = timeout.getUsername();
@@ -73,7 +80,7 @@ public class SQLSolrHandler implements DatabaseHandler {
         if (username.equalsIgnoreCase("all")) {
             stmtStr = "call chat_stats.sp_get_all_count(?)";
         }
-        try (Connection conn = DriverManager.getConnection(sqlCredentials);
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(stmtStr))
         {
             stmt.setString(1, username);
@@ -90,7 +97,7 @@ public class SQLSolrHandler implements DatabaseHandler {
     @Override
     public List<String> getModList() {
         List<String> modList = new ArrayList<>();
-        try (Connection conn = DriverManager.getConnection(sqlCredentials);
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement("call chat_stats.sp_get_mods()"))
         {
             stmt.execute();
@@ -110,7 +117,7 @@ public class SQLSolrHandler implements DatabaseHandler {
     @Override
     public List<String> getAltsList() {
         List<String> csvList = new ArrayList<>();
-        try (Connection conn = DriverManager.getConnection(sqlCredentials);
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement("call chat_stats.sp_get_alts()"))
         {
             stmt.execute();
@@ -128,7 +135,7 @@ public class SQLSolrHandler implements DatabaseHandler {
 
     @Override
     public void addTimeout(TimeoutMessage timeout) {
-        try (Connection conn = DriverManager.getConnection(sqlCredentials);
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement("CALL chat_stats.sp_log_timeout(?,?,?,?);"))
         {
             stmt.setString(1, timeout.getUsername());
@@ -143,7 +150,7 @@ public class SQLSolrHandler implements DatabaseHandler {
 
     @Override
     public int getTimeoutAmount(String username) {
-        try (Connection conn = DriverManager.getConnection(sqlCredentials);
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement("call chat_stats.sp_get_usernam(?)"))
         {
             stmt.setString(1, username);
@@ -159,7 +166,7 @@ public class SQLSolrHandler implements DatabaseHandler {
 
     @Override
     public String getTopTimeouts() {
-        try (Connection conn = DriverManager.getConnection(sqlCredentials);
+        try (Connection conn = dataSource.getConnection();
              Statement stmt = conn.createStatement())
         {
             ResultSet results = stmt.executeQuery("call chat_stats.sp_get_top10to()");
@@ -185,7 +192,7 @@ public class SQLSolrHandler implements DatabaseHandler {
         String username = command.getSender();
         String message = command.getStringMessage();
         String time = command.getTime();
-        try (Connection conn = DriverManager.getConnection(sqlCredentials);
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement("CALL chat_stats.sp_log_whisper(?,?,?);"))
         {
             stmt.setString(1, time);
@@ -200,7 +207,7 @@ public class SQLSolrHandler implements DatabaseHandler {
     @Override
     public void recordMessage(LoggableMessage message) {
         int id = 0;
-        try (Connection conn = DriverManager.getConnection(sqlCredentials);
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement("SELECT chat_stats.sp_log_message_return_id(?,?,?,?,?,?,?);"))
         {
             stmt.setString(1, message.getTime());
@@ -269,7 +276,7 @@ public class SQLSolrHandler implements DatabaseHandler {
 
     @Override
     public String firstMessage(String username) {
-        try (Connection conn = DriverManager.getConnection(sqlCredentials);
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement("call chat_stats.sp_get_first_message(?)"))
         {
             stmt.setString(1, username);
@@ -291,7 +298,7 @@ public class SQLSolrHandler implements DatabaseHandler {
 
     @Override
     public String lastMessage(String username) {
-        try (Connection conn = DriverManager.getConnection(sqlCredentials);
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement("call chat_stats.sp_get_last_message(?)"))
         {
             stmt.setString(1, username);
@@ -378,7 +385,7 @@ public class SQLSolrHandler implements DatabaseHandler {
     @Override
     public String getLogs(String username, int count) {
         Instant startTime = Instant.now();
-        try (Connection conn = DriverManager.getConnection(sqlCredentials)) {
+        try (Connection conn = dataSource.getConnection()) {
             PreparedStatement stmt;
             if (username.equalsIgnoreCase("all")) {
                 stmt = conn.prepareStatement("CALL chat_stats.sp_get_logs();");
@@ -491,7 +498,7 @@ public class SQLSolrHandler implements DatabaseHandler {
     public Map<String, String> getBlacklist() {
         Map<String, String> resultMap = new HashMap<>();
 
-        try (Connection conn = DriverManager.getConnection(sqlCredentials);
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement("call chat_stats.sp_get_blacklist()"))
         {
             stmt.execute();
@@ -511,7 +518,7 @@ public class SQLSolrHandler implements DatabaseHandler {
     @Override
     public List<String> getDisabledList() {
         List<String> list = new ArrayList<>();
-        try (Connection conn = DriverManager.getConnection(sqlCredentials);
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement("call chat_stats.sp_get_disabled_users()"))
         {
             stmt.execute();
@@ -528,7 +535,7 @@ public class SQLSolrHandler implements DatabaseHandler {
 
     @Override
     public void addDisabled(String from, String username) {
-        try (Connection conn = DriverManager.getConnection(sqlCredentials);
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement("CALL chat_stats.sp_add_disabled(?,?);"))
         {
             stmt.setString(1, from);
@@ -542,7 +549,7 @@ public class SQLSolrHandler implements DatabaseHandler {
 
     @Override
     public void removeDisabled(String username) {
-        try (Connection conn = DriverManager.getConnection(sqlCredentials);
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement("CALL chat_stats.sp_remove_disabled(?);"))
         {
             stmt.setString(1, username);
@@ -556,7 +563,7 @@ public class SQLSolrHandler implements DatabaseHandler {
     @Override
     public List<String> getAlternateNames(String username) {
         List<String> names = new ArrayList<>();
-        try (Connection conn = DriverManager.getConnection(sqlCredentials);
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement("call chat_stats.sp_get_names(?)"))
         {
             stmt.setString(1, username.toLowerCase());
@@ -576,7 +583,7 @@ public class SQLSolrHandler implements DatabaseHandler {
 
     @Override
     public boolean addAlt(String main, String alt) {
-        try (Connection conn = DriverManager.getConnection(sqlCredentials);
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement("CALL chat_stats.sp_add_alt(?,?);"))
         {
             stmt.setString(1, main);
