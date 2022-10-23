@@ -1,7 +1,9 @@
 package chatbot.service;
 
 import chatbot.dao.DatabaseHandler;
-import chatbot.dataclass.Timeout;
+import chatbot.message.Message;
+import chatbot.message.PoisonMessage;
+import chatbot.message.TimeoutMessage;
 import chatbot.singleton.SharedStateSingleton;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
 import lombok.extern.log4j.Log4j2;
@@ -12,7 +14,7 @@ import java.util.concurrent.TimeUnit;
 
 @Log4j2
 public class TimeoutLoggerService extends AbstractExecutionThreadService {
-    private final ArrayList<Timeout> timeouts = new ArrayList<>();
+    private final ArrayList<TimeoutMessage> timeouts = new ArrayList<>();
     private final DatabaseHandler databaseHandler;
     private final SharedStateSingleton state = SharedStateSingleton.getInstance();
 
@@ -34,11 +36,15 @@ public class TimeoutLoggerService extends AbstractExecutionThreadService {
     public void run() throws InterruptedException {
 
         while (state.isBotStillRunning()) {
-            Timeout timeout = state.timeoutBlockingQueue.poll(3, TimeUnit.SECONDS);
-            if (timeout != null) {
-                if (timeout.isPoison()) {
+            Message message = state.timeoutBlockingQueue.poll(3, TimeUnit.SECONDS);
+            if (message != null) {
+                if (message instanceof PoisonMessage) {
                     log.debug("{} poisoned.", TimeoutLoggerService.class);
                     break;
+                }
+                if (!(message instanceof TimeoutMessage timeout)) {
+                    log.error("Unexcpected message type in timeoutqueue {}", message);
+                    continue;
                 }
                 if (timeout.getLength() > 0) {
                     databaseHandler.addTimeout(timeout);
@@ -57,9 +63,9 @@ public class TimeoutLoggerService extends AbstractExecutionThreadService {
     }
 
     private void checkForExpiredTimeouts() {
-        Iterator<Timeout> iterator = timeouts.iterator();
+        Iterator<TimeoutMessage> iterator = timeouts.iterator();
         while (iterator.hasNext()) {
-            Timeout timeout = iterator.next();
+            TimeoutMessage timeout = iterator.next();
             if (timeout.hasExpired()) {
                 if (timeout.getLength() > 0) {
                     databaseHandler.addNamListTimeout(timeout);
@@ -69,8 +75,8 @@ public class TimeoutLoggerService extends AbstractExecutionThreadService {
         }
     }
 
-    private boolean isTimeoutForUserAlreadyActive(Timeout timeout) {
-        for (Timeout temptimeout : timeouts) {
+    private boolean isTimeoutForUserAlreadyActive(TimeoutMessage timeout) {
+        for (TimeoutMessage temptimeout : timeouts) {
             if (temptimeout.getUsername().equals(timeout.getUsername())) {
                 temptimeout.resetTimeout(timeout.getLength());
                 return true;

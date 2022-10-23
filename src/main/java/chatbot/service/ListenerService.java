@@ -1,8 +1,11 @@
 package chatbot.service;
 
 import chatbot.ConsoleMain;
-import chatbot.dataclass.Message;
-import chatbot.dataclass.Timeout;
+import chatbot.message.CommandMessage;
+import chatbot.message.LoggableMessage;
+import chatbot.message.Message;
+import chatbot.message.SimpleMessage;
+import chatbot.message.TimeoutMessage;
 import chatbot.singleton.SharedStateSingleton;
 import chatbot.utils.Config;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
@@ -105,11 +108,11 @@ public class ListenerService extends AbstractExecutionThreadService {
         log.debug("{} timed out for {}s", name, banTime);
         if (banTime >= 121059319) {
             //todo move this and remove commandhandler dependency
-            commandHandlerService.addDisabled("Autoban", name);
-            state.messageLogBlockingQueue.add(new Message(name, userid, "User was permanently banned.", false, false, output));
+            commandHandlerService.addDisabled(new CommandMessage("Autoban", "", name, false, false, output));
+            state.messageLogBlockingQueue.add(new LoggableMessage(name, userid, "User was permanently banned.", false, false, output));
             state.increasePermabanCount();
         }
-        state.timeoutBlockingQueue.add(new Timeout(name, userid, banTime));
+        state.timeoutBlockingQueue.add(new TimeoutMessage(name, userid, banTime));
     }
 
     private void handleWhisper(String output) {
@@ -118,14 +121,14 @@ public class ListenerService extends AbstractExecutionThreadService {
         String msg = output.substring(output.indexOf(username));
         msg = msg.substring(msg.indexOf(":") + 1);
         log.info("User {} whispered {}.", name, msg);
-        Message message = new Message(name, "NULL", msg, false, true, output);
+        Message message = new LoggableMessage(name, "NULL", msg, false, true, output);
         state.messageLogBlockingQueue.add(message);
         if (name.equalsIgnoreCase(admin)) {
             if (msg.equals("/shutdown")) {
                 state.stop();
             } else if (msg.startsWith("/send ")) {
                 msg = msg.substring(6);
-                state.sendingBlockingQueue.add(new Message(msg));
+                state.sendingBlockingQueue.add(new SimpleMessage(name, msg));
             } else if (msg.startsWith("/banuser ")) {
                 log.info("Banned user {}", msg.substring(9));
             } else if (msg.equals("/restart")) {
@@ -153,13 +156,11 @@ public class ListenerService extends AbstractExecutionThreadService {
             outputMSG = outputMSG.replaceAll("\u0001", "");
             outputMSG = outputMSG.replaceFirst("ACTION", "/me");
         }
-        Message command = new Message(name, userid, outputMSG, subscribed, false, output);
-
-        state.messageLogBlockingQueue.add(command);
-        state.commandHandlerBlockingQueue.add(command);
+        state.messageLogBlockingQueue.add(new LoggableMessage(name, userid, outputMSG, subscribed, false, output));
+        state.commandHandlerBlockingQueue.add(new CommandMessage(name, userid, outputMSG, subscribed, false, output));
 
         //records a timeout with a 0-second duration to prevent timeoutlist exploting.
-        state.timeoutBlockingQueue.add(new Timeout(name, userid, 0));
+        state.timeoutBlockingQueue.add(new TimeoutMessage(name, userid, 0));
 
     }
 

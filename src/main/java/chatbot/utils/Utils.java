@@ -155,17 +155,4 @@ public class Utils {
         }
         return null;
     }
-
-    public static String getMsgWithoutName(String msg, String username) {
-        try {
-            if (msg.startsWith("me ".toLowerCase())) {
-                msg = msg.substring(3);
-            } else {
-                msg = msg.substring(username.length() + 1);
-            }
-        } catch (StringIndexOutOfBoundsException e) {
-            msg = "*";
-        }
-        return msg;
-    }
 }

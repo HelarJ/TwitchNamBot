@@ -1,25 +1,22 @@
-package chatbot.dataclass;
+package chatbot.message;
 
-import chatbot.enums.MessageType;
 import lombok.extern.log4j.Log4j2;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
 @Log4j2
-public class Timeout {
-    private String username;
+public class TimeoutMessage implements Message {
+    private final String username;
     private Instant timeout;
     private int length;
-    private String userid;
-    private final MessageType type;
+    private final String userid;
 
-    public Timeout(String username, String userid, int length) {
+    public TimeoutMessage(String username, String userid, int length) {
         this.username = username;
         this.timeout = Instant.now();
         this.length = length;
         this.userid = userid;
-        type = MessageType.TIMEOUT;
     }
 
     public boolean hasExpired() {
@@ -54,14 +51,6 @@ public class Timeout {
         return userid;
     }
 
-    public Timeout(MessageType type) {
-        this.type = type;
-    }
-
-    public boolean isPoison() {
-        return type == MessageType.POISON;
-    }
-
     @Override
     public String toString() {
         return "Timeout{" +
@@ -69,5 +58,15 @@ public class Timeout {
                 ", timeout=" + timeout +
                 ", length=" + length +
                 '}';
+    }
+
+    @Override
+    public String getSender() {
+        return username;
+    }
+
+    @Override
+    public String getStringMessage() {
+        return toString();
     }
 }

@@ -1,9 +1,8 @@
 package chatbot.singleton;
 
 import chatbot.ConsoleMain;
-import chatbot.dataclass.Message;
-import chatbot.dataclass.Timeout;
-import chatbot.enums.MessageType;
+import chatbot.message.Message;
+import chatbot.message.PoisonMessage;
 import chatbot.utils.Config;
 import lombok.extern.log4j.Log4j2;
 
@@ -148,7 +147,7 @@ public class SharedStateSingleton {
      */
     public BlockingQueue<Message> messageLogBlockingQueue;
 
-    public BlockingQueue<Timeout> timeoutBlockingQueue;
+    public BlockingQueue<Message> timeoutBlockingQueue;
 
     /**
      * Initializes shared blockingqueues with empty ones.
@@ -162,9 +161,9 @@ public class SharedStateSingleton {
 
     public void poisonQueues() {
         log.info("Poisoning queues.");
-        commandHandlerBlockingQueue.add(new Message(MessageType.POISON));
-        sendingBlockingQueue.add(new Message(MessageType.POISON));
-        messageLogBlockingQueue.add(new Message(MessageType.POISON));
-        timeoutBlockingQueue.add(new Timeout(MessageType.POISON));
+        commandHandlerBlockingQueue.add(new PoisonMessage());
+        sendingBlockingQueue.add(new PoisonMessage());
+        messageLogBlockingQueue.add(new PoisonMessage());
+        timeoutBlockingQueue.add(new PoisonMessage());
     }
 }

@@ -2,7 +2,9 @@ package chatbot.service;
 
 import chatbot.ConsoleMain;
 import chatbot.dao.DatabaseHandler;
-import chatbot.dataclass.Message;
+import chatbot.message.LoggableMessage;
+import chatbot.message.Message;
+import chatbot.message.PoisonMessage;
 import chatbot.singleton.SharedStateSingleton;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
 import lombok.extern.log4j.Log4j2;
@@ -39,16 +41,19 @@ public class MessageLoggerService extends AbstractExecutionThreadService {
                 return;
             }
 
-            if (message.isPoison()) {
+            if (message instanceof PoisonMessage) {
                 log.debug("{} poisoned.", MessageLoggerService.class);
                 break;
             }
-            log.trace("{} received a message: {}", MessageLoggerService.class, message);
-
-            if (message.isWhisper()) {
-                sqlSolrHandler.recordWhisper(message);
+            if (!(message instanceof LoggableMessage loggableMessage)) {
+                log.error("Unexpected message type in messagelogger queue {}", message);
+                continue;
+            }
+            log.trace("{} received a message: {}", MessageLoggerService.class, loggableMessage);
+            if (loggableMessage.isWhisper()) {
+                sqlSolrHandler.recordWhisper(loggableMessage);
             } else {
-                sqlSolrHandler.recordMessage(message);
+                sqlSolrHandler.recordMessage(loggableMessage);
                 state.increaseMessageCount();
             }
         }

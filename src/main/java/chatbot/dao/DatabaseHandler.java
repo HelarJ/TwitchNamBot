@@ -1,7 +1,7 @@
 package chatbot.dao;
 
-import chatbot.dataclass.Message;
-import chatbot.dataclass.Timeout;
+import chatbot.message.LoggableMessage;
+import chatbot.message.TimeoutMessage;
 
 import java.util.List;
 import java.util.Map;
@@ -13,17 +13,17 @@ public interface DatabaseHandler {
 
     List<String> getAltsList();
 
-    void addTimeout(Timeout timeout);
+    void addTimeout(TimeoutMessage timeout);
 
     int getTimeoutAmount(String username);
 
     String getTopTimeouts();
 
-    void addNamListTimeout(Timeout timeout);
+    void addNamListTimeout(TimeoutMessage timeout);
 
-    void recordWhisper(Message message);
+    void recordWhisper(LoggableMessage message);
 
-    void recordMessage(Message message);
+    void recordMessage(LoggableMessage message);
 
     String firstOccurrence(String msg);
 
@@ -52,4 +52,5 @@ public interface DatabaseHandler {
     List<String> getAlternateNames(String username);
 
     boolean addAlt(String main, String alt);
+
 }

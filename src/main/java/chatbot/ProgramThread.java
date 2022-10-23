@@ -58,7 +58,7 @@ public class ProgramThread implements Runnable {
             this.serviceManager = new ServiceManager(services);
             addListenersToManager(serviceManager);
             serviceManager.startAsync();
-            serviceManager.awaitHealthy();
+            serviceManager.awaitHealthy(5, TimeUnit.SECONDS);
             senderService.connect();
 
             done.await();

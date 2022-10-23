@@ -1,7 +1,7 @@
 package chatbot.dao;
 
-import chatbot.dataclass.Message;
-import chatbot.dataclass.Timeout;
+import chatbot.message.LoggableMessage;
+import chatbot.message.TimeoutMessage;
 import chatbot.singleton.SharedStateSingleton;
 import chatbot.utils.Config;
 import chatbot.utils.HtmlBuilder;
@@ -50,9 +50,9 @@ public class SQLSolrHandler implements DatabaseHandler {
     }
 
     @Override
-    public void addNamListTimeout(Timeout timeout) {
+    public void addNamListTimeout(TimeoutMessage timeout) {
         try (Connection conn = DriverManager.getConnection(sqlCredentials);
-             PreparedStatement stmt = conn.prepareStatement("select chat_stats.f_add_timeout(?,?);"))
+             PreparedStatement stmt = conn.prepareStatement("call chat_stats.sp_add_timeout(?,?);"))
         {
             String username = timeout.getUsername();
             int length = timeout.getLength();
@@ -127,7 +127,7 @@ public class SQLSolrHandler implements DatabaseHandler {
     }
 
     @Override
-    public void addTimeout(Timeout timeout) {
+    public void addTimeout(TimeoutMessage timeout) {
         try (Connection conn = DriverManager.getConnection(sqlCredentials);
              PreparedStatement stmt = conn.prepareStatement("CALL chat_stats.sp_log_timeout(?,?,?,?);"))
         {
@@ -181,7 +181,7 @@ public class SQLSolrHandler implements DatabaseHandler {
     }
 
     @Override
-    public void recordWhisper(Message command) {
+    public void recordWhisper(LoggableMessage command) {
         String username = command.getSender();
         String message = command.getStringMessage();
         String time = command.getTime();
@@ -198,7 +198,7 @@ public class SQLSolrHandler implements DatabaseHandler {
     }
 
     @Override
-    public void recordMessage(Message message) {
+    public void recordMessage(LoggableMessage message) {
         int id = 0;
         try (Connection conn = DriverManager.getConnection(sqlCredentials);
              PreparedStatement stmt = conn.prepareStatement("SELECT chat_stats.sp_log_message_return_id(?,?,?,?,?,?,?);"))

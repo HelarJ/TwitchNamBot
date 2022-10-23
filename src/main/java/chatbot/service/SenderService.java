@@ -1,7 +1,9 @@
 package chatbot.service;
 
 import chatbot.ConsoleMain;
-import chatbot.dataclass.Message;
+import chatbot.message.LoggableMessage;
+import chatbot.message.Message;
+import chatbot.message.PoisonMessage;
 import chatbot.singleton.SharedStateSingleton;
 import chatbot.utils.Config;
 import chatbot.utils.Utils;
@@ -35,13 +37,13 @@ public class SenderService extends AbstractExecutionThreadService {
     @Override
     public void run() throws InterruptedException {
         while (state.isBotStillRunning()) {
-            Message toSend = state.sendingBlockingQueue.take();
-            if (toSend.isPoison()) {
+            Message message = state.sendingBlockingQueue.take();
+            if (message instanceof PoisonMessage) {
                 log.debug("{} poisoned.", SenderService.class);
                 break;
             }
-            log.debug("Received message from sendingQueue: {}", toSend);
-            sendToChannel(toSend);
+            log.debug("Received message from sendingQueue: {}", message);
+            sendToChannel(message);
         }
     }
 
@@ -78,7 +80,8 @@ public class SenderService extends AbstractExecutionThreadService {
             bufferedWriter.flush();
             state.increaseSentMessageCount();
             //logs sent bot messages to database.
-            state.messageLogBlockingQueue.add(new Message(username.toLowerCase(), uid, uneditedMessage, true, false, uneditedMessage));
+            state.messageLogBlockingQueue.add(new LoggableMessage(username.toLowerCase(), uid, uneditedMessage, true, false,
+                    "responding-to:" + message.getSender() + ",message:" + uneditedMessage));
 
         } catch (IOException e) {
             log.error("Error sending message {} to {}: {}", msg, channel, e.getMessage());

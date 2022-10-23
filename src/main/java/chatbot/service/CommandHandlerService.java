@@ -4,8 +4,11 @@ import chatbot.ConsoleMain;
 import chatbot.dao.ApiHandler;
 import chatbot.dao.DatabaseHandler;
 import chatbot.dao.FtpHandler;
-import chatbot.dataclass.Message;
 import chatbot.enums.Command;
+import chatbot.message.CommandMessage;
+import chatbot.message.Message;
+import chatbot.message.PoisonMessage;
+import chatbot.message.SimpleMessage;
 import chatbot.singleton.SharedStateSingleton;
 import chatbot.utils.Config;
 import chatbot.utils.Utils;
@@ -42,7 +45,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         this.apiHandler = apiHandler;
         FtpHandler ftpHandler = new FtpHandler();
         ftpHandler.cleanLogs();
-        refreshLists("Startup");
+        refreshLists(new SimpleMessage("Startup", ""));
     }
 
     @Override
@@ -55,112 +58,109 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         log.debug("{} started.", CommandHandlerService.class);
     }
 
-    public void refreshLists(String from) {
-        if (from.equals("Startup") || mods.contains(from)) {
-            initializeMods();
-            initializeDisabled();
-            initializeAlts();
-            initializeBlacklist();
-            if (!from.equals("Startup")) {
-                state.sendingBlockingQueue.add(new Message("Lists refreshed HACKERMANS"));
-            }
-        }
-    }
-
     @Override
     public void run() throws InterruptedException {
         while (state.isBotStillRunning()) {
             Message message = state.commandHandlerBlockingQueue.take();
-            if (message.isPoison()) {
+            if (message instanceof PoisonMessage) {
                 log.debug(CommandHandlerService.class + " poisoned.");
                 break;
             }
-            handleCommand(message);
+            if (!(message instanceof CommandMessage commandMessage)) {
+                log.error("Unexcpected message type in commandqueue {}", message);
+                continue;
+            }
+            handleCommand(commandMessage);
         }
     }
 
-    private void handleCommand(Message message) {
+    private void handleCommand(CommandMessage message) {
         Command command = message.getCommand();
         if (command == null) {
             return;
         }
 
-        String from = message.getSender();
-        String argStr = message.getArguments();
-        log.info(String.format("%s used %s with arguments [%s].", from, command, argStr));
+        log.info(String.format("%s used %s with %s.", message.getSender(), command, message.getStringMessage()));
 
-        String username = Utils.getArg(argStr, 0);
-        if (username == null) {
-            username = from;
-        }
-        username = Utils.cleanName(from, username);
-
-        if (!isAllowed(from, username, command)) {
-            log.info(from + " not allowed to use command " + command);
+        if (!isAllowed(message)) {
+            log.info(message.getSender() + " not allowed to use command " + command);
             return;
         }
 
         switch (command) {
-            case NAMMERS -> topNammers();
-            case NAMPING -> ping();
-            case NAMBAN -> ban(username);
-            case NAMES -> names(from, username);
-            case NAMREFRESH -> refreshLists(from);
-            case NAMCOMMANDS -> namCommands(from);
-            case NAMCHOOSE -> choose(argStr, from);
-            case NAM -> userNam(from, username);
-            case LASTMESSAGE -> lastMessage(from, username);
-            case FIRSTMESSAGE -> firstMessage(from, username);
-            case LOG, LOGS -> getLogs(from, username);
-            case RQ -> randomQuote(from, username, argStr);
-            case RS -> randomSearch(from, argStr);
-            case ADDDISABLED -> addDisabled(from, username);
-            case REMDISABLED -> removeDisabled(from, username);
-            case FS -> firstOccurrence(from, argStr);
-            case SEARCH -> search(from, argStr);
-            case SEARCHUSER -> searchUser(from, argStr);
-            case ADDALT -> addAlt(from, argStr);
-            case STALKLIST -> getFollowList(from, username);
+            case NAMMERS -> topNammers(message);
+            case NAMPING -> ping(message);
+            case NAMBAN -> ban(message);
+            case NAMES -> names(message);
+            case NAMREFRESH -> refreshLists(message);
+            case NAMCOMMANDS -> namCommands(message);
+            case NAMCHOOSE -> choose(message);
+            case NAM -> userNam(message);
+            case LASTMESSAGE -> lastMessage(message);
+            case FIRSTMESSAGE -> firstMessage(message);
+            case LOG, LOGS -> getLogs(message);
+            case RQ -> randomQuote(message);
+            case RS -> randomSearch(message);
+            case ADDDISABLED -> addDisabled(message);
+            case REMDISABLED -> removeDisabled(message);
+            case FS -> firstOccurrence(message);
+            case SEARCH -> search(message);
+            case SEARCHUSER -> searchUser(message);
+            case ADDALT -> addAlt(message);
+            case STALKLIST -> getFollowList(message);
         }
         lastCommandTime = Instant.now();
     }
 
-    private void namCommands(String name) {
-        state.sendingBlockingQueue.add(new Message("@" + name + ", commands for this bot: " + website.substring(0, website.length() - 5) + "/commands"));
+    public void refreshLists(Message message) {
+        if (message.getSender().equals("Startup") || mods.contains(message.getSender())) {
+            initializeMods();
+            initializeDisabled();
+            initializeAlts();
+            initializeBlacklist();
+            if (!message.getSender().equals("Startup")) {
+                state.sendingBlockingQueue.add(new SimpleMessage(message.getSender(), "Lists refreshed HACKERMANS"));
+            }
+        }
+    }
+
+    private void namCommands(CommandMessage message) {
+        state.sendingBlockingQueue.add(
+                message.setResponse("@" + message.getSender() + ", commands for this bot: " + website.substring(0, website.length() - 5) + "/commands"));
 
     }
 
-    private void ban(String username) {
-        superbanned.put(username, Instant.now());
-        state.sendingBlockingQueue.add(new Message("Banned " + username + " from using the bot for 1h."));
+    private void ban(CommandMessage message) {
+        superbanned.put(message.getUsername(), Instant.now());
+        state.sendingBlockingQueue.add(message.setResponse("Banned " + message.getUsername() + " from using the bot for 1h."));
     }
 
-    private void names(String from, String username) {
+    private void names(CommandMessage message) {
         StringBuilder names = new StringBuilder("@");
-        names.append(from).append(", ").append(username).append("'s other names are: ");
-        var nameList = sqlSolrHandler.getAlternateNames(username);
+        names.append(message.getSender()).append(", ").append(message.getUsername()).append("'s other names are: ");
+        var nameList = sqlSolrHandler.getAlternateNames(message.getUsername());
         for (String name : nameList) {
             names.append(name).append(", ");
         }
         if (nameList.size() >= 1) {
             names.setLength(names.length() - 2);
-            state.sendingBlockingQueue.add(new Message(names.toString()));
+            state.sendingBlockingQueue.add(message.setResponse(names.toString()));
         } else {
-            state.sendingBlockingQueue.add(new Message("@" + from + ", no alternate names found in logs PEEPERS"));
+            state.sendingBlockingQueue.add(message.setResponse("@" + message.getSender() + ", no alternate names found in logs PEEPERS"));
         }
     }
 
-    private void choose(String choiceMsg, String from) {
-        String[] choices = choiceMsg.split(" ");
+    private void choose(CommandMessage message) {
+        String[] choices = message.getStringMessage().split(" ");
         if (choices.length == 0) {
             return;
         }
         int choice = ThreadLocalRandom.current().nextInt(0, choices.length);
-        state.sendingBlockingQueue.add(new Message(String.format("@%s, I choose %s", from, choices[choice])));
+        state.sendingBlockingQueue.add(message.setResponse(String.format("@%s, I choose %s", message.getSender(), choices[choice])));
     }
 
-    private void ping() {
-        state.sendingBlockingQueue.add(new Message(
+    private void ping(CommandMessage message) {
+        state.sendingBlockingQueue.add(message.setResponse(
                 String.format("NamBot online for %s | %d messages sent | %d messages logged | %d timeouts logged, of which %d were permabans.",
                         (Utils.convertTime((int) (Instant.now().minus(ConsoleMain.getStartTime().toEpochMilli(), ChronoUnit.MILLIS).toEpochMilli() / 1000))),
                         state.getSentMessageCount(),
@@ -170,117 +170,109 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
                 )));
     }
 
-    private void searchUser(String from, String msg) {
-        String username = Utils.getArg(msg, 0);
-        if (username == null) {
-            return;
-        }
-        msg = Utils.getMsgWithoutName(msg, username);
-        username = Utils.cleanName(from, username);
-
-        long count = sqlSolrHandler.searchUser(username, msg);
+    private void searchUser(CommandMessage message) {
+        long count = sqlSolrHandler.searchUser(message.getUsername(), message.getMessageWithoutUsername());
         if (count == 0) {
-            state.sendingBlockingQueue.add(new Message("@" + from + ", no messages found PEEPERS"));
+            state.sendingBlockingQueue.add(message.setResponse("@" + message.getSender() + ", no messages found PEEPERS"));
         } else {
-            state.sendingBlockingQueue.add(new Message("@" + from + ", " + username + " has used " + Utils.getWordList(msg) + " in " + count + " messages."));
+            state.sendingBlockingQueue.add(
+                    message.setResponse("@%s, %s has used %s in %d messages".
+                            formatted(message.getSender(),
+                                    message.getUsername(),
+                                    message.getWordList(),
+                                    count)));
         }
     }
 
-    private void search(String from, String msg) {
-        long count = sqlSolrHandler.search(msg);
+    private void search(CommandMessage message) {
+        long count = sqlSolrHandler.search(message.getMessageWithoutCommand());
         if (count == 0) {
-            state.sendingBlockingQueue.add(new Message("@" + from + ", no messages found PEEPERS"));
+            state.sendingBlockingQueue.add(message.setResponse("@" + message.getSender() + ", no messages found PEEPERS"));
         } else {
-            state.sendingBlockingQueue.add(new Message("@" + from + " found " + Utils.getWordList(msg) + " in " + count + " rows."));
+            state.sendingBlockingQueue.add(message.setResponse("@" + message.getSender() + " found " + message.getWordList() + " in " + count + " rows."));
         }
     }
 
-    private void firstOccurrence(String from, String msg) {
-        state.sendingBlockingQueue.add(new Message("@%s, %s".formatted(from, sqlSolrHandler.firstOccurrence(msg))));
+    private void firstOccurrence(CommandMessage message) {
+        state.sendingBlockingQueue.add(message.setResponse(
+                "@%s, %s".formatted(message.getSender(), sqlSolrHandler.firstOccurrence(message.getMessageWithoutCommand()))));
     }
 
-    private void randomSearch(String from, String msg) {
-        String username = Utils.getArg(msg, 0);
-        if (username == null || username.length() == 0) {
+    private void randomSearch(CommandMessage message) {
+
+        String result = sqlSolrHandler.randomSearch(message.getUsername(), message.getMessageWithoutUsername());
+        if (!result.startsWith("[")) {
+            result = "%s, %s".formatted(message.getSender(), result);
+        }
+        state.sendingBlockingQueue.add(message.setResponse(result));
+    }
+
+    private void randomQuote(CommandMessage message) {
+        if (hasNoMessages(message)) {
             return;
         }
+        String year = Utils.getYear(Utils.getArg(message.getMessageWithoutUsername(), 0));
 
-        msg = Utils.getMsgWithoutName(msg, username);
-        username = Utils.cleanName(from, username);
-
-        String result = sqlSolrHandler.randomSearch(username, msg);
+        String result = sqlSolrHandler.randomQuote(message.getUsername(), year);
         if (!result.startsWith("[")) {
-            result = "%s, %s".formatted(from, result);
+            result = "%s, %s".formatted(message.getSender(), result);
         }
-        state.sendingBlockingQueue.add(new Message(result));
-    }
-
-    private void randomQuote(String from, String username, String args) {
-        if (hasNoMessages(from, username)) {
-            return;
-        }
-        String year = Utils.getYear(Utils.getArg(args, 1));
-
-        String result = sqlSolrHandler.randomQuote(username, year);
-        if (!result.startsWith("[")) {
-            result = "%s, %s".formatted(from, result);
-        }
-        state.sendingBlockingQueue.add(new Message(result));
+        state.sendingBlockingQueue.add(message.setResponse(result));
     }
 
     private boolean isBot(String username) {
         if (username.toLowerCase().equals(botName)) {
-            state.sendingBlockingQueue.add(new Message("PepeSpin"));
+            state.sendingBlockingQueue.add(new SimpleMessage("isBot", "PepeSpin"));
             return true;
         }
         return false;
     }
 
-    private void userNam(String from, String username) {
-        int timeout = sqlSolrHandler.getTimeoutAmount(username);
+    private void userNam(CommandMessage message) {
+        int timeout = sqlSolrHandler.getTimeoutAmount(message.getUsername());
         if (timeout > 0) {
-            Message message;
-            if (from.equals(username)) {
-                message = new Message(String.format("@%s, you have spent %s in the shadow realm.", username, Utils.convertTime(timeout)));
+            String response;
+            if (message.getSender().equalsIgnoreCase(message.getUsername())) {
+                response = String.format("@%s, you have spent %s in the shadow realm.", message.getUsername(), Utils.convertTime(timeout));
             } else {
-                message = new Message(String.format("%s has spent %s in the shadow realm.", username, Utils.convertTime(timeout)));
+                response = String.format("%s has spent %s in the shadow realm.", message.getUsername(), Utils.convertTime(timeout));
             }
-            state.sendingBlockingQueue.add(message);
+            state.sendingBlockingQueue.add(message.setResponse(response));
 
         }
         lastCommandTime = Instant.now();
     }
 
-    private void firstMessage(String from, String username) {
-        if (hasNoMessages(from, username)) {
+    private void firstMessage(CommandMessage message) {
+        if (hasNoMessages(message)) {
             return;
         }
-        state.sendingBlockingQueue.add(new Message("%s, %s".formatted(from, sqlSolrHandler.firstMessage(username))));
+        state.sendingBlockingQueue.add(message.setResponse("%s, %s".formatted(message.getSender(), sqlSolrHandler.firstMessage(message.getUsername()))));
     }
 
-    private void lastMessage(String from, String username) {
-        if (hasNoMessages(from, username)) {
+    private void lastMessage(CommandMessage message) {
+        if (hasNoMessages(message)) {
             return;
         }
-        state.sendingBlockingQueue.add(new Message("@%s, %s".formatted(from, sqlSolrHandler.lastMessage(username))));
+        state.sendingBlockingQueue.add(message.setResponse("@%s, %s".formatted(message.getSender(), sqlSolrHandler.lastMessage(message.getUsername()))));
     }
 
-    private boolean hasNoMessages(String from, String username) {
-        int count = getCount(username);
+    private boolean hasNoMessages(CommandMessage message) {
+        int count = getCount(message.getUsername());
         if (count == 0) {
-            log.info("Did not find any messages for user " + username);
-            state.sendingBlockingQueue.add(new Message("@" + from + ", no messages found PEEPERS"));
+            log.info("Did not find any messages for user {}", message.getUsername());
+            state.sendingBlockingQueue.add(message.setResponse("@" + message.getSender() + ", no messages found PEEPERS"));
             return true;
         }
         return false;
     }
 
-    private void topNammers() {
+    private void topNammers(CommandMessage message) {
         String topTimeoutList = sqlSolrHandler.getTopTimeouts();
         if (topTimeoutList == null) {
             return;
         }
-        state.sendingBlockingQueue.add(new Message(topTimeoutList));
+        state.sendingBlockingQueue.add(message.setResponse(topTimeoutList));
     }
 
     private int getCount(String username) {
@@ -299,13 +291,13 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         log.info("Initialized mods list {} | god users {}.", mods, godUsers);
     }
 
-    private void addAlt(String from, String args) {
-        String main = Utils.getArg(args, 0);
+    private void addAlt(CommandMessage message) {
+        String main = Utils.getArg(message.getStringMessage(), 0);
         if (main == null) {
             return;
         }
         main = main.toLowerCase();
-        String alt = Utils.getArg(args, 1);
+        String alt = Utils.getArg(message.getStringMessage(), 1);
         if (alt == null) {
             return;
         }
@@ -315,95 +307,92 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
                 return;
             }
         }
-        log.info("{} adding {} to {}'s alt list", from, alt, main);
+        log.info("{} adding {} to {}'s alt list", message.getSender(), alt, main);
         if (!sqlSolrHandler.addAlt(main, alt)) {
             log.error("Adding alt was unsuccessful: {} - {}.", main, alt);
-            state.sendingBlockingQueue.add(new Message("Internal error Deadlole"));
+            state.sendingBlockingQueue.add(message.setResponse("Internal error Deadlole"));
             return;
         }
         state.mains.put(alt, main);
         state.mains.putIfAbsent(main, main);
         state.alts.putIfAbsent(main, new ArrayList<>());
         state.alts.get(main).add(alt);
-        state.sendingBlockingQueue.add(new Message("@" + from + ", added " + alt + " as " + main + "'s alt account."));
+        state.sendingBlockingQueue.add(message.setResponse("@" + message.getSender() + ", added " + alt + " as " + main + "'s alt account."));
     }
 
-    void addDisabled(String from, String username) {
-        if (state.disabledUsers.contains(username)) {
+    void addDisabled(CommandMessage message) {
+        if (state.disabledUsers.contains(message.getUsername())) {
             return;
         }
 
-        state.disabledUsers.add(username.toLowerCase());
-        sqlSolrHandler.addDisabled(from, username);
+        state.disabledUsers.add(message.getUsername());
+        sqlSolrHandler.addDisabled(message.getSender(), message.getUsername());
 
-        if (!from.equals("Autoban") && (mods.contains(from.toLowerCase()) ||
+        if (!message.getSender().equals("Autoban") && (mods.contains(message.getSender().toLowerCase()) ||
                 lastCommandTime.plus(10, ChronoUnit.SECONDS).isBefore(Instant.now())))
         {
-            state.sendingBlockingQueue.add(new Message("@" + from + ", added " + username + " to ignore list."));
+            state.sendingBlockingQueue.add(message.setResponse("@" + message.getSender() + ", added " + message.getUsername() + " to ignore list."));
         }
-        log.info("{} added {} to disabled list", from, username);
+        log.info("{} added {} to disabled list", message.getSender(), message.getUsername());
     }
 
-    private void removeDisabled(String from, String username) {
-        if (!state.disabledUsers.contains(username)) {
+    private void removeDisabled(CommandMessage message) {
+        if (!state.disabledUsers.contains(message.getUsername())) {
             return;
         }
-        state.disabledUsers.remove(username.toLowerCase());
-        if (mods.contains(from.toLowerCase()) || lastCommandTime.plus(10, ChronoUnit.SECONDS).isBefore(Instant.now())) {
-            state.sendingBlockingQueue.add(new Message("@" + from + ", removed " + username + " from ignore list."));
+        state.disabledUsers.remove(message.getUsername());
+        if (mods.contains(message.getSender().toLowerCase()) || lastCommandTime.plus(10, ChronoUnit.SECONDS).isBefore(Instant.now())) {
+            state.sendingBlockingQueue.add(message.setResponse("@" + message.getSender() + ", removed " + message.getUsername() + " from ignore list."));
         }
-        sqlSolrHandler.removeDisabled(username);
-        log.info("{} removed {} from disabled list", from, username);
+        sqlSolrHandler.removeDisabled(message.getUsername());
+        log.info("{} removed {} from disabled list", message.getSender(), message.getUsername());
 
     }
 
-    private void getFollowList(String from, String username) {
-        String content = apiHandler.getFollowList(username);
+    private void getFollowList(CommandMessage message) {
+        String content = apiHandler.getFollowList(message.getUsername());
         if (content == null) {
-            log.info("No follow list found for {}", username);
-            state.sendingBlockingQueue.add(new Message("@%s, no such user found PEEPERS".formatted(username)));
+            log.info("No follow list found for {}", message.getUsername());
+            state.sendingBlockingQueue.add(message.setResponse("@%s, no such user found PEEPERS".formatted(message.getUsername())));
             return;
         }
-        String link = "stalk_" + username;
+        String link = "stalk_" + message.getUsername();
         new Thread(() -> {
             FtpHandler ftpHandler = new FtpHandler();
             if (ftpHandler.upload(link, content)) {
                 state.sendingBlockingQueue.add(
-                        new Message("@%s all channels followed by %s: %s%s".formatted(from, username, website, link)));
+                        message.setResponse("@%s all channels followed by %s: %s%s".formatted(message.getSender(), message.getUsername(), website, link)));
             }
         }).start();
     }
 
-    private void getLogs(String from, String username) {
-        state.logCache.putIfAbsent(username, 0);
-        int count = getCount(username);
-        if (count == 0) {
-            log.info("Did not find any logs for user " + username);
-            state.sendingBlockingQueue.add(new Message("@" + from + ", no messages found PEEPERS"));
+    private void getLogs(CommandMessage message) {
+        if (hasNoMessages(message)) {
             return;
         }
-        if (count == state.logCache.get(username)) {
-            String output = String.format("@%s logs for %s: %s%s", from, username, website, username);
+        int count = getCount(message.getUsername());
+
+        if (count == state.logCache.getOrDefault(message.getUsername(), 0)) {
+            String response = String.format("@%s logs for %s: %s%s", message.getSender(), message.getUsername(), website, message.getUsername());
             log.info("No change to message count, not updating link.");
-            state.sendingBlockingQueue.add(new Message(output));
+            state.sendingBlockingQueue.add(message.setResponse(response));
             return;
         } else {
-            state.logCache.put(username, count);
+            state.logCache.put(message.getUsername(), count);
         }
 
         Instant startTime = Instant.now();
-        String logs = sqlSolrHandler.getLogs(username, count);
-        if (logs == null) {
-            return;
-        }
-
         new Thread(() -> {
+            String logs = sqlSolrHandler.getLogs(message.getUsername(), count);
+            if (logs == null) {
+                return;
+            }
             FtpHandler ftpHandler = new FtpHandler();
-            if (ftpHandler.upload(username, logs)) {
-                String output = String.format("@%s logs for %s: %s%s", from, username, website, username);
-                log.info(output);
+            if (ftpHandler.upload(message.getUsername(), logs)) {
+                String response = String.format("@%s logs for %s: %s%s", message.getSender(), message.getUsername(), website, message.getUsername());
+                log.info(response);
                 log.info("Total time: " + (Utils.convertTime((int) (Instant.now().minus(startTime.toEpochMilli(), ChronoUnit.MILLIS).toEpochMilli() / 1000))));
-                state.sendingBlockingQueue.add(new Message(output));
+                state.sendingBlockingQueue.add(message.setResponse(response));
             }
         }).start();
     }
@@ -459,7 +448,11 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         return previousMessageTimes.size() >= 5;
     }
 
-    private boolean isAllowed(String from, String username, Command command) {
+    private boolean isAllowed(CommandMessage message) {
+        String from = message.getSender();
+        String username = message.getUsername();
+        Command command = message.getCommand();
+
         //admins are not affected by any rules except optout rules.
         if (godUsers.contains(from.toLowerCase())
                 && !command.isOptedOut(username, state.disabledUsers))
@@ -490,7 +483,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         //new spammer check
         if (checkOneManSpam(from)) {
             banned.put(from, Instant.now());
-            state.sendingBlockingQueue.add(new Message("@" + from + ", stop one man spamming. Banned from using commands for 10 minutes peepoD"));
+            state.sendingBlockingQueue.add(message.setResponse("@" + from + ", stop one man spamming. Banned from using commands for 10 minutes peepoD"));
             return false;
         }
 
@@ -507,7 +500,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
 
         if (command.isOptedOut(username, state.disabledUsers)) {
             state.sendingBlockingQueue.add(
-                    new Message("@" + from + ", that user has been removed from the "
+                    message.setResponse("@" + from + ", that user has been removed from the "
                             + command
                             + " command. Type !adddisabled to remove yourself or !remdisabled to re-enable commands."));
             lastCommandTime = Instant.now();
