@@ -211,9 +211,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         if (hasNoMessages(message)) {
             return;
         }
-        String year = Utils.getYear(Utils.getArg(message.getMessageWithoutUsername(), 0));
-
-        String result = sqlSolrHandler.randomQuote(message.getUsername(), year);
+        String result = sqlSolrHandler.randomQuote(message.getUsername(), message.getYear());
         if (!result.startsWith("[")) {
             result = "%s, %s".formatted(message.getSender(), result);
         }

@@ -6,6 +6,7 @@ import chatbot.utils.Utils;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 
 public class CommandMessage implements Message {
 
@@ -16,7 +17,6 @@ public class CommandMessage implements Message {
     private final Instant time = Instant.now();
     private final boolean whisper;
     private final String fullMsg;
-    private String messageWithoutCommand;
     private String response;
 
     public CommandMessage(String sender, String uid, String message, boolean subscribed, boolean whisper, String fullMsg) {
@@ -26,7 +26,6 @@ public class CommandMessage implements Message {
         this.subscribed = subscribed;
         this.whisper = whisper;
         this.fullMsg = fullMsg;
-        messageWithoutCommand = getMessageWithoutCommand();
     }
 
     @Override
@@ -70,7 +69,7 @@ public class CommandMessage implements Message {
     }
 
     public String getUsername() {
-        String username = Utils.getArg(messageWithoutCommand, 0);
+        String username = Utils.getArg(getMessageWithoutCommand().replaceAll("\uDB40\uDC00", ""), 0);
         if (username == null) {
             username = sender;
         }
@@ -78,20 +77,16 @@ public class CommandMessage implements Message {
     }
 
     public String getMessageWithoutUsername() {
-        String username = Utils.getArg(messageWithoutCommand, 0);
+        String username = Utils.getArg(getMessageWithoutCommand(), 0);
         if (username == null) {
-            return messageWithoutCommand;
+            return getMessageWithoutCommand();
         }
-        return messageWithoutCommand.replaceFirst(username, "").strip();
+        return getMessageWithoutCommand().replaceFirst(username, "").strip();
     }
 
     public String getMessageWithoutCommand() {
         String command = Utils.getArg(message, 0);
-        if (command == null) {
-            return message;
-        }
-        messageWithoutCommand = message.replaceFirst(command, "").strip();
-        return messageWithoutCommand;
+        return message.replaceFirst(Objects.requireNonNull(command), "").strip();
     }
 
     public List<String> getWordList() {
@@ -101,5 +96,9 @@ public class CommandMessage implements Message {
     @Override
     public String toString() {
         return sender + ": " + message;
+    }
+
+    public String getYear() {
+        return Utils.getYear(Utils.getArg(getMessageWithoutUsername(), 0));
     }
 }

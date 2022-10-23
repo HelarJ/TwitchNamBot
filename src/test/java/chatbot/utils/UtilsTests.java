@@ -1,4 +1,4 @@
-package utils;
+package chatbot.utils;
 
 import org.junit.jupiter.api.Test;
 
