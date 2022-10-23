@@ -37,7 +37,7 @@ public class ProgramThread implements Runnable {
     private final SharedStateSingleton state = SharedStateSingleton.getInstance();
 
     public ProgramThread() throws IOException {
-        state.initializeQueues();
+        state.clearQueues();
         ApiHandler apiHandler = new ApiHandler();
         DatabaseHandler databaseHandler = new SQLSolrHandler();
         Socket socket = new Socket("irc.chat.twitch.tv", 6667);

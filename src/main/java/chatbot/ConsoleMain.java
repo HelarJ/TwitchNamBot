@@ -17,7 +17,6 @@ public class ConsoleMain {
     public static void main(String[] args) {
         log.info("Starting program.");
         Config.initializeConfig();
-        state.initializeQueues();
 
         while (state.isBotStillRunning()) {
             try {
