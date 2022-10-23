@@ -42,6 +42,12 @@ public class CommandMessageTest {
         );
     }
 
+    @Test
+    void invalidCommandMessage() {
+        assertEquals("", makeCommandMessage("").getMessageWithoutCommand());
+        assertEquals("no command", makeCommandMessage("no command").getMessageWithoutCommand());
+    }
+
     @ParameterizedTest
     @MethodSource("commandMessagesforUsernameParse")
     void getUsernameTest(String expected, String input) {

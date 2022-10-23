@@ -76,7 +76,7 @@ public class CommandMessage implements Message {
 
     public String getMessageWithoutCommand() {
         String command = Utils.getArg(message, 0);
-        if (command == null) {
+        if (command == null || !message.startsWith("!")) {
             log.error("CommandMessage has no command: {}", message);
             return message;
         }
