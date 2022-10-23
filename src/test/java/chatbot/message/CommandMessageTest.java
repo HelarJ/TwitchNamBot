@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 public class CommandMessageTest {
 
     CommandMessage makeCommandMessage(String message) {
-        return new CommandMessage("tester", "uid", message, false, false, "fullmsg");
+        return new CommandMessage("tester", message);
     }
 
     @ParameterizedTest

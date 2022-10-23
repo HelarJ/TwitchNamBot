@@ -108,7 +108,7 @@ public class ListenerService extends AbstractExecutionThreadService {
         log.debug("{} timed out for {}s", name, banTime);
         if (banTime >= 121059319) {
             //todo move this and remove commandhandler dependency
-            commandHandlerService.addDisabled(new CommandMessage("Autoban", "", name, false, false, output));
+            commandHandlerService.addDisabled(new CommandMessage("Autoban", name));
             state.messageLogBlockingQueue.add(new LoggableMessage(name, userid, "User was permanently banned.", false, false, output));
             state.increasePermabanCount();
         }
@@ -157,7 +157,7 @@ public class ListenerService extends AbstractExecutionThreadService {
             outputMSG = outputMSG.replaceFirst("ACTION", "/me");
         }
         state.messageLogBlockingQueue.add(new LoggableMessage(name, userid, outputMSG, subscribed, false, output));
-        state.commandHandlerBlockingQueue.add(new CommandMessage(name, userid, outputMSG, subscribed, false, output));
+        state.commandHandlerBlockingQueue.add(new CommandMessage(name, outputMSG));
 
         //records a timeout with a 0-second duration to prevent timeoutlist exploting.
         state.timeoutBlockingQueue.add(new TimeoutMessage(name, userid, 0));

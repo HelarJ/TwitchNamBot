@@ -2,30 +2,20 @@ package chatbot.message;
 
 import chatbot.enums.Command;
 import chatbot.utils.Utils;
+import lombok.extern.log4j.Log4j2;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 
+@Log4j2
 public class CommandMessage implements Message {
-
     private final String sender;
     private final String message;
-    private final String uid;
-    private final boolean subscribed;
-    private final Instant time = Instant.now();
-    private final boolean whisper;
-    private final String fullMsg;
     private String response;
 
-    public CommandMessage(String sender, String uid, String message, boolean subscribed, boolean whisper, String fullMsg) {
+    public CommandMessage(String sender, String message) {
         this.sender = sender;
         this.message = message;
-        this.uid = uid;
-        this.subscribed = subscribed;
-        this.whisper = whisper;
-        this.fullMsg = fullMsg;
     }
 
     @Override
@@ -86,7 +76,11 @@ public class CommandMessage implements Message {
 
     public String getMessageWithoutCommand() {
         String command = Utils.getArg(message, 0);
-        return message.replaceFirst(Objects.requireNonNull(command), "").strip();
+        if (command == null) {
+            log.error("CommandMessage has no command: {}", message);
+            return message;
+        }
+        return message.replaceFirst(command, "").strip();
     }
 
     public List<String> getWordList() {
