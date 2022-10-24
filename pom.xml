@@ -76,6 +76,11 @@
             <artifactId>commons-dbcp2</artifactId>
             <version>2.9.0</version>
         </dependency>
+        <dependency>
+            <groupId>pl.tkowalcz.tjahzi</groupId>
+            <artifactId>log4j2-appender-nodep</artifactId>
+            <version>0.9.23</version>
+        </dependency>
 
 
     </dependencies>

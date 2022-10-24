@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Configuration status="info">
+<Configuration status="info" packages="pl.tkowalcz.tjahzi.log4j2">
     <Appenders>
         <Console name="Console" target="SYSTEM_OUT">
             <PatternLayout disableAnsi="false">
@@ -28,12 +28,23 @@
                 <SizeBasedTriggeringPolicy size="250 MB"/>
             </Policies>
         </RollingRandomAccessFile>
+        <Loki name="loki-appender">
+            <url>${env:LOKI_URL}</url>
+            <username>${env:LOKI_USER}</username>
+            <password>${env:LOKI_PW}</password>
+            <PatternLayout>
+                <Pattern>%X{tid} [%t] %d{MM-dd HH:mm:ss.SSS} %5p %c{1} - %m%n%exception{full}</Pattern>
+            </PatternLayout>
+
+            <Label name="server" value="pc"/>
+        </Loki>
     </Appenders>
     <Loggers>
         <Root level="all">
             <AppenderRef ref="Console" level="info"/>
             <AppenderRef ref="RollingRandomAccessFile" level="debug"/>
             <AppenderRef ref="RollingRandomAccessFileForErrors" level="error"/>
+            <AppenderRef ref="loki-appender" level="debug"/>
         </Root>
     </Loggers>
 </Configuration>

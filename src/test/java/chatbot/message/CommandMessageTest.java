@@ -57,6 +57,7 @@ public class CommandMessageTest {
         return Stream.of(
                 Arguments.of("hello", "!rq hello"),
                 Arguments.of("tester", "!rq me"),
+                Arguments.of("tester", "!rq @tester"),
                 Arguments.of("tester", "!rq"),
                 Arguments.of("tester", "!rq \uDB40\uDC00"),
                 Arguments.of("tester", "!rq me \uDB40\uDC00"),
@@ -77,6 +78,7 @@ public class CommandMessageTest {
                 Arguments.of("", "!rs hello"),
                 Arguments.of("", "!rs"),
                 Arguments.of("", "!rs me"),
+                Arguments.of("", "!rs @tester"),
                 Arguments.of("*", "!rs me *"),
                 Arguments.of("yo \uDB40\uDC00", "!rs test yo \uDB40\uDC00"),
                 Arguments.of("this is a longer message", "!rs me this is a longer message"),
