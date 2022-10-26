@@ -9,9 +9,6 @@ import chatbot.message.TimeoutMessage;
 import chatbot.singleton.SharedStateSingleton;
 import chatbot.utils.Config;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
-import lombok.SneakyThrows;
-import lombok.extern.log4j.Log4j2;
-
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -19,23 +16,27 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import lombok.SneakyThrows;
+import lombok.extern.log4j.Log4j2;
 
 @Log4j2
 public class ListenerService extends AbstractExecutionThreadService {
+
     private final BufferedReader bufferedReader;
     private final BufferedWriter bufferedWriter;
     private final SharedStateSingleton state = SharedStateSingleton.getInstance();
-    private final CommandHandlerService commandHandlerService;
     private final String username;
     private final String admin;
 
-    public ListenerService(Socket socket, CommandHandlerService commandHandlerService) throws IOException {
-        this.commandHandlerService = commandHandlerService;
-        this.bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
-        this.bufferedWriter = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
+    public ListenerService(Socket socket) throws IOException {
+        this.bufferedReader = new BufferedReader(
+            new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
+        this.bufferedWriter = new BufferedWriter(
+            new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
         this.username = Config.getTwitchUsername().toLowerCase();
         this.admin = Config.getBotAdmin().toLowerCase();
     }
+
     @Override
     @SuppressWarnings("UnstableApiUsage")
     protected void triggerShutdown() {
@@ -104,12 +105,15 @@ public class ListenerService extends AbstractExecutionThreadService {
         String userid = output.substring(output.indexOf("user-id="));
         userid = userid.substring(8, userid.indexOf(";"));
 
-        int banTime = Integer.parseInt(output.substring(output.indexOf("=") + 1, output.indexOf(";")).strip());
+        int banTime = Integer.parseInt(
+            output.substring(output.indexOf("=") + 1, output.indexOf(";")).strip());
         log.debug("{} timed out for {}s", name, banTime);
         if (banTime >= 121059319) {
-            //todo move this and remove commandhandler dependency
-            commandHandlerService.addDisabled(new CommandMessage("Autoban", name));
-            state.messageLogBlockingQueue.add(new LoggableMessage(name, userid, "User was permanently banned.", false, false, output));
+            state.commandHandlerBlockingQueue.add(
+                new CommandMessage("Autoban", "!adddisabled " + name));
+            state.messageLogBlockingQueue.add(
+                new LoggableMessage(name, userid, "User was permanently banned.", false, false,
+                    output));
             state.increasePermabanCount();
         }
         state.timeoutBlockingQueue.add(new TimeoutMessage(name, userid, banTime));
@@ -156,7 +160,8 @@ public class ListenerService extends AbstractExecutionThreadService {
             outputMSG = outputMSG.replaceAll("\u0001", "");
             outputMSG = outputMSG.replaceFirst("ACTION", "/me");
         }
-        state.messageLogBlockingQueue.add(new LoggableMessage(name, userid, outputMSG, subscribed, false, output));
+        state.messageLogBlockingQueue.add(
+            new LoggableMessage(name, userid, outputMSG, subscribed, false, output));
         state.commandHandlerBlockingQueue.add(new CommandMessage(name, outputMSG));
 
         //records a timeout with a 0-second duration to prevent timeoutlist exploting.
@@ -165,16 +170,13 @@ public class ListenerService extends AbstractExecutionThreadService {
     }
 
     private String getOutput() {
-        String output = null;
         try {
-            output = bufferedReader.readLine();
+            return bufferedReader.readLine();
         } catch (IOException e) {
             log.fatal("Connection error for Listener: {}", e.getMessage());
-            if (state.isBotStillRunning()) {
-                ConsoleMain.reconnect();
-            }
+            throw new RuntimeException(
+                "Connection error for Listener: %s".formatted(e.getMessage()));
         }
-        return output;
     }
 
     private void handlePing() {
@@ -183,10 +185,8 @@ public class ListenerService extends AbstractExecutionThreadService {
             bufferedWriter.flush();
         } catch (IOException e) {
             log.fatal("Error sending ping: {}", e.getMessage());
-            if (state.isBotStillRunning()) {
-                closeBuffered();
-                ConsoleMain.reconnect();
-            }
+            closeBuffered();
+            throw new RuntimeException("Error sending ping: %s".formatted(e.getMessage()));
         }
     }
 

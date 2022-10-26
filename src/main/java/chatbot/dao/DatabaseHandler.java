@@ -2,55 +2,60 @@ package chatbot.dao;
 
 import chatbot.message.LoggableMessage;
 import chatbot.message.TimeoutMessage;
-
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public interface DatabaseHandler {
-    int getMessageCount(String username);
 
-    List<String> getModList();
+  int getMessageCount(String username);
 
-    List<String> getAltsList();
+  List<String> getModList();
 
-    void addTimeout(TimeoutMessage timeout);
+  List<String> getAltsList();
 
-    int getTimeoutAmount(String username);
+  void addTimeout(TimeoutMessage timeout);
 
-    String getTopTimeouts();
+  int getTimeoutAmount(String username);
 
-    void addNamListTimeout(TimeoutMessage timeout);
+  String getTopTimeouts();
 
-    void recordWhisper(LoggableMessage message);
+  void addNamListTimeout(TimeoutMessage timeout);
 
-    void recordMessage(LoggableMessage message);
+  void recordWhisper(LoggableMessage message);
 
-    String firstOccurrence(String msg);
+  void recordMessage(LoggableMessage message);
 
-    String firstMessage(String username);
+  String firstOccurrence(String msg);
 
-    String lastMessage(String username);
+  String firstMessage(String username);
 
-    String randomSearch(String username, String msg);
+  String lastMessage(String username);
 
-    String randomQuote(String username, String year);
+  String randomSearch(String username, String msg);
 
-    String getLogs(String username, int count);
+  String randomQuote(String username, String year);
 
-    long search(String msg);
+  String getLogs(String username, int count);
 
-    long searchUser(String username, String msg);
+  long search(String msg);
 
-    Map<String, String> getBlacklist();
+  long searchUser(String username, String msg);
 
-    List<String> getDisabledList();
+  Map<String, String> getBlacklist();
 
-    void addDisabled(String from, String username);
+  List<String> getDisabledList();
 
-    void removeDisabled(String username);
+  void addDisabled(String from, String username);
 
-    List<String> getAlternateNames(String username);
+  void removeDisabled(String username);
 
-    boolean addAlt(String main, String alt);
+  List<String> getAlternateNames(String username);
+
+  boolean addAlt(String main, String alt);
+
+  void setCommandPermissionUser(String user, String command, boolean enable);
+
+  HashMap<String, Boolean> getPersonalPermissions(String user);
 
 }

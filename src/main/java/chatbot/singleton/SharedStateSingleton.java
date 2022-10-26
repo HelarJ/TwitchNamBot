@@ -4,39 +4,45 @@ import chatbot.ConsoleMain;
 import chatbot.message.Message;
 import chatbot.message.PoisonMessage;
 import chatbot.utils.Config;
-import lombok.extern.log4j.Log4j2;
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import lombok.extern.log4j.Log4j2;
 
 @Log4j2
 public class SharedStateSingleton {
-    private static final AtomicBoolean running = new AtomicBoolean(true);
 
+    private static final AtomicBoolean running = new AtomicBoolean(true);
+    private static boolean first = true;
+    private static SharedStateSingleton instance = new SharedStateSingleton();
     private final AtomicInteger messageCount = new AtomicInteger(0);
     private final AtomicInteger sentMessageCount = new AtomicInteger(0);
     private final AtomicInteger timeoutCount = new AtomicInteger(0);
     private final AtomicInteger permabanCount = new AtomicInteger(0);
-
     public AtomicBoolean online = new AtomicBoolean();
-    private static boolean first = true;
-
     public CopyOnWriteArrayList<String> blacklist = new CopyOnWriteArrayList<>();
     public CopyOnWriteArrayList<String> textBlacklist = new CopyOnWriteArrayList<>();
     public AtomicReference<String> replacelist = new AtomicReference<>();
-    public CopyOnWriteArrayList<String> disabledUsers = new CopyOnWriteArrayList<>();
-
+    public CopyOnWriteArraySet<String> disabledUsers = new CopyOnWriteArraySet<>();
     public HashMap<String, List<String>> alts = new HashMap<>();
     public HashMap<String, String> mains = new HashMap<>();
     public HashMap<String, Integer> logCache = new HashMap<>();
-
-    private static SharedStateSingleton instance = new SharedStateSingleton();
+    public BlockingQueue<Message> commandHandlerBlockingQueue = new LinkedBlockingQueue<>();
+    /**
+     * Queue for sending messages to chat.
+     */
+    public BlockingQueue<Message> sendingBlockingQueue = new LinkedBlockingQueue<>();
+    /**
+     * Queue for database logging.
+     */
+    public BlockingQueue<Message> messageLogBlockingQueue = new LinkedBlockingQueue<>();
+    public BlockingQueue<Message> timeoutBlockingQueue = new LinkedBlockingQueue<>();
 
     private SharedStateSingleton() {
     }
@@ -80,7 +86,8 @@ public class SharedStateSingleton {
         permabanCount.incrementAndGet();
     }
 
-    public void setBlacklist(List<String> blacklist, List<String> textBlacklist, String replacelist) {
+    public void setBlacklist(List<String> blacklist, List<String> textBlacklist,
+        String replacelist) {
         this.replacelist.set(replacelist);
         this.blacklist.addAll(blacklist);
         this.textBlacklist.addAll(textBlacklist);
@@ -136,18 +143,6 @@ public class SharedStateSingleton {
         running.set(false);
         ConsoleMain.reconnect();
     }
-
-    public BlockingQueue<Message> commandHandlerBlockingQueue = new LinkedBlockingQueue<>();
-    /**
-     * Queue for sending messages to chat.
-     */
-    public BlockingQueue<Message> sendingBlockingQueue = new LinkedBlockingQueue<>();
-    /**
-     * Queue for database logging.
-     */
-    public BlockingQueue<Message> messageLogBlockingQueue = new LinkedBlockingQueue<>();
-
-    public BlockingQueue<Message> timeoutBlockingQueue = new LinkedBlockingQueue<>();
 
     public void poisonQueues() {
         log.info("Poisoning queues.");

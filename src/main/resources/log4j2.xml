@@ -3,7 +3,8 @@
     <Appenders>
         <Console name="Console" target="SYSTEM_OUT">
             <PatternLayout disableAnsi="false">
-                <Pattern>%highlight{%d{dd-MM-yy HH:mm:ss} %-5level| %m%n}{FATAL=black, ERROR=red, WARN=bright_blue,
+                <Pattern>%highlight{%d{dd-MM-yy HH:mm:ss} %-5level| %m%n}{FATAL=red, ERROR=red,
+                    WARN=bright_blue,
                     INFO=white, DEBUG=bright_green, TRACE=blue}
                 </Pattern>
             </PatternLayout>
@@ -33,10 +34,13 @@
             <username>${env:LOKI_USER}</username>
             <password>${env:LOKI_PW}</password>
             <PatternLayout>
-                <Pattern>%X{tid} [%t] %d{MM-dd HH:mm:ss.SSS} %5p %c{1} - %m%n%exception{full}</Pattern>
+                <Pattern>thread=%t timestamp="%d" level=%5p class=%c{1}
+                    message="%m"%n%exception{full}
+                </Pattern>
             </PatternLayout>
 
             <Label name="server" value="pc"/>
+            <Label name="level" pattern="%5p"/>
         </Loki>
     </Appenders>
     <Loggers>

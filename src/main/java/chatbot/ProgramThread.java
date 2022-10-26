@@ -14,18 +14,18 @@ import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.Service;
 import com.google.common.util.concurrent.ServiceManager;
-import lombok.extern.log4j.Log4j2;
-
-import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import javax.annotation.Nonnull;
+import lombok.extern.log4j.Log4j2;
 
 @Log4j2
 public class ProgramThread implements Runnable {
+
     private final ListenerService listenerService;
     private final SenderService senderService;
     private final CommandHandlerService commandHandlerService;
@@ -33,8 +33,8 @@ public class ProgramThread implements Runnable {
     private final TimeoutLoggerService timeoutLoggerService;
     private final OnlineCheckerService onlineCheckerService;
     private final CountDownLatch done = new CountDownLatch(1);
-    private ServiceManager serviceManager;
     private final SharedStateSingleton state = SharedStateSingleton.getInstance();
+    private ServiceManager serviceManager;
 
     public ProgramThread() throws IOException {
         state.clearQueues();
@@ -47,18 +47,19 @@ public class ProgramThread implements Runnable {
         this.onlineCheckerService = new OnlineCheckerService(apiHandler);
         this.timeoutLoggerService = new TimeoutLoggerService(databaseHandler);
         this.messageLoggerService = new MessageLoggerService(databaseHandler);
-        this.listenerService = new ListenerService(socket, commandHandlerService);
+        this.listenerService = new ListenerService(socket);
     }
 
     @Override
     public void run() {
         try {
             ArrayList<Service> services = Lists.newArrayList(senderService, listenerService,
-                    commandHandlerService, messageLoggerService, timeoutLoggerService, onlineCheckerService);
+                commandHandlerService, messageLoggerService, timeoutLoggerService,
+                onlineCheckerService);
             this.serviceManager = new ServiceManager(services);
             addListenersToManager(serviceManager);
             serviceManager.startAsync();
-            serviceManager.awaitHealthy(5, TimeUnit.SECONDS);
+            serviceManager.awaitHealthy(10, TimeUnit.SECONDS);
             senderService.connect();
 
             done.await();
@@ -71,10 +72,11 @@ public class ProgramThread implements Runnable {
             log.error("Connection error: {}", e.getMessage());
             shutdown();
         } catch (TimeoutException e) {
-            log.fatal("Closing services timed out: {} . Current states: {}", e.getMessage(), serviceManager.servicesByState());
-
+            log.fatal("Closing services timed out: {} . Current states: {}", e.getMessage(),
+                serviceManager.servicesByState());
             //Having services still running might lead to issues, so we close the program completely.
             state.stop();
+            System.exit(1);
         }
 
         log.info("Mainthread thread ended.");

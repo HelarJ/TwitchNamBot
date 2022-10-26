@@ -2,117 +2,118 @@ package chatbot.utils;
 
 import chatbot.ConsoleMain;
 import chatbot.enums.ConfigName;
-import lombok.extern.log4j.Log4j2;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import lombok.extern.log4j.Log4j2;
 
 @Log4j2
 public class Config {
-    private static Properties properties;
-    private static final Map<ConfigName, String> configMap = new HashMap<>();
 
-    public static void initializeConfig() {
-        readProperties();
-        //for each config attempts to get the value from an environment variable
-        //or if it doesn't exist, attempts to read it from config.properties
-        for (ConfigName configName : ConfigName.values()) {
-            String configValue = System.getenv(configName.toString());
-            if (configValue == null && properties != null) {
-                configValue = properties.getProperty(configName.toString());
-            }
-            configMap.put(configName, configValue);
-        }
-    }
+  private static final Map<ConfigName, String> configMap = new HashMap<>();
+  private static Properties properties;
 
-    private static void readProperties() {
-        try (InputStream input = ConsoleMain.class.getClassLoader().getResourceAsStream("config.properties")) {
-            properties = new Properties();
-            if (input != null) {
-                properties.load(input);
-            }
-        } catch (IOException e) {
-            log.error("Error reading properties");
-            properties = null;
-        }
+  public static void initializeConfig() {
+    readProperties();
+    //for each config attempts to get the value from an environment variable
+    //or if it doesn't exist, attempts to read it from config.properties
+    for (ConfigName configName : ConfigName.values()) {
+      String configValue = System.getenv(configName.toString());
+      if (configValue == null && properties != null) {
+        configValue = properties.getProperty(configName.toString());
+      }
+      configMap.put(configName, configValue);
     }
+  }
 
-    public static String getChannelToJoin() {
-        String channel = configMap.get(ConfigName.NAM_TWITCH_CHANNEL_TO_JOIN);
-        if (channel == null) {
-            log.fatal("No channelname specified in config.");
-            throw new RuntimeException("No channelname specified. Cannot continue");
-        }
-        return channel.toLowerCase();
+  private static void readProperties() {
+    try (InputStream input = ConsoleMain.class.getClassLoader()
+        .getResourceAsStream("config.properties")) {
+      properties = new Properties();
+      if (input != null) {
+        properties.load(input);
+      }
+    } catch (IOException e) {
+      log.error("Error reading properties");
+      properties = null;
     }
+  }
 
-    public static String getTwitchOauth() {
-        return configMap.get(ConfigName.NAM_TWITCH_OAUTH);
+  public static String getChannelToJoin() {
+    String channel = configMap.get(ConfigName.NAM_TWITCH_CHANNEL_TO_JOIN);
+    if (channel == null) {
+      log.fatal("No channelname specified in config.");
+      throw new RuntimeException("No channelname specified. Cannot continue");
     }
+    return channel.toLowerCase();
+  }
 
-    public static String getTwitchUsername() {
-        return configMap.get(ConfigName.NAM_TWITCH_USERNAME);
-    }
+  public static String getTwitchOauth() {
+    return configMap.get(ConfigName.NAM_TWITCH_OAUTH);
+  }
 
-    public static String getTwitchClientId() {
-        return configMap.get(ConfigName.NAM_TWITCH_CLIENTID);
-    }
+  public static String getTwitchUsername() {
+    return configMap.get(ConfigName.NAM_TWITCH_USERNAME);
+  }
 
-    public static String getTwitchSecret() {
-        return configMap.get(ConfigName.NAM_TWITCH_SECRET);
-    }
+  public static String getTwitchClientId() {
+    return configMap.get(ConfigName.NAM_TWITCH_CLIENTID);
+  }
 
-    public static String getTwitchUID() {
-        return configMap.get(ConfigName.NAM_TWITCH_UID);
-    }
+  public static String getTwitchSecret() {
+    return configMap.get(ConfigName.NAM_TWITCH_SECRET);
+  }
 
-    public static String getFtpServer() {
-        return configMap.get(ConfigName.NAM_FTP_SERVER);
-    }
+  public static String getTwitchUID() {
+    return configMap.get(ConfigName.NAM_TWITCH_UID);
+  }
 
-    public static String getFtpPort() {
-        return configMap.get(ConfigName.NAM_FTP_PORT);
-    }
+  public static String getFtpServer() {
+    return configMap.get(ConfigName.NAM_FTP_SERVER);
+  }
 
-    public static String getFtpUsername() {
-        return configMap.get(ConfigName.NAM_FTP_USERNAME);
-    }
+  public static String getFtpPort() {
+    return configMap.get(ConfigName.NAM_FTP_PORT);
+  }
 
-    public static String getFtpPassword() {
-        return configMap.get(ConfigName.NAM_FTP_PASSWORD);
-    }
+  public static String getFtpUsername() {
+    return configMap.get(ConfigName.NAM_FTP_USERNAME);
+  }
 
-    public static String getBotAdmin() {
-        return configMap.get(ConfigName.NAM_BOT_ADMIN).toLowerCase();
-    }
+  public static String getFtpPassword() {
+    return configMap.get(ConfigName.NAM_FTP_PASSWORD);
+  }
 
-    public static String getBotWebsite() {
-        return configMap.get(ConfigName.NAM_BOT_WEBSITE);
-    }
+  public static String getBotAdmin() {
+    return configMap.get(ConfigName.NAM_BOT_ADMIN).toLowerCase();
+  }
 
-    public static String getSqlUrl() {
-        return String.format("jdbc:mariadb://%s:%s/%s",
-                configMap.get(ConfigName.NAM_DB_IP),
-                configMap.get(ConfigName.NAM_DB_PORT),
-                configMap.get(ConfigName.NAM_DB_NAME));
-    }
+  public static String getBotWebsite() {
+    return configMap.get(ConfigName.NAM_BOT_WEBSITE);
+  }
 
-    public static String getSqlUsername() {
-        return configMap.get(ConfigName.NAM_DB_USER);
-    }
+  public static String getSqlUrl() {
+    return String.format("jdbc:mariadb://%s:%s/%s",
+        configMap.get(ConfigName.NAM_DB_IP),
+        configMap.get(ConfigName.NAM_DB_PORT),
+        configMap.get(ConfigName.NAM_DB_NAME));
+  }
 
-    public static String getSqlPassword() {
-        return configMap.get(ConfigName.NAM_DB_PASSWORD);
-    }
+  public static String getSqlUsername() {
+    return configMap.get(ConfigName.NAM_DB_USER);
+  }
 
-    public static String getSolrCredentials() {
-        return String.format("http://%s:%s/solr/%s",
-                configMap.get(ConfigName.NAM_SOLR_IP),
-                configMap.get(ConfigName.NAM_SOLR_PORT),
-                configMap.get(ConfigName.NAM_SOLR_CORE));
-    }
+  public static String getSqlPassword() {
+    return configMap.get(ConfigName.NAM_DB_PASSWORD);
+  }
+
+  public static String getSolrCredentials() {
+    return String.format("http://%s:%s/solr/%s",
+        configMap.get(ConfigName.NAM_SOLR_IP),
+        configMap.get(ConfigName.NAM_SOLR_PORT),
+        configMap.get(ConfigName.NAM_SOLR_CORE));
+  }
 
 }

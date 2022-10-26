@@ -1,20 +1,20 @@
 package chatbot.dao;
 
 import chatbot.utils.Config;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import lombok.SneakyThrows;
 import lombok.extern.log4j.Log4j2;
 import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.net.ftp.FTPFile;
 import org.apache.commons.net.ftp.FTPReply;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-
 @Log4j2
 public class FtpHandler {
+
     private final FTPClient ftpClient = new FTPClient();
 
     public FtpHandler() {
@@ -46,7 +46,8 @@ public class FtpHandler {
         boolean success = false;
         try {
             ftpClient.enterLocalPassiveMode();
-            success = ftpClient.storeFile(filename, new ByteArrayInputStream(text.getBytes(StandardCharsets.UTF_8)));
+            success = ftpClient.storeFile(filename,
+                new ByteArrayInputStream(text.getBytes(StandardCharsets.UTF_8)));
             log.info(ftpClient.getReplyString());
             ftpClient.enterLocalActiveMode();
         } catch (IOException e) {
@@ -77,8 +78,9 @@ public class FtpHandler {
                 if (filename.equals(".ftpquota") || filename.equals(".") || filename.equals("..")) {
                     continue;
                 }
-                if (file.getTimestamp().toInstant().plus(240, ChronoUnit.HOURS).isBefore(Instant.now())) {
-                    log.info("Deleted" + filename);
+                if (file.getTimestamp().toInstant().plus(240, ChronoUnit.HOURS)
+                    .isBefore(Instant.now())) {
+                    log.info("Deleted " + filename);
                     ftpClient.deleteFile(filename);
                 }
             }
