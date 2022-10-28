@@ -117,7 +117,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
 
   private void setCommandPermissionUser(CommandMessage message) {
     String commandName = Utils.getArg(message.getMessageWithoutUsername().toLowerCase(), 0);
-    String bool = Utils.getArg(message.getMessageWithoutUsername().toLowerCase(), 1);
+    String bool = Utils.getArg(message.getMessageWithoutUsername(), 1);
     if (commandName == null || bool == null) {
       return;
     }
@@ -146,8 +146,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
 
   private void namCommands(CommandMessage message) {
     state.sendingBlockingQueue.add(message.setResponse(
-        "@" + message.getSender() + ", commands for this bot: " + website.substring(0,
-            website.length() - 5) + "/commands"));
+        "@" + message.getSender() + ", commands for this bot: " + website + "/commands"));
 
   }
 
@@ -194,6 +193,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
                 .toEpochMilli() / 1000))),
         state.getSentMessageCount(), state.getMessageCount(), state.getTimeoutCount(),
         state.getPermabanCount())));
+
   }
 
   private void searchUser(CommandMessage message) {
@@ -409,7 +409,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
       if (ftpHandler.upload(link, content)) {
         state.sendingBlockingQueue.add(message.setResponse(
             "@%s all channels followed by %s: %s%s".formatted(message.getSender(),
-                message.getUsername(), website, link)));
+                message.getUsername(), website + "/log/", link)));
       }
     }).start();
   }
@@ -420,9 +420,23 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     }
     int count = getCount(message.getUsername());
 
+    if (apiHandler.isLogsApiOnline()) {
+      final String logSite = website + "/logs/";
+      String response = String.format("@%s logs for %s: %s%s", message.getSender(),
+          message.getUsername(), logSite,
+          message.getUsername());
+
+      state.sendingBlockingQueue.add(message.setResponse(response));
+    } else {
+      uploadLogsToFtp(message, count);
+    }
+  }
+
+  private void uploadLogsToFtp(CommandMessage message, int count) {
+    final String ftpLogs = website + "/log/";
     if (count == state.logCache.getOrDefault(message.getUsername(), 0)) {
       String response = String.format("@%s logs for %s: %s%s", message.getSender(),
-          message.getUsername(), website,
+          message.getUsername(), ftpLogs,
           message.getUsername());
       log.info("No change to message count, not updating link.");
       state.sendingBlockingQueue.add(message.setResponse(response));
@@ -440,7 +454,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
       FtpHandler ftpHandler = new FtpHandler();
       if (ftpHandler.upload(message.getUsername(), logs)) {
         String response = String.format("@%s logs for %s: %s%s", message.getSender(),
-            message.getUsername(), website,
+            message.getUsername(), ftpLogs,
             message.getUsername());
         log.info(response);
         log.info("Total time: " + (Utils.convertTime(

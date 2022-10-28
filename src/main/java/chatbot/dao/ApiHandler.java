@@ -210,7 +210,24 @@ public class ApiHandler {
         state.setOnline();
       }
     } catch (IOException | InterruptedException | NullPointerException e) {
-      log.error("Error getting online status: " + e.getMessage());
+      log.warn("Error getting online status: " + e.getMessage());
+    }
+  }
+
+  public boolean isLogsApiOnline() {
+    HttpRequest request = HttpRequest.newBuilder()
+        .GET()
+        .uri(URI.create("http://localhost:8069/api/status/"))
+        .build();
+
+    try {
+      HttpResponse<String> response = httpClient.send(request,
+          HttpResponse.BodyHandlers.ofString());
+      log.info(response);
+      return response.statusCode() == 200;
+    } catch (IOException | InterruptedException e) {
+      log.warn("Log API is down");
+      return false;
     }
   }
 }

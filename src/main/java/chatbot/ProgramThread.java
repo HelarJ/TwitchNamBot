@@ -87,6 +87,7 @@ public class ProgramThread implements Runnable {
             @Override
             public void failure(@Nonnull Service service) {
                 log.fatal("{} failed. reason {}", service, service.failureCause());
+                shutdown();
             }
 
             @Override

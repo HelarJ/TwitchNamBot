@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
 import java.util.concurrent.ThreadLocalRandom;
+import javax.annotation.Nonnull;
 import lombok.extern.log4j.Log4j2;
 import org.apache.commons.dbcp2.BasicDataSource;
 import org.apache.solr.client.solrj.SolrClient;
@@ -614,6 +615,7 @@ public class SQLSolrHandler implements DatabaseHandler {
     }
   }
 
+  @Nonnull
   @Override
   public HashMap<String, Boolean> getPersonalPermissions(String user) {
     HashMap<String, Boolean> permissionMap = new HashMap<>();
@@ -623,7 +625,7 @@ public class SQLSolrHandler implements DatabaseHandler {
       stmt.setString(1, user);
       ResultSet resultSet = stmt.executeQuery();
       if (!resultSet.next()) {
-        return null;
+        return permissionMap;
       }
       String permissions = resultSet.getString("permissions");
       permissionMap = new ObjectMapper().readValue(permissions,
