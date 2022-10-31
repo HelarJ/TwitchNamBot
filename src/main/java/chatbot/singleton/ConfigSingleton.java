@@ -1,4 +1,4 @@
-package chatbot.utils;
+package chatbot.singleton;
 
 import chatbot.ConsoleMain;
 import chatbot.enums.ConfigName;
@@ -10,12 +10,25 @@ import java.util.Properties;
 import lombok.extern.log4j.Log4j2;
 
 @Log4j2
-public class Config {
+public class ConfigSingleton {
 
-  private static final Map<ConfigName, String> configMap = new HashMap<>();
-  private static Properties properties;
+  private final Map<ConfigName, String> configMap = new HashMap<>();
+  private Properties properties;
 
-  public static void initializeConfig() {
+  private static ConfigSingleton configSingleton;
+
+  private ConfigSingleton() {
+    initializeConfig();
+  }
+
+  public static ConfigSingleton getInstance() {
+    if (configSingleton == null) {
+      configSingleton = new ConfigSingleton();
+    }
+    return configSingleton;
+  }
+
+  public void initializeConfig() {
     readProperties();
     //for each config attempts to get the value from an environment variable
     //or if it doesn't exist, attempts to read it from config.properties
@@ -28,7 +41,7 @@ public class Config {
     }
   }
 
-  private static void readProperties() {
+  private void readProperties() {
     try (InputStream input = ConsoleMain.class.getClassLoader()
         .getResourceAsStream("config.properties")) {
       properties = new Properties();
@@ -41,7 +54,7 @@ public class Config {
     }
   }
 
-  public static String getChannelToJoin() {
+  public String getChannelToJoin() {
     String channel = configMap.get(ConfigName.NAM_TWITCH_CHANNEL_TO_JOIN);
     if (channel == null) {
       log.fatal("No channelname specified in config.");
@@ -50,70 +63,69 @@ public class Config {
     return channel.toLowerCase();
   }
 
-  public static String getTwitchOauth() {
+  public String getTwitchOauth() {
     return configMap.get(ConfigName.NAM_TWITCH_OAUTH);
   }
 
-  public static String getTwitchUsername() {
+  public String getTwitchUsername() {
     return configMap.get(ConfigName.NAM_TWITCH_USERNAME);
   }
 
-  public static String getTwitchClientId() {
+  public String getTwitchClientId() {
     return configMap.get(ConfigName.NAM_TWITCH_CLIENTID);
   }
 
-  public static String getTwitchSecret() {
+  public String getTwitchSecret() {
     return configMap.get(ConfigName.NAM_TWITCH_SECRET);
   }
 
-  public static String getTwitchUID() {
+  public String getTwitchUID() {
     return configMap.get(ConfigName.NAM_TWITCH_UID);
   }
 
-  public static String getFtpServer() {
+  public String getFtpServer() {
     return configMap.get(ConfigName.NAM_FTP_SERVER);
   }
 
-  public static String getFtpPort() {
+  public String getFtpPort() {
     return configMap.get(ConfigName.NAM_FTP_PORT);
   }
 
-  public static String getFtpUsername() {
+  public String getFtpUsername() {
     return configMap.get(ConfigName.NAM_FTP_USERNAME);
   }
 
-  public static String getFtpPassword() {
+  public String getFtpPassword() {
     return configMap.get(ConfigName.NAM_FTP_PASSWORD);
   }
 
-  public static String getBotAdmin() {
+  public String getBotAdmin() {
     return configMap.get(ConfigName.NAM_BOT_ADMIN).toLowerCase();
   }
 
-  public static String getBotWebsite() {
+  public String getBotWebsite() {
     return configMap.get(ConfigName.NAM_BOT_WEBSITE);
   }
 
-  public static String getSqlUrl() {
+  public String getSqlUrl() {
     return String.format("jdbc:mariadb://%s:%s/%s",
         configMap.get(ConfigName.NAM_DB_IP),
         configMap.get(ConfigName.NAM_DB_PORT),
         configMap.get(ConfigName.NAM_DB_NAME));
   }
 
-  public static String getSqlUsername() {
+  public String getSqlUsername() {
     return configMap.get(ConfigName.NAM_DB_USER);
   }
 
-  public static String getSqlPassword() {
+  public String getSqlPassword() {
     return configMap.get(ConfigName.NAM_DB_PASSWORD);
   }
 
-  public static String getSolrCredentials() {
+  public String getSolrCredentials() {
     return String.format("http://%s:%s/solr/%s",
         configMap.get(ConfigName.NAM_SOLR_IP),
         configMap.get(ConfigName.NAM_SOLR_PORT),
         configMap.get(ConfigName.NAM_SOLR_CORE));
   }
-
 }

@@ -37,7 +37,7 @@ public class ProgramThread implements Runnable {
   private final MessageConnector messageConnector;
   private ServiceManager serviceManager;
 
-  public ProgramThread(MessageConnector messageConnector) throws IOException {
+  public ProgramThread(MessageConnector messageConnector) {
     this.messageConnector = messageConnector;
     state.clearQueues();
     ApiHandler apiHandler = new ApiHandler();
@@ -83,7 +83,7 @@ public class ProgramThread implements Runnable {
     serviceManager.addListener(new ServiceManager.Listener() {
       @Override
       public void failure(@Nonnull Service service) {
-        log.fatal("{} failed. reason {}", service, service.failureCause());
+        log.error("{} failed. reason {}", service, service.failureCause());
         shutdown();
       }
 

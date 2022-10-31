@@ -7,8 +7,8 @@ import chatbot.message.LoggableMessage;
 import chatbot.message.Message;
 import chatbot.message.SimpleMessage;
 import chatbot.message.TimeoutMessage;
+import chatbot.singleton.ConfigSingleton;
 import chatbot.singleton.SharedStateSingleton;
-import chatbot.utils.Config;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
 import java.io.IOException;
 import lombok.extern.log4j.Log4j2;
@@ -17,15 +17,11 @@ import lombok.extern.log4j.Log4j2;
 public class ListenerService extends AbstractExecutionThreadService {
 
   private final SharedStateSingleton state = SharedStateSingleton.getInstance();
-  private final String username;
-  private final String admin;
+  private final ConfigSingleton config = ConfigSingleton.getInstance();
   private final MessageConnector messageConnector;
 
   public ListenerService(MessageConnector messageConnector) {
     this.messageConnector = messageConnector;
-
-    this.username = Config.getTwitchUsername().toLowerCase();
-    this.admin = Config.getBotAdmin().toLowerCase();
   }
 
   @Override
@@ -107,12 +103,12 @@ public class ListenerService extends AbstractExecutionThreadService {
   private void handleWhisper(String output) {
     String name = output.substring(output.indexOf("display-name="));
     name = name.substring(13, name.indexOf(";"));
-    String msg = output.substring(output.indexOf(username));
+    String msg = output.substring(output.indexOf(config.getTwitchUsername().toLowerCase()));
     msg = msg.substring(msg.indexOf(":") + 1);
     log.info("User {} whispered {}.", name, msg);
     Message message = new LoggableMessage(name, "NULL", msg, false, true, output);
     state.messageLogBlockingQueue.add(message);
-    if (name.equalsIgnoreCase(admin)) {
+    if (name.equalsIgnoreCase(config.getBotAdmin())) {
       if (msg.equals("/shutdown")) {
         state.stop();
       } else if (msg.startsWith("/send ")) {

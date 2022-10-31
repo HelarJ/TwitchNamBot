@@ -2,8 +2,8 @@ package chatbot.dao;
 
 import chatbot.message.LoggableMessage;
 import chatbot.message.TimeoutMessage;
+import chatbot.singleton.ConfigSingleton;
 import chatbot.singleton.SharedStateSingleton;
-import chatbot.utils.Config;
 import chatbot.utils.HtmlBuilder;
 import chatbot.utils.Utils;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -43,16 +43,21 @@ import org.apache.solr.common.SolrInputDocument;
 @Log4j2
 public class SQLSolrHandler implements DatabaseHandler {
 
-  private final String solrCredentials = Config.getSolrCredentials();
+  private final ConfigSingleton config = ConfigSingleton.getInstance();
+  private final String solrCredentials = config.getSolrCredentials();
   private final List<SolrInputDocument> commitBacklog = new ArrayList<>();
   private final SharedStateSingleton state = SharedStateSingleton.getInstance();
   private final BasicDataSource dataSource = new BasicDataSource();
   private Instant lastCommit = Instant.now();
 
   public SQLSolrHandler() {
-    dataSource.setUrl(Config.getSqlUrl());
-    dataSource.setUsername(Config.getSqlUsername());
-    dataSource.setPassword(Config.getSqlPassword());
+    setUpDataSource();
+  }
+
+  private void setUpDataSource() {
+    dataSource.setUrl(config.getSqlUrl());
+    dataSource.setUsername(config.getSqlUsername());
+    dataSource.setPassword(config.getSqlPassword());
     dataSource.setInitialSize(5);
     dataSource.setMinIdle(5);
     dataSource.setMaxIdle(20);
@@ -411,7 +416,7 @@ public class SQLSolrHandler implements DatabaseHandler {
               Logs for %s in the channel %s.<br>
               %d messages listed out of %d total.<br>
               Generated %s. All times UTC.<br>
-              """.formatted(username, Config.getChannelToJoin(),
+              """.formatted(username, config.getChannelToJoin(),
               currentCount, count,
               generationDate.format(date)))
           .withBodyContent(getLogsInternal(rs)).build();
@@ -448,7 +453,7 @@ public class SQLSolrHandler implements DatabaseHandler {
     String phrase = Utils.getSolrPattern(msg);
     try (SolrClient solr = new HttpSolrClient.Builder(solrCredentials).build()) {
       SolrQuery query = new SolrQuery();
-      query.set("q", phrase + " AND -username:" + Config.getTwitchUsername()
+      query.set("q", phrase + " AND -username:" + config.getTwitchUsername()
           + " AND -message:\"!search\" AND -message:\"!searchuser\" AND -message:\"!rs\"");
       query.set("rows", 1);
       QueryResponse response = solr.query(query);
@@ -467,7 +472,7 @@ public class SQLSolrHandler implements DatabaseHandler {
     try (SolrClient solr = new HttpSolrClient.Builder(solrCredentials).build()) {
       SolrQuery query = new SolrQuery();
       query.set("q",
-          phrase + " AND username:" + username + " AND -username:" + Config.getTwitchUsername()
+          phrase + " AND username:" + username + " AND -username:" + config.getTwitchUsername()
               + " AND -message:\"!search\" AND -message:\"!searchuser\" AND -message:\"!rs\"");
       query.set("rows", 1);
       QueryResponse response = solr.query(query);

@@ -1,6 +1,6 @@
 package chatbot.dao;
 
-import chatbot.utils.Config;
+import chatbot.singleton.ConfigSingleton;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -15,6 +15,7 @@ import org.apache.commons.net.ftp.FTPReply;
 @Log4j2
 public class FtpHandler {
 
+    private final ConfigSingleton config = ConfigSingleton.getInstance();
     private final FTPClient ftpClient = new FTPClient();
 
     public FtpHandler() {
@@ -23,13 +24,13 @@ public class FtpHandler {
 
     public void connect() {
         try {
-            ftpClient.connect(Config.getFtpServer(), Integer.parseInt(Config.getFtpPort()));
+            ftpClient.connect(config.getFtpServer(), Integer.parseInt(config.getFtpPort()));
             int reply = ftpClient.getReplyCode();
             if (!FTPReply.isPositiveCompletion(reply)) {
                 ftpClient.disconnect();
                 throw new IOException("Exception in connecting to FTP Server");
             }
-            ftpClient.login(Config.getFtpUsername(), Config.getFtpPassword());
+            ftpClient.login(config.getFtpUsername(), config.getFtpPassword());
         } catch (IOException e) {
             log.error("Error connecting to FTP: " + e.getMessage());
         }

@@ -1,7 +1,7 @@
 package chatbot.dao;
 
+import chatbot.singleton.ConfigSingleton;
 import chatbot.singleton.SharedStateSingleton;
-import chatbot.utils.Config;
 import chatbot.utils.HtmlBuilder;
 import chatbot.utils.Utils;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -20,17 +20,18 @@ import lombok.extern.log4j.Log4j2;
 @Log4j2
 public class ApiHandler {
 
+  private final ConfigSingleton config = ConfigSingleton.getInstance();
   private final HttpClient httpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_2)
       .build();
-  private final String clientID = Config.getTwitchClientId();
-  private final String secret = Config.getTwitchSecret();
+  private final String clientID = config.getTwitchClientId();
+  private final String secret = config.getTwitchSecret();
   private final String channel;
   private final SharedStateSingleton state = SharedStateSingleton.getInstance();
   public String oauth = null;
   private String channelUid;
 
   public ApiHandler() {
-    String channel = Config.getChannelToJoin();
+    String channel = config.getChannelToJoin();
     if (channel.startsWith("#")) {
       this.channel = channel.substring(1);
     } else {

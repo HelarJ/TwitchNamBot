@@ -13,11 +13,11 @@ import lombok.extern.log4j.Log4j2;
 @Log4j2
 public class MessageLoggerService extends AbstractExecutionThreadService {
 
-  private final DatabaseHandler sqlSolrHandler;
+  private final DatabaseHandler databaseHandler;
   private final SharedStateSingleton state = SharedStateSingleton.getInstance();
 
   public MessageLoggerService(DatabaseHandler databaseHandler) {
-    sqlSolrHandler = databaseHandler;
+    this.databaseHandler = databaseHandler;
   }
 
   @Override
@@ -51,9 +51,9 @@ public class MessageLoggerService extends AbstractExecutionThreadService {
       }
       log.trace("{} received a message: {}", MessageLoggerService.class, loggableMessage);
       if (loggableMessage.isWhisper()) {
-        sqlSolrHandler.recordWhisper(loggableMessage);
+        databaseHandler.recordWhisper(loggableMessage);
       } else {
-        sqlSolrHandler.recordMessage(loggableMessage);
+        databaseHandler.recordMessage(loggableMessage);
         state.increaseMessageCount();
       }
     }

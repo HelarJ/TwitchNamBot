@@ -3,7 +3,6 @@ package chatbot.singleton;
 import chatbot.ConsoleMain;
 import chatbot.message.Message;
 import chatbot.message.PoisonMessage;
-import chatbot.utils.Config;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
@@ -18,6 +17,7 @@ import lombok.extern.log4j.Log4j2;
 @Log4j2
 public class SharedStateSingleton {
 
+    private final ConfigSingleton config = ConfigSingleton.getInstance();
     private static final AtomicBoolean running = new AtomicBoolean(true);
     private static boolean first = true;
     private static SharedStateSingleton instance = new SharedStateSingleton();
@@ -122,7 +122,7 @@ public class SharedStateSingleton {
         if (!online.get() || first) {
             online.set(true);
             first = false;
-            log.info(Config.getChannelToJoin() + " is online.");
+            log.info(config.getChannelToJoin() + " is online.");
         }
     }
 
@@ -130,7 +130,7 @@ public class SharedStateSingleton {
         if (online.get() || first) {
             online.set(false);
             first = false;
-            log.info(Config.getChannelToJoin() + " is offline.");
+            log.info(config.getChannelToJoin() + " is offline.");
         }
     }
 

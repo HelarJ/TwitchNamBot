@@ -4,8 +4,8 @@ import chatbot.connector.MessageConnector;
 import chatbot.message.LoggableMessage;
 import chatbot.message.Message;
 import chatbot.message.PoisonMessage;
+import chatbot.singleton.ConfigSingleton;
 import chatbot.singleton.SharedStateSingleton;
-import chatbot.utils.Config;
 import chatbot.utils.Utils;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
 import java.io.IOException;
@@ -15,9 +15,8 @@ import lombok.extern.log4j.Log4j2;
 public class SenderService extends AbstractExecutionThreadService {
 
   private final SharedStateSingleton state = SharedStateSingleton.getInstance();
-  private final String username = Config.getTwitchUsername();
-  private final String uid = Config.getTwitchUID();
-  private final String channel = Config.getChannelToJoin();
+  private final ConfigSingleton config = ConfigSingleton.getInstance();
+  private final String channel = config.getChannelToJoin();
   private final MessageConnector messageConnector;
 
   public SenderService(MessageConnector messageConnector) {
@@ -79,7 +78,8 @@ public class SenderService extends AbstractExecutionThreadService {
     state.increaseSentMessageCount();
     //logs sent bot messages to database.
     state.messageLogBlockingQueue.add(
-        new LoggableMessage(username.toLowerCase(), uid, uneditedMessage, true, false,
+        new LoggableMessage(config.getTwitchUsername().toLowerCase(), config.getTwitchUID(),
+            uneditedMessage, true, false,
             "responding-to:" + message.getSender() + ",message:" + uneditedMessage));
   }
 
@@ -163,8 +163,8 @@ public class SenderService extends AbstractExecutionThreadService {
    */
   public void connect() throws IOException {
     log.info("Attempting to connect.");
-    sendToServer("PASS " + Config.getTwitchOauth() + "\r\n");
-    sendToServer("NICK " + Config.getTwitchUsername() + "\r\n");
+    sendToServer("PASS " + config.getTwitchOauth() + "\r\n");
+    sendToServer("NICK " + config.getTwitchUsername() + "\r\n");
     sendToServer("USER nambot\r\n");
     sendToServer("JOIN " + channel + "\r\n");
     sendToServer("CAP REQ :twitch.tv/membership\r\n");

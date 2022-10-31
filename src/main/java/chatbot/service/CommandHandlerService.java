@@ -9,8 +9,8 @@ import chatbot.message.CommandMessage;
 import chatbot.message.Message;
 import chatbot.message.PoisonMessage;
 import chatbot.message.SimpleMessage;
+import chatbot.singleton.ConfigSingleton;
 import chatbot.singleton.SharedStateSingleton;
-import chatbot.utils.Config;
 import chatbot.utils.Utils;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
 import java.time.Instant;
@@ -26,14 +26,15 @@ import lombok.extern.log4j.Log4j2;
 @Log4j2
 public class CommandHandlerService extends AbstractExecutionThreadService {
 
+  private final ConfigSingleton config = ConfigSingleton.getInstance();
   private final HashMap<String, Instant> banned = new HashMap<>();
   private final HashMap<String, Instant> superbanned = new HashMap<>();
-  private final String website = Config.getBotWebsite();
-  private final String botName = Config.getTwitchUsername();
-  private final String admin = Config.getBotAdmin();
-  private final String channel = Config.getChannelToJoin();
+  private final String website = config.getBotWebsite();
+  private final String botName = config.getTwitchUsername();
+  private final String admin = config.getBotAdmin();
+  private final String channel = config.getChannelToJoin();
   private final List<Instant> previousMessageTimes = new ArrayList<>();
-  private final DatabaseHandler sqlSolrHandler;
+  private final DatabaseHandler databaseHandler;
   private final ApiHandler apiHandler;
   private final SharedStateSingleton state = SharedStateSingleton.getInstance();
   private Instant lastCommandTime = Instant.now().minus(30, ChronoUnit.SECONDS);
@@ -42,7 +43,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
   private String previousMessage = "";
 
   public CommandHandlerService(DatabaseHandler databaseHandler, ApiHandler apiHandler) {
-    this.sqlSolrHandler = databaseHandler;
+    this.databaseHandler = databaseHandler;
     this.apiHandler = apiHandler;
     FtpHandler ftpHandler = new FtpHandler();
     ftpHandler.cleanLogs();
@@ -121,7 +122,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     if (commandName == null || bool == null) {
       return;
     }
-    sqlSolrHandler.setCommandPermissionUser(message.getUsername(), commandName,
+    databaseHandler.setCommandPermissionUser(message.getUsername(), commandName,
         Boolean.parseBoolean(bool));
 
     state.sendingBlockingQueue.add(message.setResponse(
@@ -160,7 +161,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     StringBuilder names = new StringBuilder("@");
     names.append(message.getSender()).append(", ").append(message.getUsername())
         .append("'s other names are: ");
-    var nameList = sqlSolrHandler.getAlternateNames(message.getUsername());
+    var nameList = databaseHandler.getAlternateNames(message.getUsername());
     for (String name : nameList) {
       names.append(name).append(", ");
     }
@@ -197,7 +198,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
   }
 
   private void searchUser(CommandMessage message) {
-    long count = sqlSolrHandler.searchUser(message.getUsername(),
+    long count = databaseHandler.searchUser(message.getUsername(),
         message.getMessageWithoutUsername());
     if (count == 0) {
       state.sendingBlockingQueue.add(
@@ -210,7 +211,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
   }
 
   private void search(CommandMessage message) {
-    long count = sqlSolrHandler.search(message.getMessageWithoutCommand());
+    long count = databaseHandler.search(message.getMessageWithoutCommand());
     if (count == 0) {
       state.sendingBlockingQueue.add(
           message.setResponse("@" + message.getSender() + ", no messages found PEEPERS"));
@@ -225,12 +226,12 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
   private void firstOccurrence(CommandMessage message) {
     state.sendingBlockingQueue.add(message.setResponse(
         "@%s, %s".formatted(message.getSender(),
-            sqlSolrHandler.firstOccurrence(message.getMessageWithoutCommand()))));
+            databaseHandler.firstOccurrence(message.getMessageWithoutCommand()))));
   }
 
   private void randomSearch(CommandMessage message) {
 
-    String result = sqlSolrHandler.randomSearch(message.getUsername(),
+    String result = databaseHandler.randomSearch(message.getUsername(),
         message.getMessageWithoutUsername());
     if (!result.startsWith("[")) {
       result = "%s, %s".formatted(message.getSender(), result);
@@ -242,7 +243,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     if (hasNoMessages(message)) {
       return;
     }
-    String result = sqlSolrHandler.randomQuote(message.getUsername(), message.getYear());
+    String result = databaseHandler.randomQuote(message.getUsername(), message.getYear());
     if (!result.startsWith("[")) {
       result = "%s, %s".formatted(message.getSender(), result);
     }
@@ -258,7 +259,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
   }
 
   private void userNam(CommandMessage message) {
-    int timeout = sqlSolrHandler.getTimeoutAmount(message.getUsername());
+    int timeout = databaseHandler.getTimeoutAmount(message.getUsername());
     if (timeout > 0) {
       String response;
       if (message.getSender().equalsIgnoreCase(message.getUsername())) {
@@ -281,7 +282,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     }
     state.sendingBlockingQueue.add(
         message.setResponse("%s, %s".formatted(message.getSender(),
-            sqlSolrHandler.firstMessage(message.getUsername()))));
+            databaseHandler.firstMessage(message.getUsername()))));
   }
 
   private void lastMessage(CommandMessage message) {
@@ -290,7 +291,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     }
     state.sendingBlockingQueue.add(
         message.setResponse("@%s, %s".formatted(message.getSender(),
-            sqlSolrHandler.lastMessage(message.getUsername()))));
+            databaseHandler.lastMessage(message.getUsername()))));
   }
 
   private boolean hasNoMessages(CommandMessage message) {
@@ -305,7 +306,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
   }
 
   private void topNammers(CommandMessage message) {
-    String topTimeoutList = sqlSolrHandler.getTopTimeouts();
+    String topTimeoutList = databaseHandler.getTopTimeouts();
     if (topTimeoutList == null) {
       return;
     }
@@ -313,13 +314,13 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
   }
 
   private int getCount(String username) {
-    return sqlSolrHandler.getMessageCount(username);
+    return databaseHandler.getMessageCount(username);
   }
 
   private void initializeMods() {
     this.mods = new HashSet<>();
     this.godUsers = new HashSet<>();
-    mods.addAll(sqlSolrHandler.getModList());
+    mods.addAll(databaseHandler.getModList());
     godUsers.add(admin);
     godUsers.add("Autoban");
     godUsers.add(channel.replace("#", ""));
@@ -343,7 +344,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
       }
     }
     log.info("{} adding {} to {}'s alt list", message.getSender(), alt, main);
-    if (!sqlSolrHandler.addAlt(main, alt)) {
+    if (!databaseHandler.addAlt(main, alt)) {
       log.error("Adding alt was unsuccessful: {} - {}.", main, alt);
       state.sendingBlockingQueue.add(message.setResponse("Internal error Deadlole"));
       return;
@@ -363,7 +364,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     }
 
     state.disabledUsers.add(message.getUsername());
-    sqlSolrHandler.addDisabled(message.getSender(), message.getUsername());
+    databaseHandler.addDisabled(message.getSender(), message.getUsername());
 
     if (!message.getSender().equals("Autoban") && (
         mods.stream().anyMatch(message.getSender()::equalsIgnoreCase) || (
@@ -388,7 +389,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
           message.setResponse("@" + message.getSender() + ", removed " + message.getUsername()
               + " from ignore list."));
     }
-    sqlSolrHandler.removeDisabled(message.getUsername());
+    databaseHandler.removeDisabled(message.getUsername());
     log.info("{} removed {} from disabled list", message.getSender(), message.getUsername());
 
   }
@@ -445,7 +446,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
 
     Instant startTime = Instant.now();
     new Thread(() -> {
-      String logs = sqlSolrHandler.getLogs(message.getUsername(), count);
+      String logs = databaseHandler.getLogs(message.getUsername(), count);
       if (logs == null) {
         return;
       }
@@ -467,7 +468,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     ArrayList<String> blacklist = new ArrayList<>();
     ArrayList<String> textBlacklist = new ArrayList<>();
     StringBuilder replacelistSb = new StringBuilder();
-    Map<String, String> map = sqlSolrHandler.getBlacklist();
+    Map<String, String> map = databaseHandler.getBlacklist();
     for (Map.Entry<String, String> entry : map.entrySet()) {
       switch (entry.getValue()) {
         case "word" -> blacklist.add(entry.getKey());
@@ -481,7 +482,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
   }
 
   private void initializeDisabled() {
-    state.setDisabledUsers(sqlSolrHandler.getDisabledList());
+    state.setDisabledUsers(databaseHandler.getDisabledList());
     log.info("Disabled list initialized. {} disabled users.", state.disabledUsers.size());
   }
 
@@ -489,7 +490,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     state.mains = new HashMap<>();
     state.alts = new HashMap<>();
 
-    List<String> mainsAltsCsv = sqlSolrHandler.getAltsList();
+    List<String> mainsAltsCsv = databaseHandler.getAltsList();
 
     for (String csv : mainsAltsCsv) {
       String[] values = csv.split(",");
@@ -573,7 +574,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     }
 
     //check database for user specific command permissions
-    HashMap<String, Boolean> userPermissionMap = sqlSolrHandler.getPersonalPermissions(from);
+    HashMap<String, Boolean> userPermissionMap = databaseHandler.getPersonalPermissions(from);
     Boolean specified = command.isUserCommandSpecified(userPermissionMap);
     if (specified != null) {
       log.info("User {} command specific permission was {}.", from, specified);
