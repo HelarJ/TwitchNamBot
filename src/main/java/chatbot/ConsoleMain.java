@@ -1,5 +1,7 @@
 package chatbot;
 
+import chatbot.connector.MessageConnector;
+import chatbot.connector.TwitchMessageConnector;
 import chatbot.singleton.SharedStateSingleton;
 import chatbot.utils.Config;
 import java.io.IOException;
@@ -12,6 +14,7 @@ public class ConsoleMain {
   private static final Instant startingTime = Instant.now();
   private static final SharedStateSingleton state = SharedStateSingleton.getInstance();
   private static ProgramThread programThread;
+  private static MessageConnector messageConnector;
 
   public static void main(String[] args) {
     log.info("Starting program.");
@@ -19,7 +22,8 @@ public class ConsoleMain {
 
     while (state.isBotStillRunning()) {
       try {
-        programThread = new ProgramThread();
+        messageConnector = new TwitchMessageConnector();
+        programThread = new ProgramThread(messageConnector);
         Thread programThread = new Thread(ConsoleMain.programThread);
         programThread.start();
         programThread.join();
@@ -28,6 +32,7 @@ public class ConsoleMain {
         state.poisonQueues();
       } finally {
         if (state.isBotStillRunning()) {
+          messageConnector.close();
           log.info("Attempting to reconnect...");
         }
       }

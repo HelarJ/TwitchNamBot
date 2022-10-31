@@ -319,11 +319,9 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
   private void initializeMods() {
     this.mods = new HashSet<>();
     this.godUsers = new HashSet<>();
-    mods.add(admin);
-    mods.add(channel.replace("#", ""));
-    mods.add("autoban");
     mods.addAll(sqlSolrHandler.getModList());
     godUsers.add(admin);
+    godUsers.add("Autoban");
     godUsers.add(channel.replace("#", ""));
     log.info("Initialized mods list {} | god users {}.", mods, godUsers);
   }

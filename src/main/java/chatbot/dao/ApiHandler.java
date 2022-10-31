@@ -223,7 +223,7 @@ public class ApiHandler {
     try {
       HttpResponse<String> response = httpClient.send(request,
           HttpResponse.BodyHandlers.ofString());
-      log.info(response);
+      log.debug(response);
       return response.statusCode() == 200;
     } catch (IOException | InterruptedException e) {
       log.warn("Log API is down");

@@ -77,7 +77,7 @@ public class TimeoutLoggerService extends AbstractExecutionThreadService {
 
   private boolean isTimeoutForUserAlreadyActive(TimeoutMessage timeout) {
     for (TimeoutMessage temptimeout : timeouts) {
-      if (temptimeout.getUsername().equals(timeout.getUsername())) {
+      if (temptimeout.getUsername().equalsIgnoreCase(timeout.getUsername())) {
         temptimeout.resetTimeout(timeout.getLength());
         return true;
       }
