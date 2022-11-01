@@ -82,12 +82,8 @@ public class SQLSolrHandler implements DatabaseHandler {
 
   @Override
   public int getMessageCount(String username) {
-    String stmtStr = "call chat_stats.sp_get_message_count(?)";
-    if (username.equalsIgnoreCase("all")) {
-      stmtStr = "call chat_stats.sp_get_all_count(?)";
-    }
     try (Connection conn = dataSource.getConnection();
-        PreparedStatement stmt = conn.prepareStatement(stmtStr)) {
+        PreparedStatement stmt = conn.prepareStatement("call chat_stats.sp_get_message_count(?)")) {
       stmt.setString(1, username);
       ResultSet rs = stmt.executeQuery();
       if (rs.next()) {
@@ -392,12 +388,8 @@ public class SQLSolrHandler implements DatabaseHandler {
     Instant startTime = Instant.now();
     try (Connection conn = dataSource.getConnection()) {
       PreparedStatement stmt;
-      if (username.equalsIgnoreCase("all")) {
-        stmt = conn.prepareStatement("CALL chat_stats.sp_get_logs();");
-      } else {
-        stmt = conn.prepareStatement("CALL chat_stats.sp_get_user_logs(?);");
-        stmt.setString(1, username);
-      }
+      stmt = conn.prepareStatement("CALL chat_stats.sp_get_user_logs(?);");
+      stmt.setString(1, username);
       ResultSet rs = stmt.executeQuery();
       Instant queryEndTime = Instant.now();
       log.info("Query took: " + (Utils.convertTime(

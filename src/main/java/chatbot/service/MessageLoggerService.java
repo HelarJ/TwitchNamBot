@@ -33,7 +33,7 @@ public class MessageLoggerService extends AbstractExecutionThreadService {
   @Override
   public void run() throws InterruptedException {
     while (state.isBotStillRunning()) {
-      Message message = state.messageLogBlockingQueue.poll(10, TimeUnit.MINUTES);
+      Message message = state.messageLogBlockingQueue.poll(30, TimeUnit.MINUTES);
       if (message == null) {
         log.error("10 minutes have passed without a message for messagelogger. " +
             "Assuming connection has been lost and reconnecting.");

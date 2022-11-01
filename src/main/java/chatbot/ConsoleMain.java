@@ -40,6 +40,7 @@ public class ConsoleMain {
         waitToReconnect();
       }
     }
+    log.info("Program shutdown.");
   }
 
   public static void waitToReconnect() {
