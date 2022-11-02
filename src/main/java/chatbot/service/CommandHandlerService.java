@@ -173,7 +173,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
   }
 
   private void choose(CommandMessage message) {
-    String[] choices = message.getStringMessage().split(" ");
+    String[] choices = message.getMessageWithoutCommand().split(" ");
     if (choices.length == 0) {
       return;
     }
@@ -393,7 +393,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
 
 
   private void getLogs(CommandMessage message) {
-    if (hasNoMessages(message)) {
+    if (!message.getUsername().equalsIgnoreCase("all") && hasNoMessages(message)) {
       return;
     }
 
