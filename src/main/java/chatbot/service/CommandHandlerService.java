@@ -1,10 +1,10 @@
 package chatbot.service;
 
 import chatbot.ConsoleMain;
-import chatbot.dao.ApiHandler;
-import chatbot.dao.DatabaseHandler;
-import chatbot.dao.FtpHandler;
+import chatbot.dao.api.ApiHandler;
+import chatbot.dao.db.DatabaseHandler;
 import chatbot.enums.Command;
+import chatbot.enums.Response;
 import chatbot.message.CommandMessage;
 import chatbot.message.Message;
 import chatbot.message.PoisonMessage;
@@ -45,8 +45,6 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
   public CommandHandlerService(DatabaseHandler databaseHandler, ApiHandler apiHandler) {
     this.databaseHandler = databaseHandler;
     this.apiHandler = apiHandler;
-    FtpHandler ftpHandler = new FtpHandler();
-    ftpHandler.cleanLogs();
     refreshLists(new SimpleMessage("Startup", ""));
   }
 
@@ -110,7 +108,6 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
       case SEARCH -> search(message);
       case SEARCHUSER -> searchUser(message);
       case ADDALT -> addAlt(message);
-      case STALKLIST -> getFollowList(message);
       case SC -> setCommandPermissionUser(message);
     }
     lastCommandTime = Instant.now();
@@ -202,7 +199,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         message.getMessageWithoutUsername());
     if (count == 0) {
       state.sendingBlockingQueue.add(
-          message.setResponse("@" + message.getSender() + ", no messages found PEEPERS"));
+          message.setResponse("@%s, %s".formatted(message.getSender(), Response.NO_MESSAGES)));
     } else {
       state.sendingBlockingQueue.add(message.setResponse(
           "@%s, %s has used %s in %d messages".formatted(message.getSender(), message.getUsername(),
@@ -214,7 +211,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     long count = databaseHandler.search(message.getMessageWithoutCommand());
     if (count == 0) {
       state.sendingBlockingQueue.add(
-          message.setResponse("@" + message.getSender() + ", no messages found PEEPERS"));
+          message.setResponse("@%s, %s".formatted(message.getSender(), Response.NO_MESSAGES)));
     } else {
       state.sendingBlockingQueue.add(message.setResponse(
           "@" + message.getSender() + " found " + Utils.getWordList(
@@ -299,7 +296,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     if (count == 0) {
       log.info("Did not find any messages for user {}", message.getUsername());
       state.sendingBlockingQueue.add(
-          message.setResponse("@" + message.getSender() + ", no messages found PEEPERS"));
+          message.setResponse("@%s, %s".formatted(message.getSender(), Response.NO_MESSAGES)));
       return true;
     }
     return false;
@@ -346,7 +343,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     log.info("{} adding {} to {}'s alt list", message.getSender(), alt, main);
     if (!databaseHandler.addAlt(main, alt)) {
       log.error("Adding alt was unsuccessful: {} - {}.", main, alt);
-      state.sendingBlockingQueue.add(message.setResponse("Internal error Deadlole"));
+      state.sendingBlockingQueue.add(message.setResponse(Response.INTERNAL_ERROR));
       return;
     }
     state.mains.put(alt, main);
@@ -394,30 +391,11 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
 
   }
 
-  private void getFollowList(CommandMessage message) {
-    String content = apiHandler.getFollowList(message.getUsername());
-    if (content == null) {
-      log.info("No follow list found for {}", message.getUsername());
-      state.sendingBlockingQueue.add(
-          message.setResponse("@%s, no such user found PEEPERS".formatted(message.getUsername())));
-      return;
-    }
-    String link = "stalk_" + message.getUsername();
-    new Thread(() -> {
-      FtpHandler ftpHandler = new FtpHandler();
-      if (ftpHandler.upload(link, content)) {
-        state.sendingBlockingQueue.add(message.setResponse(
-            "@%s all channels followed by %s: %s%s".formatted(message.getSender(),
-                message.getUsername(), website + "/log/", link)));
-      }
-    }).start();
-  }
 
   private void getLogs(CommandMessage message) {
     if (hasNoMessages(message)) {
       return;
     }
-    int count = getCount(message.getUsername());
 
     if (apiHandler.isLogsApiOnline()) {
       final String logSite = website + "/logs/";
@@ -427,42 +405,11 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
 
       state.sendingBlockingQueue.add(message.setResponse(response));
     } else {
-      uploadLogsToFtp(message, count);
+      log.error("NamLogAPI is down.");
+      state.sendingBlockingQueue.add(message.setResponse(Response.INTERNAL_ERROR));
     }
   }
 
-  private void uploadLogsToFtp(CommandMessage message, int count) {
-    final String ftpLogs = website + "/log/";
-    if (count == state.logCache.getOrDefault(message.getUsername(), 0)) {
-      String response = String.format("@%s logs for %s: %s%s", message.getSender(),
-          message.getUsername(), ftpLogs,
-          message.getUsername());
-      log.info("No change to message count, not updating link.");
-      state.sendingBlockingQueue.add(message.setResponse(response));
-      return;
-    } else {
-      state.logCache.put(message.getUsername(), count);
-    }
-
-    Instant startTime = Instant.now();
-    new Thread(() -> {
-      String logs = databaseHandler.getLogs(message.getUsername(), count);
-      if (logs == null) {
-        return;
-      }
-      FtpHandler ftpHandler = new FtpHandler();
-      if (ftpHandler.upload(message.getUsername(), logs)) {
-        String response = String.format("@%s logs for %s: %s%s", message.getSender(),
-            message.getUsername(), ftpLogs,
-            message.getUsername());
-        log.info(response);
-        log.info("Total time: " + (Utils.convertTime(
-            (int) (Instant.now().minus(startTime.toEpochMilli(), ChronoUnit.MILLIS).toEpochMilli()
-                / 1000))));
-        state.sendingBlockingQueue.add(message.setResponse(response));
-      }
-    }).start();
-  }
 
   private void initializeBlacklist() {
     ArrayList<String> blacklist = new ArrayList<>();

@@ -26,7 +26,6 @@ public enum Command {
   SEARCHUSER(false, true, true, true, false),
   ADDALT(false, false, false, true, false),
   NAMBAN(false, false, false, true, false),
-  STALKLIST(false, true, true, true, false),
   SC(false, false, false, true, false);
 
 

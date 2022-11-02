@@ -1,9 +1,9 @@
 package chatbot;
 
 import chatbot.connector.MessageConnector;
-import chatbot.dao.ApiHandler;
-import chatbot.dao.DatabaseHandler;
-import chatbot.dao.SQLSolrHandler;
+import chatbot.dao.api.ApiHandler;
+import chatbot.dao.db.DatabaseHandler;
+import chatbot.dao.db.SQLSolrHandler;
 import chatbot.service.CommandHandlerService;
 import chatbot.service.ListenerService;
 import chatbot.service.MessageLoggerService;

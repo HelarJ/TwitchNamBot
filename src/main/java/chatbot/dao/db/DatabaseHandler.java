@@ -1,4 +1,4 @@
-package chatbot.dao;
+package chatbot.dao.db;
 
 import chatbot.message.LoggableMessage;
 import chatbot.message.TimeoutMessage;

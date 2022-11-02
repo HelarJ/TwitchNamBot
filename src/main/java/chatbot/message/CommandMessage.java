@@ -1,6 +1,7 @@
 package chatbot.message;
 
 import chatbot.enums.Command;
+import chatbot.enums.Response;
 import chatbot.utils.Utils;
 import java.util.Locale;
 import lombok.extern.log4j.Log4j2;
@@ -55,6 +56,11 @@ public class CommandMessage implements Message {
 
   public CommandMessage setResponse(String response) {
     this.response = response;
+    return this;
+  }
+
+  public CommandMessage setResponse(Response response) {
+    this.response = response.toString();
     return this;
   }
 

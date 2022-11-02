@@ -1,6 +1,8 @@
 package chatbot.dao;
 
 
+import chatbot.dao.db.DatabaseHandler;
+import chatbot.dao.db.SQLSolrHandler;
 import chatbot.message.LoggableMessage;
 import chatbot.message.TimeoutMessage;
 import java.util.ArrayList;

@@ -1,6 +1,6 @@
 package chatbot.service;
 
-import chatbot.dao.ApiHandler;
+import chatbot.dao.api.ApiHandler;
 import com.google.common.util.concurrent.AbstractScheduledService;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;

@@ -1,4 +1,7 @@
-package chatbot.dao;
+package chatbot.dao.db;
+
+import static chatbot.enums.Response.INTERNAL_ERROR;
+import static chatbot.enums.Response.NO_MESSAGES;
 
 import chatbot.message.LoggableMessage;
 import chatbot.message.TimeoutMessage;
@@ -253,7 +256,7 @@ public class SQLSolrHandler implements DatabaseHandler {
       query.set("rows", 1);
       QueryResponse response = solr.query(query);
       if (response.getResults().getNumFound() == 0) {
-        return "no messages found PEEPERS";
+        return NO_MESSAGES.toString();
       }
       SolrDocument result = response.getResults().get(0);
       String message = (String) result.getFirstValue("message");
@@ -268,7 +271,7 @@ public class SQLSolrHandler implements DatabaseHandler {
 
     } catch (IOException | BaseHttpSolrClient.RemoteSolrException | SolrServerException e) {
       log.error(e.getMessage());
-      return "Internal error Deadlole";
+      return INTERNAL_ERROR.toString();
     }
   }
 
@@ -327,7 +330,7 @@ public class SQLSolrHandler implements DatabaseHandler {
       query.set("rows", 1);
       QueryResponse response = solr.query(query);
       if (response.getResults().getNumFound() == 0) {
-        return "no messages found PEEPERS";
+        return NO_MESSAGES.toString();
       }
       SolrDocument result = response.getResults().get(0);
       String message = (String) result.getFirstValue("message");
@@ -339,7 +342,7 @@ public class SQLSolrHandler implements DatabaseHandler {
 
     } catch (IOException | BaseHttpSolrClient.RemoteSolrException | SolrServerException e) {
       log.error(e.getMessage());
-      return "internal error Deadlole";
+      return INTERNAL_ERROR.toString();
     }
   }
 
@@ -365,7 +368,7 @@ public class SQLSolrHandler implements DatabaseHandler {
 
       if (results.getNumFound() == 0) {
         log.info("Did not find any messages for " + fullNameStr);
-        return "no messages found PEEPERS";
+        return NO_MESSAGES.toString();
       }
       SolrDocument result = results.get(0);
       String message = (String) result.getFirstValue("message");
@@ -379,7 +382,7 @@ public class SQLSolrHandler implements DatabaseHandler {
           message);
     } catch (IOException | SolrServerException e) {
       log.error("Solr error: " + e.getMessage());
-      return "internal error Deadlole";
+      return INTERNAL_ERROR.toString();
     }
   }
 

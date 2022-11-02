@@ -1,6 +1,6 @@
 package chatbot.service;
 
-import chatbot.dao.DatabaseHandler;
+import chatbot.dao.db.DatabaseHandler;
 import chatbot.message.Message;
 import chatbot.message.PoisonMessage;
 import chatbot.message.TimeoutMessage;

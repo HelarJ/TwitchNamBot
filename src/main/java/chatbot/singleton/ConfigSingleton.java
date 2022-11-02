@@ -83,22 +83,6 @@ public class ConfigSingleton {
     return configMap.get(ConfigName.NAM_TWITCH_UID);
   }
 
-  public String getFtpServer() {
-    return configMap.get(ConfigName.NAM_FTP_SERVER);
-  }
-
-  public String getFtpPort() {
-    return configMap.get(ConfigName.NAM_FTP_PORT);
-  }
-
-  public String getFtpUsername() {
-    return configMap.get(ConfigName.NAM_FTP_USERNAME);
-  }
-
-  public String getFtpPassword() {
-    return configMap.get(ConfigName.NAM_FTP_PASSWORD);
-  }
-
   public String getBotAdmin() {
     return configMap.get(ConfigName.NAM_BOT_ADMIN).toLowerCase();
   }
