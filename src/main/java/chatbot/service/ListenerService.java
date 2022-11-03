@@ -52,7 +52,7 @@ public class ListenerService extends AbstractExecutionThreadService {
       } else if (output.contains("CLEARCHAT")) {
         if (!output.contains("target-user-id")) {
           log.info("Chat was cleared");
-          return;
+          continue;
         }
         handleTimeout(output);
       } else if (output.contains("USERNOTICE")) {
@@ -154,9 +154,8 @@ public class ListenerService extends AbstractExecutionThreadService {
     try {
       return messageConnector.getMessage();
     } catch (IOException e) {
-      log.error("Connection error for Listener: {}", e.getMessage());
-      throw new RuntimeException(
-          "Connection error for Listener: %s".formatted(e.getMessage()));
+      log.warn("Connection error for Listener: {}", e.getMessage());
+      return null;
     }
   }
 
@@ -165,7 +164,6 @@ public class ListenerService extends AbstractExecutionThreadService {
       messageConnector.sendMessage("PONG :tmi.twitch.tv\r\n");
     } catch (IOException e) {
       log.error("Error sending ping: {}", e.getMessage());
-      throw new RuntimeException("Error sending ping: %s".formatted(e.getMessage()));
     }
   }
 }

@@ -6,15 +6,11 @@ import chatbot.message.PoisonMessage;
 import chatbot.message.TimeoutMessage;
 import chatbot.singleton.SharedStateSingleton;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
-import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.log4j.Log4j2;
 
 @Log4j2
 public class TimeoutLoggerService extends AbstractExecutionThreadService {
-
-  private final ArrayList<TimeoutMessage> timeouts = new ArrayList<>();
   private final DatabaseHandler databaseHandler;
   private final SharedStateSingleton state = SharedStateSingleton.getInstance();
 
@@ -54,29 +50,26 @@ public class TimeoutLoggerService extends AbstractExecutionThreadService {
 
         //timeout expiring/adding to timeoutlist only active while stream is offline.
         if (timeout.getLength() > 0 && !state.online.get() && !active) {
-          timeouts.add(timeout);
+          state.timeouts.add(timeout);
         }
       }
-
       checkForExpiredTimeouts();
     }
   }
 
   private void checkForExpiredTimeouts() {
-    Iterator<TimeoutMessage> iterator = timeouts.iterator();
-    while (iterator.hasNext()) {
-      TimeoutMessage timeout = iterator.next();
+    for (TimeoutMessage timeout : state.timeouts) {
       if (timeout.hasExpired()) {
         if (timeout.getLength() > 0) {
           databaseHandler.addNamListTimeout(timeout);
         }
-        iterator.remove();
+        state.timeouts.remove(timeout);
       }
     }
   }
 
   private boolean isTimeoutForUserAlreadyActive(TimeoutMessage timeout) {
-    for (TimeoutMessage temptimeout : timeouts) {
+    for (TimeoutMessage temptimeout : state.timeouts) {
       if (temptimeout.getUsername().equalsIgnoreCase(timeout.getUsername())) {
         temptimeout.resetTimeout(timeout.getLength());
         return true;

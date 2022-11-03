@@ -3,6 +3,7 @@ package chatbot.singleton;
 import chatbot.ConsoleMain;
 import chatbot.message.Message;
 import chatbot.message.PoisonMessage;
+import chatbot.message.TimeoutMessage;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
@@ -30,9 +31,9 @@ public class SharedStateSingleton {
     public CopyOnWriteArrayList<String> textBlacklist = new CopyOnWriteArrayList<>();
     public AtomicReference<String> replacelist = new AtomicReference<>();
     public CopyOnWriteArraySet<String> disabledUsers = new CopyOnWriteArraySet<>();
+    public final CopyOnWriteArrayList<TimeoutMessage> timeouts = new CopyOnWriteArrayList<>();
     public HashMap<String, List<String>> alts = new HashMap<>();
     public HashMap<String, String> mains = new HashMap<>();
-    public HashMap<String, Integer> logCache = new HashMap<>();
     public BlockingQueue<Message> commandHandlerBlockingQueue = new LinkedBlockingQueue<>();
     /**
      * Queue for sending messages to chat.

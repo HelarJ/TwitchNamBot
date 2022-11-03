@@ -54,7 +54,6 @@ public class SenderService extends AbstractExecutionThreadService {
       messageConnector.sendMessage(msg);
     } catch (IOException e) {
       log.error("Error sending message {} to {}: {}", msg, channel, e.getMessage());
-      throw new RuntimeException("SenderService error sending message.");
     }
   }
 

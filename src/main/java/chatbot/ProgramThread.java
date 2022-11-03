@@ -63,9 +63,9 @@ public class ProgramThread implements Runnable {
       senderService.connect();
 
       done.await();
-
       state.poisonQueues();
       serviceManager.stopAsync();
+      messageConnector.close();
       serviceManager.awaitStopped(60, TimeUnit.SECONDS);
 
     } catch (IOException | InterruptedException e) {
@@ -102,6 +102,5 @@ public class ProgramThread implements Runnable {
 
   public void shutdown() {
     done.countDown();
-    messageConnector.close();
   }
 }
