@@ -60,10 +60,10 @@ public class TimeoutLoggerService extends AbstractExecutionThreadService {
   private void checkForExpiredTimeouts() {
     for (TimeoutMessage timeout : state.timeouts) {
       if (timeout.hasExpired()) {
+        state.timeouts.remove(timeout);
         if (timeout.getLength() > 0) {
           databaseHandler.addNamListTimeout(timeout);
         }
-        state.timeouts.remove(timeout);
       }
     }
   }

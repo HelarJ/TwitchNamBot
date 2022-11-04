@@ -39,7 +39,7 @@ public class ListenerService extends AbstractExecutionThreadService {
     while (state.isBotStillRunning()) {
       String output = getOutput();
       if (output == null) {
-        return;
+        break;
       }
       if (output.equals("PING :tmi.twitch.tv")) {
         handlePing();
@@ -65,6 +65,9 @@ public class ListenerService extends AbstractExecutionThreadService {
         handleSkipped(output);
       } else if (output.contains(".tv JOIN ")) {
         handleSkipped(output);
+      } else if (output.equals(":tmi.twitch.tv RECONNECT")) {
+        log.info("Reconnect issued.");
+        break;
       } else {
         log.info(output);
       }
