@@ -220,7 +220,8 @@ public class SQLSolrHandler implements DatabaseHandler {
       resultSet.next();
       id = resultSet.getInt(1);
     } catch (SQLException e) {
-      log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
+      log.error("SQLException: {}, VendorError: {}, Message: '{}', Full: '{}'",
+          e.getMessage(), e.getErrorCode(), message, message.getFullMsg());
     }
 
     SolrInputDocument in = new SolrInputDocument();

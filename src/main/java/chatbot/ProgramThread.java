@@ -61,21 +61,18 @@ public class ProgramThread implements Runnable {
       serviceManager.startAsync();
       serviceManager.awaitHealthy(10, TimeUnit.SECONDS);
       senderService.connect();
-
       done.await();
-      state.poisonQueues();
+
       serviceManager.stopAsync();
-      messageConnector.close();
       serviceManager.awaitStopped(60, TimeUnit.SECONDS);
 
-    } catch (IOException | InterruptedException e) {
+    } catch (IOException | IllegalStateException | InterruptedException e) {
       log.error("Connection error: {}", e.getMessage());
       shutdown();
     } catch (TimeoutException e) {
       log.error("Closing services timed out: {} . Current states: {}", e.getMessage(),
           serviceManager.servicesByState());
     }
-
     log.info("Mainthread thread ended.");
   }
 
@@ -102,5 +99,7 @@ public class ProgramThread implements Runnable {
 
   public void shutdown() {
     done.countDown();
+    state.poisonQueues();
+    messageConnector.close();
   }
 }

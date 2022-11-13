@@ -47,7 +47,7 @@ public class LoggableMessage implements Message {
   public String getTime() {
     String timeStr = time.toString().replaceAll("T", " ");
     if (timeStr.indexOf('.') == -1) {
-      return timeStr;
+      return timeStr.replaceAll("Z", "");
     } else {
       return timeStr.substring(0, timeStr.indexOf('.'));
     }
