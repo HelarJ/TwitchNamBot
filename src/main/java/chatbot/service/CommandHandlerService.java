@@ -129,7 +129,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
   }
 
   public void refreshLists(Message message) {
-    if (message.getSender().equals("Startup") || mods.stream()
+    if (message.getSender().equals("Startup") || godUsers.stream()
         .anyMatch(message.getSender()::equalsIgnoreCase)) {
       initializeMods();
       initializeDisabled();
@@ -325,12 +325,12 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
   }
 
   private void addAlt(CommandMessage message) {
-    String main = Utils.getArg(message.getStringMessage(), 0);
+    String main = Utils.getArg(message.getMessageWithoutCommand(), 0);
     if (main == null) {
       return;
     }
     main = main.toLowerCase();
-    String alt = Utils.getArg(message.getStringMessage(), 1);
+    String alt = Utils.getArg(message.getMessageWithoutCommand(), 1);
     if (alt == null) {
       return;
     }
