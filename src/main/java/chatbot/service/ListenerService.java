@@ -10,6 +10,8 @@ import chatbot.singleton.ConfigSingleton;
 import chatbot.singleton.SharedStateSingleton;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import lombok.extern.log4j.Log4j2;
 
 @Log4j2
@@ -42,14 +44,15 @@ public class ListenerService extends AbstractExecutionThreadService {
       }
 
       int index = 0;
-      String tags = "";
       String source = "";
       String command;
       String params = "";
+      Map<String, String> tagsMap = new HashMap<>();
 
       if (output.startsWith("@")) {
         int tagsEndIndex = output.indexOf(' ');
-        tags = output.substring(1, tagsEndIndex);
+        String tags = output.substring(1, tagsEndIndex);
+        tagsMap = tagsToMap(tags);
         index = tagsEndIndex + 1;
       }
 
@@ -58,7 +61,6 @@ public class ListenerService extends AbstractExecutionThreadService {
         int sourceEndIndex = output.indexOf(" ", index);
         source = output.substring(index, sourceEndIndex);
         index = sourceEndIndex + 1;
-
       }
 
       int paramsEndIndex = output.indexOf(':', index);
@@ -74,11 +76,12 @@ public class ListenerService extends AbstractExecutionThreadService {
       }
 
       String formattedOutput = """
+          original: %s
           tags: %s
           source: %s
           command: %s
           params: %s
-          """.formatted(tags, source, command, params);
+          """.formatted(output, tagsMap.toString(), source, command, params);
 
       log.trace(formattedOutput);
 
@@ -90,9 +93,9 @@ public class ListenerService extends AbstractExecutionThreadService {
 
       switch (commandParts[0]) {
         case "PING" -> handlePing();
-        case "PRIVMSG" -> handleRegularMessage(output, source, tags, params);
+        case "PRIVMSG" -> handleRegularMessage(output, source, tagsMap, params);
         case "WHISPER" -> handleWhisper(output, params);
-        case "CLEARCHAT" -> handleTimeout(output, tags, params);
+        case "CLEARCHAT" -> handleTimeout(output, tagsMap, params);
         case "USERSTATE" -> log.info("Message sent successfully.");
         case "001", "002", "003", "004", "353", "366", "372", "375", "376", "CAP" ->
             log.info(output);
@@ -107,6 +110,18 @@ public class ListenerService extends AbstractExecutionThreadService {
     }
   }
 
+  private Map<String, String> tagsToMap(String tags) {
+    Map<String, String> tagsMap = new HashMap<>();
+    String[] tagsSplit = tags.split(";");
+    for (String tag : tagsSplit) {
+      int index = tag.indexOf("=");
+      String key = tag.substring(0, index);
+      String value = tag.substring(index + 1);
+      tagsMap.put(key, value);
+    }
+    return tagsMap;
+  }
+
   private void reconnect() {
     if (state.isBotStillRunning()) {
       ConsoleMain.reconnect();
@@ -117,17 +132,15 @@ public class ListenerService extends AbstractExecutionThreadService {
     log.trace(output);
   }
 
-  private void handleTimeout(String output, String tags, String name) {
-    if (!tags.contains("target-user-id")) {
+  private void handleTimeout(String output, Map<String, String> tagsMap, String name) {
+    if (tagsMap.get("target-user-id") == null) {
       log.info("Chat was cleared");
       return;
     }
 
-    String userid = tags.substring(output.indexOf("user-id="));
-    userid = userid.substring(8, userid.indexOf(";"));
+    String userid = tagsMap.get("user-id");
 
-    int banTime = Integer.parseInt(
-        output.substring(output.indexOf("=") + 1, output.indexOf(";")).strip());
+    int banTime = Integer.parseInt(tagsMap.get("ban-duration"));
     log.debug("{} timed out for {}s", name, banTime);
 
     if (banTime >= 121059319) {
@@ -141,16 +154,13 @@ public class ListenerService extends AbstractExecutionThreadService {
     state.timeoutBlockingQueue.add(new TimeoutMessage(name, userid, banTime));
   }
 
-  private void handleRegularMessage(String fullMessage, String source, String tags,
+  private void handleRegularMessage(String fullMessage, String source, Map<String, String> tagsMap,
       String message) {
     String name = source.substring(0, source.indexOf("!"));
 
-    String userid = tags.substring(tags.indexOf("user-id="));
-    userid = userid.substring("user-id=".length(), userid.indexOf(";"));
+    String userid = tagsMap.get("user-id");
 
-    String subscriberStr = tags.substring(tags.indexOf("subscriber="));
-    subscriberStr = subscriberStr.substring("subscriber=".length(), subscriberStr.indexOf(";"));
-
+    String subscriberStr = tagsMap.get("subscriber");
     boolean subscribed = subscriberStr.equals("1");
 
     String outputMSG = message;
