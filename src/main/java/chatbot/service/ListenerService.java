@@ -4,7 +4,6 @@ import chatbot.ConsoleMain;
 import chatbot.connector.MessageConnector;
 import chatbot.message.CommandMessage;
 import chatbot.message.LoggableMessage;
-import chatbot.message.Message;
 import chatbot.message.SimpleMessage;
 import chatbot.message.TimeoutMessage;
 import chatbot.singleton.ConfigSingleton;
@@ -41,57 +40,96 @@ public class ListenerService extends AbstractExecutionThreadService {
       if (output == null) {
         break;
       }
-      if (output.equals("PING :tmi.twitch.tv")) {
-        handlePing();
+
+      int index = 0;
+      String tags = "";
+      String source = "";
+      String command;
+      String params = "";
+
+      if (output.startsWith("@")) {
+        int tagsEndIndex = output.indexOf(' ');
+        tags = output.substring(1, tagsEndIndex);
+        index = tagsEndIndex + 1;
+      }
+
+      if (output.charAt(index) == ':') {
+        index += 1;
+        int sourceEndIndex = output.indexOf(" ", index);
+        source = output.substring(index, sourceEndIndex);
+        index = sourceEndIndex + 1;
+
+      }
+
+      int paramsEndIndex = output.indexOf(':', index);
+      if (paramsEndIndex == -1) {
+        paramsEndIndex = output.length();
+      }
+
+      command = output.substring(index, paramsEndIndex).trim();
+
+      if (paramsEndIndex != output.length()) {
+        index = paramsEndIndex + 1;
+        params = output.substring(index);
+      }
+
+      String formattedOutput = """
+          tags: %s
+          source: %s
+          command: %s
+          params: %s
+          """.formatted(tags, source, command, params);
+
+      log.trace(formattedOutput);
+
+      String[] commandParts = command.split(" ");
+      if (commandParts.length == 0) {
+        log.error("Unexpected message %s".formatted(output));
         continue;
       }
-      if (output.contains(".tmi.twitch.tv PRIVMSG")) {
-        handleRegularMessage(output);
-      } else if (output.contains(".tmi.twitch.tv WHISPER")) {
-        handleWhisper(output);
-      } else if (output.contains("CLEARCHAT")) {
-        if (!output.contains("target-user-id")) {
-          log.info("Chat was cleared");
-          continue;
+
+      switch (commandParts[0]) {
+        case "PING" -> handlePing();
+        case "PRIVMSG" -> handleRegularMessage(output, source, tags, params);
+        case "WHISPER" -> handleWhisper(output, params);
+        case "CLEARCHAT" -> handleTimeout(output, tags, params);
+        case "USERSTATE" -> log.info("Message sent successfully.");
+        case "001", "002", "003", "004", "353", "366", "372", "375", "376", "CAP" ->
+            log.info(output);
+        case "USERNOTICE", "CLEARMSG", "PART", "JOIN" -> handleIgnored(output);
+        case "RECONNECT" -> {
+          log.info("Reconnect issued.");
+          reconnect();
+          return;
         }
-        handleTimeout(output);
-      } else if (output.contains("USERNOTICE")) {
-        handleSkipped(output);
-      } else if (output.contains(".tv USERSTATE ")) {
-        log.info("Message sent successfully.");
-      } else if (output.contains(".tv CLEARMSG ")) {
-        handleSkipped(output);
-      } else if (output.contains(".tv PART ")) {
-        handleSkipped(output);
-      } else if (output.contains(".tv JOIN ")) {
-        handleSkipped(output);
-      } else if (output.equals(":tmi.twitch.tv RECONNECT")) {
-        log.info("Reconnect issued.");
-        break;
-      } else {
-        log.info(output);
+        default -> log.info("Unhandled: %s".formatted(formattedOutput));
       }
     }
+  }
 
+  private void reconnect() {
     if (state.isBotStillRunning()) {
       ConsoleMain.reconnect();
     }
   }
 
-  private void handleSkipped(String output) {
+  private void handleIgnored(String output) {
     log.trace(output);
   }
 
-  private void handleTimeout(String output) {
-    String name = output.substring(output.indexOf("#"));
-    name = name.substring(name.indexOf(":") + 1);
+  private void handleTimeout(String output, String tags, String name) {
+    if (!tags.contains("target-user-id")) {
+      log.info("Chat was cleared");
+      return;
+    }
 
-    String userid = output.substring(output.indexOf("user-id="));
+    String userid = tags.substring(output.indexOf("user-id="));
     userid = userid.substring(8, userid.indexOf(";"));
 
     int banTime = Integer.parseInt(
         output.substring(output.indexOf("=") + 1, output.indexOf(";")).strip());
     log.debug("{} timed out for {}s", name, banTime);
+
     if (banTime >= 121059319) {
       state.commandHandlerBlockingQueue.add(
           new CommandMessage("Autoban", "!adddisabled " + name));
@@ -103,55 +141,58 @@ public class ListenerService extends AbstractExecutionThreadService {
     state.timeoutBlockingQueue.add(new TimeoutMessage(name, userid, banTime));
   }
 
-  private void handleWhisper(String output) {
-    String name = output.substring(output.indexOf("display-name="));
-    name = name.substring(13, name.indexOf(";"));
-    String msg = output.substring(output.indexOf(config.getTwitchUsername().toLowerCase()));
-    msg = msg.substring(msg.indexOf(":") + 1);
-    log.info("User {} whispered {}.", name, msg);
-    Message message = new LoggableMessage(name, "NULL", msg, false, true, output);
-    state.messageLogBlockingQueue.add(message);
-    if (name.equalsIgnoreCase(config.getBotAdmin())) {
-      if (msg.equals("/shutdown")) {
-        state.stop();
-      } else if (msg.startsWith("/send ")) {
-        msg = msg.substring(6);
-        state.sendingBlockingQueue.add(new SimpleMessage(name, msg));
-      } else if (msg.startsWith("/banuser ")) {
-        log.info("Banned user {}", msg.substring(9));
-      } else if (msg.equals("/restart")) {
-        ConsoleMain.reconnect();
-      }
-    }
-  }
+  private void handleRegularMessage(String fullMessage, String source, String tags,
+      String message) {
+    String name = source.substring(0, source.indexOf("!"));
 
-  private void handleRegularMessage(String output) {
-    String name = output.substring(0, output.indexOf(".tmi.twitch.tv PRIVMSG "));
-    name = name.substring(name.lastIndexOf("@") + 1);
+    String userid = tags.substring(tags.indexOf("user-id="));
+    userid = userid.substring("user-id=".length(), userid.indexOf(";"));
 
-    String userid = output.substring(output.indexOf(";user-id="));
-    userid = userid.substring(9);
-    userid = userid.substring(0, userid.indexOf(";"));
+    String subscriberStr = tags.substring(tags.indexOf("subscriber="));
+    subscriberStr = subscriberStr.substring("subscriber=".length(), subscriberStr.indexOf(";"));
 
-    String subscriberStr = output.substring(output.indexOf("subscriber="));
-    subscriberStr = subscriberStr.substring(11, subscriberStr.indexOf(";"));
     boolean subscribed = subscriberStr.equals("1");
 
-    String message = output.substring(output.indexOf("PRIVMSG"));
-    //String channelName = message.substring(message.indexOf("#"), message.indexOf(":")-1);
-    String outputMSG = message.substring(message.indexOf(":") + 1);
+    String outputMSG = message;
     if (outputMSG.startsWith("\u0001ACTION ")) {
       outputMSG = outputMSG.replaceAll("\u0001", "");
       outputMSG = outputMSG.replaceFirst("ACTION", "/me");
     }
     state.messageLogBlockingQueue.add(
-        new LoggableMessage(name, userid, outputMSG, subscribed, false, output));
+        new LoggableMessage(name, userid, outputMSG, subscribed, false, fullMessage));
     state.commandHandlerBlockingQueue.add(new CommandMessage(name, outputMSG));
 
     //records a timeout with a 0-second duration to prevent timeoutlist exploting.
     state.timeoutBlockingQueue.add(new TimeoutMessage(name, userid, 0));
 
   }
+
+  private void handleWhisper(String output, String message) {
+    String name = output.substring(output.indexOf("display-name="));
+    name = name.substring(13, name.indexOf(";"));
+
+    log.info("User {} whispered {}.", name, message);
+
+    state.messageLogBlockingQueue.add(
+        new LoggableMessage(name, "NULL", message, false, true, output));
+
+    if (name.equalsIgnoreCase(config.getBotAdmin())) {
+      String[] commandSplit = message.split(" ");
+      if (commandSplit.length == 0) {
+        return;
+      }
+
+      switch (commandSplit[0]) {
+        case "/shutdown" -> state.stop();
+        case "/send" -> {
+          message = message.substring("/send".length()).trim();
+          state.sendingBlockingQueue.add(new SimpleMessage(name, message));
+        }
+        case "/restart" -> reconnect();
+      }
+    }
+  }
+
 
   private String getOutput() {
     try {
