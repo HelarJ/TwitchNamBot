@@ -2,6 +2,7 @@ package chatbot.service;
 
 import chatbot.ConsoleMain;
 import chatbot.connector.MessageConnector;
+import chatbot.connector.container.IncomingMessage;
 import chatbot.message.CommandMessage;
 import chatbot.message.LoggableMessage;
 import chatbot.message.SimpleMessage;
@@ -10,8 +11,6 @@ import chatbot.singleton.ConfigSingleton;
 import chatbot.singleton.SharedStateSingleton;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 import lombok.extern.log4j.Log4j2;
 
 @Log4j2
@@ -42,84 +41,26 @@ public class ListenerService extends AbstractExecutionThreadService {
       if (output == null) {
         break;
       }
+      IncomingMessage incomingMessage = new IncomingMessage(output);
+      log.trace(incomingMessage);
 
-      int index = 0;
-      String source = "";
-      String command;
-      String params = "";
-      Map<String, String> tagsMap = new HashMap<>();
-
-      if (output.startsWith("@")) {
-        int tagsEndIndex = output.indexOf(' ');
-        String tags = output.substring(1, tagsEndIndex);
-        tagsMap = tagsToMap(tags);
-        index = tagsEndIndex + 1;
-      }
-
-      if (output.charAt(index) == ':') {
-        index += 1;
-        int sourceEndIndex = output.indexOf(" ", index);
-        source = output.substring(index, sourceEndIndex);
-        index = sourceEndIndex + 1;
-      }
-
-      int paramsEndIndex = output.indexOf(':', index);
-      if (paramsEndIndex == -1) {
-        paramsEndIndex = output.length();
-      }
-
-      command = output.substring(index, paramsEndIndex).trim();
-
-      if (paramsEndIndex != output.length()) {
-        index = paramsEndIndex + 1;
-        params = output.substring(index);
-      }
-
-      String formattedOutput = """
-          original: %s
-          tags: %s
-          source: %s
-          command: %s
-          params: %s
-          """.formatted(output, tagsMap.toString(), source, command, params);
-
-      log.trace(formattedOutput);
-
-      String[] commandParts = command.split(" ");
-      if (commandParts.length == 0) {
-        log.error("Unexpected message %s".formatted(output));
-        continue;
-      }
-
-      switch (commandParts[0]) {
+      switch (incomingMessage.getCommand()) {
         case "PING" -> handlePing();
-        case "PRIVMSG" -> handleRegularMessage(output, source, tagsMap, params);
-        case "WHISPER" -> handleWhisper(output, params);
-        case "CLEARCHAT" -> handleTimeout(output, tagsMap, params);
+        case "PRIVMSG" -> handleRegularMessage(incomingMessage);
+        case "WHISPER" -> handleWhisper(incomingMessage);
+        case "CLEARCHAT" -> handleTimeout(incomingMessage);
         case "USERSTATE" -> log.info("Message sent successfully.");
         case "001", "002", "003", "004", "353", "366", "372", "375", "376", "CAP" ->
-            log.info(output);
-        case "USERNOTICE", "CLEARMSG", "PART", "JOIN" -> handleIgnored(output);
+            log.info(incomingMessage.original);
+        case "USERNOTICE", "CLEARMSG", "PART", "JOIN" -> handleIgnored(incomingMessage);
         case "RECONNECT" -> {
           log.info("Reconnect issued.");
           reconnect();
           return;
         }
-        default -> log.info("Unhandled: %s".formatted(formattedOutput));
+        default -> log.info("Unhandled: %s".formatted(incomingMessage));
       }
     }
-  }
-
-  private Map<String, String> tagsToMap(String tags) {
-    Map<String, String> tagsMap = new HashMap<>();
-    String[] tagsSplit = tags.split(";");
-    for (String tag : tagsSplit) {
-      int index = tag.indexOf("=");
-      String key = tag.substring(0, index);
-      String value = tag.substring(index + 1);
-      tagsMap.put(key, value);
-    }
-    return tagsMap;
   }
 
   private void reconnect() {
@@ -128,19 +69,19 @@ public class ListenerService extends AbstractExecutionThreadService {
     }
   }
 
-  private void handleIgnored(String output) {
-    log.trace(output);
+  private void handleIgnored(IncomingMessage incomingMessage) {
+    log.trace("Ignored: %s".formatted(incomingMessage));
   }
 
-  private void handleTimeout(String output, Map<String, String> tagsMap, String name) {
-    if (tagsMap.get("target-user-id") == null) {
+  private void handleTimeout(IncomingMessage incomingMessage) {
+    if (incomingMessage.tagsMap.get("target-user-id") == null) {
       log.info("Chat was cleared");
       return;
     }
+    String userid = incomingMessage.tagsMap.get("target-user-id");
 
-    String userid = tagsMap.get("user-id");
-
-    int banTime = Integer.parseInt(tagsMap.get("ban-duration"));
+    int banTime = Integer.parseInt(incomingMessage.tagsMap.get("ban-duration"));
+    String name = incomingMessage.params;
     log.debug("{} timed out for {}s", name, banTime);
 
     if (banTime >= 121059319) {
@@ -148,28 +89,25 @@ public class ListenerService extends AbstractExecutionThreadService {
           new CommandMessage("Autoban", "!adddisabled " + name));
       state.messageLogBlockingQueue.add(
           new LoggableMessage(name, userid, "User was permanently banned.", false, false,
-              output));
+              incomingMessage.original));
       state.increasePermabanCount();
     }
     state.timeoutBlockingQueue.add(new TimeoutMessage(name, userid, banTime));
   }
 
-  private void handleRegularMessage(String fullMessage, String source, Map<String, String> tagsMap,
-      String message) {
-    String name = source.substring(0, source.indexOf("!"));
+  private void handleRegularMessage(IncomingMessage incomingMessage) {
 
-    String userid = tagsMap.get("user-id");
+    String name = incomingMessage.getName();
+    String userid = incomingMessage.tagsMap.get("user-id");
+    boolean subscribed = incomingMessage.tagsMap.get("subscriber").equals("1");
 
-    String subscriberStr = tagsMap.get("subscriber");
-    boolean subscribed = subscriberStr.equals("1");
-
-    String outputMSG = message;
+    String outputMSG = incomingMessage.params;
     if (outputMSG.startsWith("\u0001ACTION ")) {
       outputMSG = outputMSG.replaceAll("\u0001", "");
       outputMSG = outputMSG.replaceFirst("ACTION", "/me");
     }
     state.messageLogBlockingQueue.add(
-        new LoggableMessage(name, userid, outputMSG, subscribed, false, fullMessage));
+        new LoggableMessage(name, userid, outputMSG, subscribed, false, incomingMessage.original));
     state.commandHandlerBlockingQueue.add(new CommandMessage(name, outputMSG));
 
     //records a timeout with a 0-second duration to prevent timeoutlist exploting.
@@ -177,14 +115,13 @@ public class ListenerService extends AbstractExecutionThreadService {
 
   }
 
-  private void handleWhisper(String output, String message) {
-    String name = output.substring(output.indexOf("display-name="));
-    name = name.substring(13, name.indexOf(";"));
-
+  private void handleWhisper(IncomingMessage incomingMessage) {
+    String name = incomingMessage.tagsMap.get("display-name");
+    String message = incomingMessage.params;
     log.info("User {} whispered {}.", name, message);
 
     state.messageLogBlockingQueue.add(
-        new LoggableMessage(name, "NULL", message, false, true, output));
+        new LoggableMessage(name, "NULL", message, false, true, incomingMessage.original));
 
     if (name.equalsIgnoreCase(config.getBotAdmin())) {
       String[] commandSplit = message.split(" ");
