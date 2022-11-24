@@ -5,8 +5,6 @@ import java.util.Map;
 
 public class IncomingMessage {
 
-  private int index = 0;
-
   public final String original;
   public String source = "";
   private String command;
@@ -19,6 +17,7 @@ public class IncomingMessage {
   }
 
   private void parseToParts() {
+    int index = 0;
     if (original.startsWith("@")) {
       int tagsEndIndex = original.indexOf(' ');
       String tags = original.substring(1, tagsEndIndex);
@@ -57,7 +56,6 @@ public class IncomingMessage {
   public String getName() {
     return source.substring(0, source.indexOf("!"));
   }
-
 
   private Map<String, String> tagsToMap(String tags) {
     Map<String, String> tagsMap = new HashMap<>();

@@ -78,21 +78,24 @@ public class ListenerService extends AbstractExecutionThreadService {
       log.info("Chat was cleared");
       return;
     }
-    String userid = incomingMessage.tagsMap.get("target-user-id");
-
-    int banTime = Integer.parseInt(incomingMessage.tagsMap.get("ban-duration"));
     String name = incomingMessage.params;
-    log.debug("{} timed out for {}s", name, banTime);
+    String userid = incomingMessage.tagsMap.get("target-user-id");
+    String banString = incomingMessage.tagsMap.get("ban-duration");
 
-    if (banTime >= 121059319) {
+    if (banString == null) {
+      log.debug("{} permabanned.", name);
       state.commandHandlerBlockingQueue.add(
           new CommandMessage("Autoban", "!adddisabled " + name));
       state.messageLogBlockingQueue.add(
           new LoggableMessage(name, userid, "User was permanently banned.", false, false,
               incomingMessage.original));
+      state.timeoutBlockingQueue.add(new TimeoutMessage(name, userid, 121059319));
       state.increasePermabanCount();
+    } else {
+      int banTime = Integer.parseInt(banString);
+      log.debug("{} timed out for {}s", name, banTime);
+      state.timeoutBlockingQueue.add(new TimeoutMessage(name, userid, banTime));
     }
-    state.timeoutBlockingQueue.add(new TimeoutMessage(name, userid, banTime));
   }
 
   private void handleRegularMessage(IncomingMessage incomingMessage) {
