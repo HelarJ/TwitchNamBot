@@ -16,46 +16,25 @@ public class Utils {
    * @return string representation of time
    */
   public static String convertTime(final int seconds) {
-    StringBuilder sb = new StringBuilder();
-    if (seconds >= 60) {
-      int minutes = seconds / 60;
-      if (minutes >= 60) {
-        int hours = minutes / 60;
-        if (hours >= 24) {
-          int days = hours / 24;
-          sb.append(days);
-          sb.append("d");
-          if (hours % 24 > 0) {
-            sb.append(hours % 24);
-          }
-        } else {
-          sb.append(hours);
-        }
-        if (hours % 24 > 0) {
-          sb.append("h");
-        }
-        if (minutes % 60 > 0) {
-          sb.append(minutes % 60);
-        }
-      } else {
-        sb.append(minutes);
-      }
-      if (minutes % 60 > 0) {
-        sb.append("m");
-      }
-      if (seconds % 60 > 0) {
-        sb.append(seconds % 60);
-      }
-    } else {
-      sb.append(seconds);
+    int days = seconds / 86400;
+    int hours = (seconds % 86400) / 3600;
+    int minutes = (seconds % 3600) / 60;
+    int remainingSeconds = seconds % 60;
+
+    String formattedTime = "";
+    if (days > 0) {
+      formattedTime += String.format("%dd", days);
     }
-    if (seconds % 60 > 0) {
-      sb.append("s");
+    if (hours > 0) {
+      formattedTime += String.format("%dh", hours);
     }
-    if (seconds == 0) {
-      sb.append("s");
+    if (minutes > 0) {
+      formattedTime += String.format("%dm", minutes);
     }
-    return sb.toString();
+    if (remainingSeconds > 0 || formattedTime.length() == 0) {
+      formattedTime += String.format("%ds", remainingSeconds);
+    }
+    return formattedTime;
   }
 
   /**
