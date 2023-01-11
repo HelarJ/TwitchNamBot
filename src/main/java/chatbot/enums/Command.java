@@ -1,7 +1,6 @@
 package chatbot.enums;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
 
@@ -54,16 +53,16 @@ public enum Command {
     return onlineAllowed;
   }
 
-  public boolean isSelfAllowed(String self, String other) {
-    return self.equalsIgnoreCase(other) && selfAllowed;
+  public boolean isSelfAllowed() {
+    return selfAllowed;
   }
 
   public boolean isOthersAllowed() {
     return othersAllowed;
   }
 
-  public boolean isModsAllowed(String self, HashSet<String> modList) {
-    return modsAllowed && modList.stream().anyMatch(self::equalsIgnoreCase);
+  public boolean isModsAllowed() {
+    return modsAllowed;
   }
 
   public boolean isOptedOut(String username, Set<String> optOutList) {

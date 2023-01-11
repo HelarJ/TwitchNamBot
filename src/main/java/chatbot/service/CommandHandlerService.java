@@ -177,7 +177,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     if (choices.length == 0) {
       return;
     }
-    int choice = ThreadLocalRandom.current().nextInt(0, choices.length);
+    int choice = ThreadLocalRandom.current().nextInt(choices.length);
     state.sendingBlockingQueue.add(
         message.setResponse(
             String.format("@%s, I choose %s", message.getSender(), choices[choice])));
@@ -528,8 +528,15 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
       return specified;
     }
 
-    return command.isSelfAllowed(from, username) || command.isOthersAllowed()
-        || command.isModsAllowed(from, mods);
+    if (mods.stream().anyMatch(from::equalsIgnoreCase)) {
+      return command.isModsAllowed();
+    }
+
+    if (from.equalsIgnoreCase(username)) {
+      return command.isSelfAllowed();
+    }
+
+    return command.isOthersAllowed();
   }
 
   private boolean isBanned(String from) {
