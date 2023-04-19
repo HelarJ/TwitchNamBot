@@ -94,8 +94,7 @@ public class Utils {
    * @return cleaned username.
    */
   public static String cleanName(final String from, final String name) {
-    String temp = name.replaceAll(" \uDB40\uDC00", "");
-    temp = temp.replaceFirst("@", "");
+    String temp = name.replaceFirst("@", "");
     if (temp.equals("me")) {
       return from;
     }
@@ -134,5 +133,17 @@ public class Utils {
     } catch (NumberFormatException ignored) {
     }
     return null;
+  }
+
+  public static String formatNammerList(List<String> nammerList) {
+    StringBuilder sb = new StringBuilder();
+    sb.append("Top NaMmers: ");
+    for (String nammer : nammerList) {
+      sb.append("%s | ".formatted(nammer));
+      if (sb.length() >= 270) {
+        break;
+      }
+    }
+    return sb.toString();
   }
 }
