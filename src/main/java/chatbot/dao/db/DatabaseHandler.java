@@ -5,6 +5,7 @@ import chatbot.message.TimeoutMessage;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public interface DatabaseHandler {
 
@@ -18,7 +19,7 @@ public interface DatabaseHandler {
 
   int getTimeoutAmount(String username);
 
-  String getTopTimeouts();
+  Optional<String> getTopTimeouts();
 
   void addNamListTimeout(TimeoutMessage timeout);
 
@@ -26,17 +27,15 @@ public interface DatabaseHandler {
 
   void recordMessage(LoggableMessage message);
 
-  String firstOccurrence(String msg);
+  Optional<String> firstOccurrence(String msg);
 
   String firstMessage(String username);
 
   String lastMessage(String username);
 
-  String randomSearch(String username, String msg);
+  Optional<String> randomSearch(String username, String msg);
 
-  String randomQuote(String username, String year);
-
-  String getLogs(String username, int count);
+  Optional<String> randomQuote(String username, String year);
 
   long search(String msg);
 
@@ -50,7 +49,7 @@ public interface DatabaseHandler {
 
   void removeDisabled(String username);
 
-  List<String> getAlternateNames(String username);
+  Optional<List<String>> getAlternateNames(String username);
 
   boolean addAlt(String main, String alt);
 

@@ -9,12 +9,12 @@ import lombok.extern.log4j.Log4j2;
 
 @Log4j2
 @SuppressWarnings("all")
-public class FakeConnector implements MessageConnector {
+public class InMemoryConnector implements MessageConnector {
 
   BlockingQueue<String> fakeMessageQueue = new LinkedBlockingQueue<>();
   List<String> sentMessages = new ArrayList<>();
 
-  public FakeConnector(List<String> fakeMessages) {
+  public InMemoryConnector(List<String> fakeMessages) {
     fakeMessageQueue.addAll(fakeMessages);
   }
 
