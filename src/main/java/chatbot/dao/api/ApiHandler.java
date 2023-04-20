@@ -3,7 +3,6 @@ package chatbot.dao.api;
 import chatbot.singleton.ConfigSingleton;
 import chatbot.singleton.SharedStateSingleton;
 import chatbot.utils.Utils;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
@@ -11,8 +10,6 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.util.HashMap;
-import lombok.SneakyThrows;
 import lombok.extern.log4j.Log4j2;
 
 @Log4j2
@@ -40,19 +37,13 @@ public class ApiHandler {
   /**
    * Attempts to get an oauth from the twitch API, using credentials given in config.
    */
-  @SneakyThrows(JsonProcessingException.class)
   public void setOauth() {
-    var values = new HashMap<String, String>();
-    values.put("client_id", clientID);
-    values.put("client_secret", secret);
-    values.put("grant_type", "client_credentials");
-
-    String requestBody = new ObjectMapper().writeValueAsString(values);
     HttpRequest request = HttpRequest.newBuilder()
         .uri(URI.create(
             "https://id.twitch.tv/oauth2/token?client_id=" + clientID + "&client_secret=" + secret
-                + "&grant_type=client_credentials"))
-        .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                + "&grant_type=client_credentials")
+        )
+        .POST(HttpRequest.BodyPublishers.noBody())
         .build();
     try {
       HttpResponse<String> response = httpClient.send(request,
