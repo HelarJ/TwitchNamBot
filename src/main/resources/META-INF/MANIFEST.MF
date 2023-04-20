@@ -1,27 +1,24 @@
 Manifest-Version: 1.0
 Main-Class: chatbot.ConsoleMain
-Class-Path: netty-handler-4.1.73.Final.jar waffle-jna-3.2.0.jar httpclie
- nt-4.5.13.jar zookeeper-3.8.0.jar commons-pool2-2.10.0.jar log4j2-appen
- der-nodep-0.9.28.jar jetty-alpn-client-9.4.48.v20220622.jar solr-solrj-
- zookeeper-9.1.1.jar log4j-api-2.20.0.jar http2-http-client-transport-9.
- 4.48.v20220622.jar jackson-databind-2.14.2.jar commons-logging-1.2.jar 
- jetty-http-9.4.48.v20220622.jar failureaccess-1.0.1.jar netty-tcnative-
- classes-2.0.48.Final.jar slf4j-api-1.7.36.jar solr-solrj-9.1.1.jar http
- 2-hpack-9.4.48.v20220622.jar jetty-util-9.4.48.v20220622.jar log4j-core
- -2.20.0.jar jetty-io-9.4.48.v20220622.jar netty-transport-native-unix-c
- ommon-4.1.73.Final.jar commons-math3-3.6.1.jar netty-codec-4.1.73.Final
- .jar httpmime-4.5.13.jar netty-transport-4.1.73.Final.jar commons-codec
- -1.11.jar jackson-annotations-2.14.2.jar jetty-client-9.4.48.v20220622.
- jar guava-31.1-jre.jar commons-net-3.8.0.jar listenablefuture-9999.0-em
- pty-to-avoid-conflict-with-guava.jar jcl-over-slf4j-1.7.36.jar netty-co
- mmon-4.1.73.Final.jar zookeeper-jute-3.8.0.jar commons-dbcp2-2.9.0.jar 
- http2-client-9.4.48.v20220622.jar jetty-alpn-java-client-9.4.48.v202206
- 22.jar httpcore-4.4.15.jar jna-5.12.1.jar netty-transport-classes-epoll
- -4.1.73.Final.jar netty-tcnative-2.0.48.Final.jar netty-buffer-4.1.73.F
- inal.jar jna-platform-5.12.1.jar caffeine-2.9.3.jar netty-resolver-4.1.
- 73.Final.jar jackson-core-2.14.2.jar error_prone_annotations-2.11.0.jar
-  mariadb-java-client-3.1.2.jar j2objc-annotations-1.3.jar checker-qual-
- 3.12.0.jar jsr305-3.0.2.jar reload4j-1.2.22.jar netty-transport-native-
- epoll-4.1.73.Final.jar http2-common-9.4.48.v20220622.jar commons-io-2.1
- 1.0.jar
+Class-Path: failureaccess-1.0.1.jar jetty-http-9.4.44.v20210927.jar erro
+ r_prone_annotations-2.11.0.jar httpcore-4.4.14.jar zookeeper-3.6.2.jar 
+ log4j-api-2.19.0.jar listenablefuture-9999.0-empty-to-avoid-conflict-wi
+ th-guava.jar httpmime-4.5.13.jar jetty-io-9.4.44.v20210927.jar netty-re
+ solver-4.1.68.Final.jar jetty-util-9.4.44.v20210927.jar checker-qual-3.
+ 12.0.jar commons-logging-1.2.jar solr-solrj-8.11.2.jar jetty-alpn-clien
+ t-9.4.44.v20210927.jar netty-transport-4.1.68.Final.jar snappy-java-1.1
+ .7.6.jar netty-codec-4.1.68.Final.jar netty-transport-native-epoll-4.1.
+ 68.Final.jar jcl-over-slf4j-1.7.24.jar mariadb-java-client-3.0.6.jar co
+ mmons-dbcp2-2.9.0.jar jetty-alpn-java-client-9.4.44.v20210927.jar netty
+ -buffer-4.1.68.Final.jar slf4j-api-1.7.24.jar jackson-annotations-2.14.
+ 0-rc1.jar log4j-core-2.19.0.jar httpclient-4.5.13.jar jackson-databind-
+ 2.14.0-rc1.jar jetty-client-9.4.44.v20210927.jar commons-net-3.8.0.jar 
+ http2-client-9.4.44.v20210927.jar jackson-core-2.13.4.jar http2-http-cl
+ ient-transport-9.4.44.v20210927.jar stax2-api-4.2.1.jar log4j2-appender
+ -nodep-0.9.23.jar netty-common-4.1.68.Final.jar http2-hpack-9.4.44.v202
+ 10927.jar zookeeper-jute-3.6.2.jar woodstox-core-6.2.4.jar commons-lang
+ -2.6.jar commons-pool2-2.10.0.jar commons-math3-3.6.1.jar guava-31.1-jr
+ e.jar commons-io-2.8.0.jar jsr305-3.0.2.jar netty-handler-4.1.68.Final.
+ jar j2objc-annotations-1.3.jar netty-transport-native-unix-common-4.1.6
+ 8.Final.jar http2-common-9.4.44.v20210927.jar
 
