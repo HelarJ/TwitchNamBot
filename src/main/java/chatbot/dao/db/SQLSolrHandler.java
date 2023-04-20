@@ -1,25 +1,21 @@
 package chatbot.dao.db;
 
 import static chatbot.enums.Response.INTERNAL_ERROR;
-import static chatbot.enums.Response.NO_MESSAGES;
 
 import chatbot.message.LoggableMessage;
 import chatbot.message.TimeoutMessage;
 import chatbot.singleton.ConfigSingleton;
 import chatbot.singleton.SharedStateSingleton;
-import chatbot.utils.HtmlBuilder;
 import chatbot.utils.Utils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -28,6 +24,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TimeZone;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nonnull;
@@ -37,7 +34,7 @@ import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.BaseHttpSolrClient;
-import org.apache.solr.client.solrj.impl.HttpSolrClient;
+import org.apache.solr.client.solrj.impl.Http2SolrClient;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
@@ -166,24 +163,20 @@ public class SQLSolrHandler implements DatabaseHandler {
   }
 
   @Override
-  public String getTopTimeouts() {
+  public Optional<String> getTopTimeouts() {
     try (Connection conn = dataSource.getConnection();
         Statement stmt = conn.createStatement()) {
       ResultSet results = stmt.executeQuery("call chat_stats.sp_get_top10to()");
-      StringBuilder sb = new StringBuilder();
-      sb.append("Top NaMmers: ");
+      final List<String> nammerList = new ArrayList<>();
       while (results.next()) {
-        sb.append("%s: %s | ".formatted(results.getString("username"),
+        nammerList.add("%s: %s".formatted(
+            results.getString("username"),
             Utils.convertTime(results.getInt("timeout"))));
-        if (sb.length() >= 270) {
-          break;
-        }
       }
-
-      return sb.toString();
+      return Optional.of(Utils.formatNammerList(nammerList));
     } catch (SQLException e) {
       log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
-      return null;
+      return Optional.empty();
     }
   }
 
@@ -233,7 +226,7 @@ public class SQLSolrHandler implements DatabaseHandler {
 
     //Batch inserting as single inserts comes with very heavy disk useage.
     if (lastCommit.plus(10, ChronoUnit.SECONDS).isBefore(Instant.now())) {
-      try (SolrClient solr = new HttpSolrClient.Builder(solrCredentials).build()) {
+      try (SolrClient solr = new Http2SolrClient.Builder(solrCredentials).build()) {
         solr.add(commitBacklog);
         solr.commit();
         commitBacklog.clear();
@@ -246,10 +239,10 @@ public class SQLSolrHandler implements DatabaseHandler {
   }
 
   @Override
-  public String firstOccurrence(String msg) {
+  public Optional<String> firstOccurrence(String msg) {
     String phrase = Utils.getSolrPattern(msg);
 
-    try (SolrClient solr = new HttpSolrClient.Builder(solrCredentials).build()) {
+    try (SolrClient solr = new Http2SolrClient.Builder(solrCredentials).build()) {
       SolrQuery query = new SolrQuery();
       query.set("q", phrase
           + " AND -message:\"!rs\" AND -message:\"!searchuser\" AND -message:\"!search\" AND -message:\"!rq\"");
@@ -257,7 +250,7 @@ public class SQLSolrHandler implements DatabaseHandler {
       query.set("rows", 1);
       QueryResponse response = solr.query(query);
       if (response.getResults().getNumFound() == 0) {
-        return NO_MESSAGES.toString();
+        return Optional.empty();
       }
       SolrDocument result = response.getResults().get(0);
       String message = (String) result.getFirstValue("message");
@@ -268,11 +261,11 @@ public class SQLSolrHandler implements DatabaseHandler {
       Date date = (Date) result.getFirstValue("time");
       String dateStr = ("[" + date.toInstant().toString().replaceAll("T", " ")
           .replaceAll("Z", "]"));
-      return String.format("first occurrence: %s %s: %s", dateStr, msgName, message);
+      return Optional.of(String.format("first occurrence: %s %s: %s", dateStr, msgName, message));
 
     } catch (IOException | BaseHttpSolrClient.RemoteSolrException | SolrServerException e) {
       log.error(e.getMessage());
-      return INTERNAL_ERROR.toString();
+      return Optional.of(INTERNAL_ERROR.toString());
     }
   }
 
@@ -293,7 +286,7 @@ public class SQLSolrHandler implements DatabaseHandler {
     } catch (SQLException e) {
 
       log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
-      return "internal server error Deadlole";
+      return INTERNAL_ERROR.toString();
     }
   }
 
@@ -314,13 +307,13 @@ public class SQLSolrHandler implements DatabaseHandler {
           message);
     } catch (SQLException e) {
       log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
-      return "internal server error Deadlole";
+      return INTERNAL_ERROR.toString();
     }
   }
 
   @Override
-  public String randomSearch(String username, String msg) {
-    try (SolrClient solr = new HttpSolrClient.Builder(solrCredentials).build()) {
+  public Optional<String> randomSearch(String username, String msg) {
+    try (SolrClient solr = new Http2SolrClient.Builder(solrCredentials).build()) {
       SolrQuery query = new SolrQuery();
       String fullNameStr = state.getAltsSolrString(username);
       query.set("q", fullNameStr);
@@ -331,7 +324,7 @@ public class SQLSolrHandler implements DatabaseHandler {
       query.set("rows", 1);
       QueryResponse response = solr.query(query);
       if (response.getResults().getNumFound() == 0) {
-        return NO_MESSAGES.toString();
+        return Optional.empty();
       }
       SolrDocument result = response.getResults().get(0);
       String message = (String) result.getFirstValue("message");
@@ -339,17 +332,17 @@ public class SQLSolrHandler implements DatabaseHandler {
       Date date = (Date) result.getFirstValue("time");
       String dateStr = ("[" + date.toInstant().toString().replaceAll("T", " ")
           .replaceAll("Z", "]"));
-      return String.format("%s %s: %s", dateStr, msgName, message);
+      return Optional.of(String.format("%s %s: %s", dateStr, msgName, message));
 
     } catch (IOException | BaseHttpSolrClient.RemoteSolrException | SolrServerException e) {
       log.error(e.getMessage());
-      return INTERNAL_ERROR.toString();
+      return Optional.of(INTERNAL_ERROR.toString());
     }
   }
 
   @Override
-  public String randomQuote(String username, String year) {
-    try (SolrClient solr = new HttpSolrClient.Builder(solrCredentials).build()) {
+  public Optional<String> randomQuote(String username, String year) {
+    try (SolrClient solr = new Http2SolrClient.Builder(solrCredentials).build()) {
       SolrQuery query = new SolrQuery();
       String fullNameStr = state.getAltsSolrString(username);
       query.set("q", fullNameStr);
@@ -369,7 +362,7 @@ public class SQLSolrHandler implements DatabaseHandler {
 
       if (results.getNumFound() == 0) {
         log.info("Did not find any messages for " + fullNameStr);
-        return NO_MESSAGES.toString();
+        return Optional.empty();
       }
       SolrDocument result = results.get(0);
       String message = (String) result.getFirstValue("message");
@@ -377,77 +370,20 @@ public class SQLSolrHandler implements DatabaseHandler {
       username = (String) result.getFirstValue("username");
       String dateStr = ("[" + date.toInstant().toString().replaceAll("T", " ")
           .replaceAll("Z", "]"));
-      return String.format("%s %s: %s",
+      return Optional.of(String.format("%s %s: %s",
           dateStr,
           username,
-          message);
+          message));
     } catch (IOException | SolrServerException e) {
       log.error("Solr error: " + e.getMessage());
-      return INTERNAL_ERROR.toString();
+      return Optional.of(INTERNAL_ERROR.toString());
     }
-  }
-
-  @Override
-  public String getLogs(String username, int count) {
-    Instant startTime = Instant.now();
-    try (Connection conn = dataSource.getConnection()) {
-      PreparedStatement stmt;
-      stmt = conn.prepareStatement("CALL chat_stats.sp_get_user_logs(?);");
-      stmt.setString(1, username);
-      ResultSet rs = stmt.executeQuery();
-      Instant queryEndTime = Instant.now();
-      log.info("Query took: " + (Utils.convertTime(
-          (int) (queryEndTime.minus(startTime.toEpochMilli(), ChronoUnit.MILLIS).toEpochMilli()
-              / 1000))));
-
-      java.util.Date date = new Date();
-      SimpleDateFormat generationDate = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-      generationDate.setTimeZone(TimeZone.getTimeZone("UTC"));
-      rs.last();
-      int currentCount = rs.getRow();
-      rs.beforeFirst();
-      String html = new HtmlBuilder()
-          .withTitle("Logs for %s".formatted(username))
-          .withBodyIntro("""
-              Logs for %s in the channel %s.<br>
-              %d messages listed out of %d total.<br>
-              Generated %s. All times UTC.<br>
-              """.formatted(username, config.getChannelToJoin(),
-              currentCount, count,
-              generationDate.format(date)))
-          .withBodyContent(getLogsInternal(rs)).build();
-
-      log.info("Data compilation took: " + (Utils.convertTime(
-          (int) (Instant.now().minus(queryEndTime.toEpochMilli(), ChronoUnit.MILLIS).toEpochMilli()
-              / 1000))));
-      return html;
-
-    } catch (SQLException e) {
-      log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
-      return null;
-    }
-  }
-
-  private List<String> getLogsInternal(ResultSet rs) throws SQLException {
-    List<String> content = new ArrayList<>();
-    while (rs.next()) {
-      String time = rs.getTimestamp("time").toString();
-      time = "[" + time.substring(0, time.length() - 2) + "]";
-      String username = new String(rs.getBytes("username"), StandardCharsets.UTF_8);
-      String message = new String(rs.getBytes("message"), StandardCharsets.UTF_8).
-          replaceAll("&", "&amp;").
-          replaceAll("<", "&lt;").
-          replaceAll(">", "&gt;");
-
-      content.add("%s %s: %s<br>\n".formatted(time, username, message));
-    }
-    return content;
   }
 
   @Override
   public long search(String msg) {
     String phrase = Utils.getSolrPattern(msg);
-    try (SolrClient solr = new HttpSolrClient.Builder(solrCredentials).build()) {
+    try (SolrClient solr = new Http2SolrClient.Builder(solrCredentials).build()) {
       SolrQuery query = new SolrQuery();
       query.set("q", phrase + " AND -username:" + config.getTwitchUsername()
           + " AND -message:\"!search\" AND -message:\"!searchuser\" AND -message:\"!rs\"");
@@ -465,7 +401,7 @@ public class SQLSolrHandler implements DatabaseHandler {
   @Override
   public long searchUser(String username, String msg) {
     String phrase = Utils.getSolrPattern(msg);
-    try (SolrClient solr = new HttpSolrClient.Builder(solrCredentials).build()) {
+    try (SolrClient solr = new Http2SolrClient.Builder(solrCredentials).build()) {
       SolrQuery query = new SolrQuery();
       query.set("q",
           phrase + " AND username:" + username + " AND -username:" + config.getTwitchUsername()
@@ -482,7 +418,7 @@ public class SQLSolrHandler implements DatabaseHandler {
 
   @SuppressWarnings("unused")
   public long searchTotalWords(String word) {
-    try (SolrClient solr = new HttpSolrClient.Builder(solrCredentials).build()) {
+    try (SolrClient solr = new Http2SolrClient.Builder(solrCredentials).build()) {
       SolrQuery query = new SolrQuery();
       query.set("fl", "*,ttf(message," + word + ")");
       query.set("rows", 1);
@@ -565,7 +501,7 @@ public class SQLSolrHandler implements DatabaseHandler {
   }
 
   @Override
-  public List<String> getAlternateNames(String username) {
+  public Optional<List<String>> getAlternateNames(String username) {
     List<String> names = new ArrayList<>();
     try (Connection conn = dataSource.getConnection();
         PreparedStatement stmt = conn.prepareStatement("call chat_stats.sp_get_names(?)")) {
@@ -579,9 +515,13 @@ public class SQLSolrHandler implements DatabaseHandler {
         }
       }
     } catch (SQLException e) {
+      if (e.getErrorCode() == 1242) {
+        log.info("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
+        return Optional.empty();
+      }
       log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
     }
-    return names;
+    return Optional.of(names);
   }
 
   @Override

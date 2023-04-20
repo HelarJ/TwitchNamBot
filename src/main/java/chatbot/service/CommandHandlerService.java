@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 import lombok.extern.log4j.Log4j2;
 
@@ -158,7 +159,16 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     StringBuilder names = new StringBuilder("@");
     names.append(message.getSender()).append(", ").append(message.getUsername())
         .append("'s other names are: ");
-    var nameList = databaseHandler.getAlternateNames(message.getUsername());
+
+    Optional<List<String>> optional = databaseHandler.getAlternateNames(
+        message.getUsername());
+    if (optional.isEmpty()) {
+      state.sendingBlockingQueue.add(
+          message.setResponse(
+              "@" + message.getSender() + ", multiple users have had that name PepeSpin"));
+      return;
+    }
+    var nameList = optional.get();
     for (String name : nameList) {
       names.append(name).append(", ");
     }
@@ -222,14 +232,17 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
 
   private void firstOccurrence(CommandMessage message) {
     state.sendingBlockingQueue.add(message.setResponse(
-        "@%s, %s".formatted(message.getSender(),
-            databaseHandler.firstOccurrence(message.getMessageWithoutCommand()))));
+        "@%s, %s".formatted(
+            message.getSender(),
+            databaseHandler.firstOccurrence(
+                    message.getMessageWithoutCommand())
+                .orElse(Response.NO_MESSAGES.toString()))));
   }
 
   private void randomSearch(CommandMessage message) {
 
     String result = databaseHandler.randomSearch(message.getUsername(),
-        message.getMessageWithoutUsername());
+        message.getMessageWithoutUsername()).orElse(Response.NO_MESSAGES.toString());
     if (!result.startsWith("[")) {
       result = "%s, %s".formatted(message.getSender(), result);
     }
@@ -240,7 +253,8 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     if (hasNoMessages(message)) {
       return;
     }
-    String result = databaseHandler.randomQuote(message.getUsername(), message.getYear());
+    String result = databaseHandler.randomQuote(message.getUsername(), message.getYear())
+        .orElse(Response.NO_MESSAGES.toString());
     if (!result.startsWith("[")) {
       result = "%s, %s".formatted(message.getSender(), result);
     }
@@ -303,11 +317,9 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
   }
 
   private void topNammers(CommandMessage message) {
-    String topTimeoutList = databaseHandler.getTopTimeouts();
-    if (topTimeoutList == null) {
-      return;
-    }
-    state.sendingBlockingQueue.add(message.setResponse(topTimeoutList));
+    state.sendingBlockingQueue.add(
+        message.setResponse(databaseHandler.getTopTimeouts()
+            .orElse("@%s, %s".formatted(message.getSender(), Response.INTERNAL_ERROR))));
   }
 
   private int getCount(String username) {
