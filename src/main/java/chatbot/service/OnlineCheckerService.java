@@ -1,42 +1,66 @@
 package chatbot.service;
 
+import chatbot.ConsoleMain;
 import chatbot.dao.api.ApiHandler;
+import chatbot.singleton.SharedState;
 import com.google.common.util.concurrent.AbstractScheduledService;
+
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
-import lombok.extern.log4j.Log4j2;
 
-@Log4j2
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 public class OnlineCheckerService extends AbstractScheduledService {
 
-  private final ApiHandler apiHandler;
+    private final static Logger log = LogManager.getLogger(OnlineCheckerService.class);
 
-  public OnlineCheckerService(ApiHandler apiHandler) {
-    this.apiHandler = apiHandler;
-  }
+    private final ApiHandler apiHandler;
+    private final SharedState state = SharedState.getInstance();
 
-  @Override
-  protected void runOneIteration() {
-    if (apiHandler.oauth == null) {
-      apiHandler.setOauth();
+    public OnlineCheckerService(ApiHandler apiHandler) {
+        this.apiHandler = apiHandler;
     }
-    apiHandler.checkOnline();
-  }
 
-  @Override
-  protected void startUp() {
+    @Override
+    protected void runOneIteration() {
+        if (apiHandler.oauth == null) {
+            apiHandler.setOauth();
+        }
+        apiHandler.checkOnline();
+        checkPing();
+    }
 
-    log.debug("{} started.", OnlineCheckerService.class);
-  }
+    @Override
+    protected void startUp() {
 
-  @Override
-  protected void shutDown() {
-    log.debug("{} stopped.", OnlineCheckerService.class);
-  }
+        log.debug("{} started.", OnlineCheckerService.class);
+    }
 
-  @Override
-  @Nonnull
-  protected Scheduler scheduler() {
-    return Scheduler.newFixedRateSchedule(0, 5, TimeUnit.SECONDS);
-  }
+    @Override
+    protected void shutDown() {
+        log.debug("{} stopped.", OnlineCheckerService.class);
+    }
+
+    @Override
+    @Nonnull
+    protected Scheduler scheduler() {
+        return Scheduler.newFixedRateSchedule(0, 5, TimeUnit.SECONDS);
+    }
+
+    private void checkPing() {
+        Instant lastPing = state.lastPing.get();
+        Instant lastMessage = state.lastMessageTime.get();
+
+        if (lastPing != Instant.EPOCH
+                && Instant.now().minus(10, ChronoUnit.MINUTES).isAfter(lastPing)
+                && Instant.now().minus(10, ChronoUnit.MINUTES).isAfter(lastMessage)
+        ) {
+            log.error("10 minutes since Last ping: {}, or last message: {}", lastPing, lastMessage);
+            ConsoleMain.reconnect();
+        }
+    }
+
 }

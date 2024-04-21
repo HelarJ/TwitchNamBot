@@ -1,60 +1,53 @@
 package chatbot.dao.db;
 
-import chatbot.message.LoggableMessage;
-import chatbot.message.TimeoutMessage;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 public interface DatabaseHandler {
 
-  int getMessageCount(String username);
+    int getMessageCount(String username);
 
-  List<String> getModList();
+    List<String> getModList();
 
-  List<String> getAltsList();
+    List<String> getAltsList();
 
-  void addTimeout(TimeoutMessage timeout);
+    int getTimeoutAmount(String username);
 
-  int getTimeoutAmount(String username);
+    Optional<String> getTopTimeouts();
 
-  Optional<String> getTopTimeouts();
+    Optional<String> firstOccurrence(String msg);
 
-  void addNamListTimeout(TimeoutMessage timeout);
+    String firstMessage(String username);
 
-  void recordWhisper(LoggableMessage message);
+    String lastMessage(String username);
 
-  void recordMessage(LoggableMessage message);
+    String lastSeen(String username);
 
-  Optional<String> firstOccurrence(String msg);
+    Optional<String> randomSearch(String username, String msg);
 
-  String firstMessage(String username);
+    Optional<String> randomQuote(String username, String year);
 
-  String lastMessage(String username);
+    long search(String msg);
 
-  Optional<String> randomSearch(String username, String msg);
+    long searchUser(String username, String msg);
 
-  Optional<String> randomQuote(String username, String year);
+    Map<String, String> getBlacklist();
 
-  long search(String msg);
+    Set<String> getDisabledList();
 
-  long searchUser(String username, String msg);
+    void addDisabled(String from, String username);
 
-  Map<String, String> getBlacklist();
+    void removeDisabled(String username);
 
-  List<String> getDisabledList();
+    Optional<List<String>> getAlternateNames(String username);
 
-  void addDisabled(String from, String username);
+    boolean addAlt(String main, String alt);
 
-  void removeDisabled(String username);
+    void setCommandPermissionUser(String user, String command, boolean enable);
 
-  Optional<List<String>> getAlternateNames(String username);
-
-  boolean addAlt(String main, String alt);
-
-  void setCommandPermissionUser(String user, String command, boolean enable);
-
-  HashMap<String, Boolean> getPersonalPermissions(String user);
+    HashMap<String, Boolean> getPersonalPermissions(String user);
 
 }

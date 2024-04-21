@@ -3,11 +3,12 @@ package chatbot.message;
 import chatbot.enums.Command;
 import chatbot.enums.Response;
 import chatbot.utils.Utils;
-import java.util.Locale;
-import lombok.extern.log4j.Log4j2;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-@Log4j2
 public class CommandMessage implements Message {
+
+  private final static Logger log = LogManager.getLogger(CommandMessage.class);
 
   private final String sender;
   private final String message;
@@ -44,9 +45,9 @@ public class CommandMessage implements Message {
           .stripTrailing()
           .split(" ")[0]
           .substring(1);
-      if (cmdName.length() > 0) {
+      if (!cmdName.isEmpty()) {
         try {
-          return Command.valueOf(cmdName.toUpperCase(Locale.ROOT));
+          return Command.valueOf(cmdName.toUpperCase());
         } catch (IllegalArgumentException ignored) {
         }
       }
@@ -73,11 +74,13 @@ public class CommandMessage implements Message {
   }
 
   public String getMessageWithoutUsername() {
-    String username = Utils.getArg(getMessageWithoutCommand(), 0);
+    String messageWithoutCommand = getMessageWithoutCommand();
+    String username = Utils.getArg(messageWithoutCommand, 0);
     if (username == null) {
-      return getMessageWithoutCommand();
+      return messageWithoutCommand;
     }
-    return getMessageWithoutCommand().replaceFirst(username, "").strip();
+
+    return messageWithoutCommand.substring(messageWithoutCommand.indexOf(username)+username.length()).trim();
   }
 
   public String getMessageWithoutCommand() {

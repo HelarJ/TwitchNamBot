@@ -1,7 +1,6 @@
 package chatbot.enums;
 
 import java.util.HashMap;
-import java.util.Locale;
 import java.util.Set;
 
 public enum Command {
@@ -13,7 +12,9 @@ public enum Command {
   NAMCHOOSE(false, true, true, true, false),
   NAM(false, true, true, true, false),
   LASTMESSAGE(false, false, true, true, true),
+  LM(false, false, true, true, true),
   FIRSTMESSAGE(false, true, true, true, true),
+  FM(false, true, true, true, true),
   LOG(true, true, true, true, false),
   LOGS(true, true, true, true, false),
   RQ(false, true, true, true, true),
@@ -25,7 +26,11 @@ public enum Command {
   SEARCHUSER(false, true, true, true, false),
   ADDALT(false, false, false, true, false),
   NAMBAN(false, false, false, true, false),
-  SC(false, false, false, true, false);
+  SC(false, false, false, true, false),
+  LASTSEEN(true, false, true, true, false),
+  LS(true, false, true, true, false),
+  MCOUNT(true, true, true, true, false)
+  ;
 
 
   private final boolean onlineAllowed;
@@ -71,7 +76,7 @@ public enum Command {
 
   @Override
   public String toString() {
-    return super.toString().toLowerCase(Locale.ROOT);
+    return super.toString().toLowerCase();
   }
 
   public Boolean isUserCommandSpecified(HashMap<String, Boolean> userPermissionMap) {
