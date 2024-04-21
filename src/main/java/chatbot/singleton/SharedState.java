@@ -4,34 +4,41 @@ import chatbot.ConsoleMain;
 import chatbot.message.Message;
 import chatbot.message.PoisonMessage;
 import chatbot.message.TimeoutMessage;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import lombok.extern.log4j.Log4j2;
 
-@Log4j2
-public class SharedStateSingleton {
+public class SharedState {
 
-    private final ConfigSingleton config = ConfigSingleton.getInstance();
+    private final static Logger log = LogManager.getLogger(SharedState.class);
+
+    private final Config config = Config.getInstance();
     private static final AtomicBoolean running = new AtomicBoolean(true);
     private static boolean first = true;
-    private static SharedStateSingleton instance = new SharedStateSingleton();
+    private static SharedState instance = new SharedState();
     private final AtomicInteger messageCount = new AtomicInteger(0);
     private final AtomicInteger sentMessageCount = new AtomicInteger(0);
     private final AtomicInteger timeoutCount = new AtomicInteger(0);
     private final AtomicInteger permabanCount = new AtomicInteger(0);
+    public AtomicReference<Instant> lastPing = new AtomicReference<>(Instant.EPOCH);
+    public AtomicReference<Instant> lastMessageTime = new AtomicReference<>(Instant.EPOCH);
     public AtomicBoolean online = new AtomicBoolean();
     public CopyOnWriteArrayList<String> blacklist = new CopyOnWriteArrayList<>();
     public CopyOnWriteArrayList<String> textBlacklist = new CopyOnWriteArrayList<>();
-    public AtomicReference<String> replacelist = new AtomicReference<>();
-    public CopyOnWriteArraySet<String> disabledUsers = new CopyOnWriteArraySet<>();
-    public final CopyOnWriteArrayList<TimeoutMessage> timeouts = new CopyOnWriteArrayList<>();
+    public AtomicReference<String> replaceList = new AtomicReference<>();
+    public Set<String> disabledUsers = ConcurrentHashMap.newKeySet();
+    public final LinkedBlockingQueue<TimeoutMessage> timeouts = new LinkedBlockingQueue<>();
     public HashMap<String, List<String>> alts = new HashMap<>();
     public HashMap<String, String> mains = new HashMap<>();
     public BlockingQueue<Message> commandHandlerBlockingQueue = new LinkedBlockingQueue<>();
@@ -45,12 +52,12 @@ public class SharedStateSingleton {
     public BlockingQueue<Message> messageLogBlockingQueue = new LinkedBlockingQueue<>();
     public BlockingQueue<Message> timeoutBlockingQueue = new LinkedBlockingQueue<>();
 
-    private SharedStateSingleton() {
+    private SharedState() {
     }
 
-    public static SharedStateSingleton getInstance() {
+    public static SharedState getInstance() {
         if (instance == null) {
-            instance = new SharedStateSingleton();
+            instance = new SharedState();
         }
         return instance;
     }
@@ -88,13 +95,14 @@ public class SharedStateSingleton {
     }
 
     public void setBlacklist(List<String> blacklist, List<String> textBlacklist,
-        String replacelist) {
-        this.replacelist.set(replacelist);
+            String replaceList)
+    {
+        this.replaceList.set(replaceList);
         this.blacklist.addAll(blacklist);
         this.textBlacklist.addAll(textBlacklist);
     }
 
-    public void setDisabledUsers(List<String> disabledUsers) {
+    public void setDisabledUsers(Set<String> disabledUsers) {
         this.disabledUsers.addAll(disabledUsers);
     }
 
@@ -119,19 +127,19 @@ public class SharedStateSingleton {
         return sb.toString();
     }
 
-    public void setOnline() {
+    public void setOnline(String reason) {
         if (!online.get() || first) {
             online.set(true);
             first = false;
-            log.info(config.getChannelToJoin() + " is online.");
+            log.info("{} is online. {}", config.getChannelToJoin(), reason);
         }
     }
 
-    public void setOffline() {
+    public void setOffline(String reason) {
         if (online.get() || first) {
             online.set(false);
             first = false;
-            log.info(config.getChannelToJoin() + " is offline.");
+            log.info("{} is offline. {}", config.getChannelToJoin(), reason);
         }
     }
 
