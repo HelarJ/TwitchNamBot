@@ -13,7 +13,7 @@ import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.BaseHttpSolrClient;
-import org.apache.solr.client.solrj.impl.Http2SolrClient;
+import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
@@ -39,6 +39,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TimeZone;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 
 import static chatbot.dao.db.DatabaseKt.getMariaInstance;
 import static chatbot.enums.Response.INTERNAL_ERROR;
@@ -46,8 +47,7 @@ import static chatbot.enums.Response.INTERNAL_ERROR;
 public class SQLSolrHandler implements DatabaseHandler {
 
     private final static Logger log = LogManager.getLogger(SQLSolrHandler.class);
-    private final Config config = Config.getInstance();
-    private final String solrCredentials = config.getSolrCredentials();
+    private final String solrCredentials = Config.getSolrCredentials();
     private final SharedState state = SharedState.getInstance();
     private final BasicDataSource source = getMariaInstance().getDs();
 
@@ -56,6 +56,13 @@ public class SQLSolrHandler implements DatabaseHandler {
 
     private Connection getConn() throws SQLException {
         return source.getConnection();
+    }
+
+    private SolrClient getSolrClient() {
+        return new HttpSolrClient.Builder(solrCredentials)
+                .withConnectionTimeout(5, TimeUnit.SECONDS)
+                .withSocketTimeout(5, TimeUnit.SECONDS)
+                .build();
     }
 
     @Override
@@ -152,7 +159,7 @@ public class SQLSolrHandler implements DatabaseHandler {
     public Optional<String> firstOccurrence(String msg) {
         String phrase = Utils.getSolrPattern(msg);
 
-        try (SolrClient solr = new Http2SolrClient.Builder(solrCredentials).build()) {
+        try (SolrClient solr = getSolrClient()) {
             SolrQuery query = new SolrQuery();
             query.set("q", phrase
                     + " AND -message:\"!rs\" AND -message:\"!searchuser\" AND -message:\"!search\" AND -message:\"!rq\"");
@@ -195,9 +202,9 @@ public class SQLSolrHandler implements DatabaseHandler {
             stmt.setString(1, username);
             ResultSet rs = stmt.executeQuery();
             rs.next();
-            String convertedTime = Utils.convertTime((int) (Instant.now().minus(rs.getTimestamp("time",
+            String convertedTime = Utils.convertTime(Instant.now().minus(rs.getTimestamp("time",
                             Calendar.getInstance(TimeZone.getTimeZone("UTC"))).getTime(),
-                    ChronoUnit.MILLIS).toEpochMilli() / 1000));
+                    ChronoUnit.MILLIS).toEpochMilli() / 1000);
             return String.format("%s's first message %s ago was: %s",
                     username,
                     convertedTime,
@@ -217,9 +224,8 @@ public class SQLSolrHandler implements DatabaseHandler {
             stmt.setString(1, username);
             ResultSet rs = stmt.executeQuery();
             rs.next();
-            String convertedTime = Utils.convertTime((int) (Instant.now().minus(rs.getTimestamp("time",
-                            Calendar.getInstance(TimeZone.getTimeZone("UTC"))).getTime(),
-                    ChronoUnit.MILLIS).toEpochMilli() / 1000));
+            String convertedTime = Utils.convertTime(Instant.now().minus(rs.getTimestamp("time",
+                    Calendar.getInstance(TimeZone.getTimeZone("UTC"))).getTime(), ChronoUnit.MILLIS).toEpochMilli() / 1000);
             String message = rs.getString("message");
             return String.format("%s's last message %s ago was: %s",
                     username,
@@ -234,11 +240,12 @@ public class SQLSolrHandler implements DatabaseHandler {
     @Override
     public String lastSeen(String username) {
         try (Connection conn = getConn();
-        PreparedStatement stmt = conn.prepareStatement("call chat_stats.sp_get_last_message(?)")) {
+             PreparedStatement stmt = conn.prepareStatement("call chat_stats.sp_get_last_message(?)"))
+        {
             stmt.setString(1, username);
             ResultSet rs = stmt.executeQuery();
             rs.next();
-            String convertedTime = Utils.convertTime((int) (Instant.now().minus(rs.getTimestamp("time",
+            String convertedTime = Utils.convertTime((Instant.now().minus(rs.getTimestamp("time",
                             Calendar.getInstance(TimeZone.getTimeZone("UTC"))).getTime(),
                     ChronoUnit.MILLIS).toEpochMilli() / 1000));
 
@@ -254,7 +261,7 @@ public class SQLSolrHandler implements DatabaseHandler {
 
     @Override
     public Optional<String> randomSearch(String username, String msg) {
-        try (SolrClient solr = new Http2SolrClient.Builder(solrCredentials).build()) {
+        try (SolrClient solr = getSolrClient()) {
             SolrQuery query = new SolrQuery();
             String fullNameStr = state.getAltsSolrString(username);
             query.set("q", fullNameStr);
@@ -284,7 +291,7 @@ public class SQLSolrHandler implements DatabaseHandler {
 
     @Override
     public Optional<String> randomQuote(String username, String year) {
-        try (SolrClient solr = new Http2SolrClient.Builder(solrCredentials).build()) {
+        try (SolrClient solr = getSolrClient()) {
             SolrQuery query = new SolrQuery();
             String fullNameStr = state.getAltsSolrString(username);
             query.set("q", fullNameStr);
@@ -327,9 +334,9 @@ public class SQLSolrHandler implements DatabaseHandler {
     @Override
     public long search(String msg) {
         String phrase = Utils.getSolrPattern(msg);
-        try (SolrClient solr = new Http2SolrClient.Builder(solrCredentials).build()) {
+        try (SolrClient solr = getSolrClient()) {
             SolrQuery query = new SolrQuery();
-            query.set("q", phrase + " AND -username:" + config.getTwitchUsername()
+            query.set("q", phrase + " AND -username:" + Config.getTwitchUsername()
                     + " AND -message:\"!search\" AND -message:\"!searchuser\" AND -message:\"!rs\"");
             query.set("rows", 1);
             log.debug(query.getQuery());
@@ -346,10 +353,10 @@ public class SQLSolrHandler implements DatabaseHandler {
     @Override
     public long searchUser(String username, String msg) {
         String phrase = Utils.getSolrPattern(msg);
-        try (SolrClient solr = new Http2SolrClient.Builder(solrCredentials).build()) {
+        try (SolrClient solr = getSolrClient()) {
             SolrQuery query = new SolrQuery();
             query.set("q",
-                    phrase + " AND username:" + username + " AND -username:" + config.getTwitchUsername()
+                    phrase + " AND username:" + username + " AND -username:" + Config.getTwitchUsername()
                             + " AND -message:\"!search\" AND -message:\"!searchuser\" AND -message:\"!rs\"");
             query.set("rows", 1);
             log.debug(query.getQuery());
@@ -363,7 +370,7 @@ public class SQLSolrHandler implements DatabaseHandler {
     }
 
     public long searchTotalWords(String word) {
-        try (SolrClient solr = new Http2SolrClient.Builder(solrCredentials).build()) {
+        try (SolrClient solr = getSolrClient()) {
             SolrQuery query = new SolrQuery();
             query.set("fl", "*,ttf(message," + word + ")");
             query.set("rows", 1);
@@ -491,7 +498,7 @@ public class SQLSolrHandler implements DatabaseHandler {
 
     @Override
     public void setCommandPermissionUser(String user, String command, boolean enable) {
-        HashMap<String, Boolean> permissions = getPersonalPermissions(user);
+        Map<String, Boolean> permissions = getPersonalPermissions(user);
         permissions.put(command, enable);
         try (Connection conn = getConn();
              PreparedStatement stmt = conn.prepareStatement(
@@ -510,8 +517,8 @@ public class SQLSolrHandler implements DatabaseHandler {
 
     @Nonnull
     @Override
-    public HashMap<String, Boolean> getPersonalPermissions(String user) {
-        HashMap<String, Boolean> permissionMap = new HashMap<>();
+    public Map<String, Boolean> getPersonalPermissions(String user) {
+        Map<String, Boolean> permissionMap = new HashMap<>();
         try (Connection conn = getConn();
              PreparedStatement stmt = conn.prepareStatement(
                      "CALL chat_stats.sp_get_user_permissions(?);"))

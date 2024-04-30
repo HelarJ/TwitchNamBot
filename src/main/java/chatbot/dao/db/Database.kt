@@ -14,6 +14,8 @@ interface Database {
 
     fun addNamListTimeout(timeout: TimeoutMessage) {}
 
+    fun shutdown()
+
 }
 
 val postgresInstance: PostgresSource = PostgresSource()
@@ -21,9 +23,9 @@ class PostgresSource {
     val ds = BasicDataSource()
 
     init {
-        ds.url = Config.getInstance().postgresUrl
-        ds.username = Config.getInstance().postgresUsername
-        ds.password = Config.getInstance().postgresPassword
+        ds.url = Config.getPostgresUrl()
+        ds.username = Config.getPostgresUsername()
+        ds.password = Config.getPostgresPassword()
         ds.initialSize = 2
         ds.minIdle = 2
         ds.maxIdle = 20
@@ -35,9 +37,9 @@ val mariaInstance: MariaSource = MariaSource()
 class MariaSource {
     val ds = BasicDataSource()
     init {
-        ds.url = Config.getInstance().mariaUrl
-        ds.username = Config.getInstance().mariaUsername
-        ds.password = Config.getInstance().mariaPassword
+        ds.url = Config.getMariaUrl()
+        ds.username = Config.getMariaUsername()
+        ds.password = Config.getMariaPassword()
         ds.initialSize = 2
         ds.minIdle = 2
         ds.maxIdle = 20

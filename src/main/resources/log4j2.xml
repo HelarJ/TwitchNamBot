@@ -1,11 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Configuration status="info" packages="pl.tkowalcz.tjahzi.log4j2">
+<Configuration status="info">
     <Appenders>
         <Console name="Console" target="SYSTEM_OUT">
-            <PatternLayout disableAnsi="false">
-                <Pattern>%highlight{%d{dd-MM-yy HH:mm:ss} %-5level| %m%n}{FATAL=red, ERROR=red,
-                    WARN=bright_blue,
-                    INFO=white, DEBUG=bright_green, TRACE=blue}
+            <PatternLayout>
+                <Pattern>%-5level | %d{dd-MM-yy HH:mm:ss} | %m%n
                 </Pattern>
             </PatternLayout>
         </Console>
@@ -29,26 +27,12 @@
                 <SizeBasedTriggeringPolicy size="250 MB"/>
             </Policies>
         </RollingRandomAccessFile>
-        <Loki name="loki-appender">
-            <url>${env:LOKI_URL}</url>
-            <username>${env:LOKI_USER}</username>
-            <password>${env:LOKI_PW}</password>
-            <PatternLayout>
-                <Pattern>thread=%t timestamp="%d" level=%5p class=%c{1}
-                    message="%m"%n%exception{full}
-                </Pattern>
-            </PatternLayout>
-
-            <Label name="server" value="pc"/>
-            <Label name="level" pattern="%5p"/>
-        </Loki>
     </Appenders>
     <Loggers>
         <Root level="all">
             <AppenderRef ref="Console" level="info"/>
             <AppenderRef ref="RollingRandomAccessFile" level="debug"/>
             <AppenderRef ref="RollingRandomAccessFileForErrors" level="error"/>
-            <AppenderRef ref="loki-appender" level="debug"/>
         </Root>
     </Loggers>
 </Configuration>

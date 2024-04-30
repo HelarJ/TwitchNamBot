@@ -1,6 +1,5 @@
 package chatbot.dao.db;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -48,6 +47,6 @@ public interface DatabaseHandler {
 
     void setCommandPermissionUser(String user, String command, boolean enable);
 
-    HashMap<String, Boolean> getPersonalPermissions(String user);
+    Map<String, Boolean> getPersonalPermissions(String user);
 
 }

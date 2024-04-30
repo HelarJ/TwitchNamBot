@@ -12,6 +12,8 @@ import chatbot.singleton.Config;
 import chatbot.singleton.SharedState;
 import chatbot.utils.Utils;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -23,20 +25,16 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 public class CommandHandlerService extends AbstractExecutionThreadService {
 
     private final static Logger log = LogManager.getLogger(CommandHandlerService.class);
 
-    private final Config config = Config.getInstance();
     private final HashMap<String, Instant> banned = new HashMap<>();
     private final HashMap<String, Instant> superbanned = new HashMap<>();
-    private final String website = config.getBotWebsite();
-    private final String botName = config.getTwitchUsername();
-    private final String admin = config.getBotAdmin();
-    private final String channel = config.getChannelToJoin();
+    private final String website = Config.getBotWebsite();
+    private final String botName = Config.getTwitchUsername();
+    private final String admin = Config.getBotAdmin();
+    private final String channel = Config.getChannelToJoin();
     private final List<Instant> previousMessageTimes = new ArrayList<>();
     private final DatabaseHandler databaseHandler;
     private final SharedState state = SharedState.getInstance();
@@ -69,7 +67,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
                 break;
             }
             if (!(message instanceof CommandMessage commandMessage)) {
-                log.error("Unexcpected message type in commandqueue {}", message);
+                log.error("Unexpected message type in commandqueue {}", message);
                 continue;
             }
             handleCommand(commandMessage);
@@ -123,10 +121,11 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         if (commandName == null || bool == null) {
             return;
         }
-        databaseHandler.setCommandPermissionUser(message.getUsername(), commandName,
-                Boolean.parseBoolean(bool));
+        databaseHandler.setCommandPermissionUser(message.getUsername(), commandName, Boolean.parseBoolean(bool));
 
-        state.sendingBlockingQueue.add(message.setResponse("@%s, set command %s permissions for %s to %s.".formatted(message.getSender(), commandName,
+        state.sendingBlockingQueue.add(message.setResponse("@%s, set command %s permissions for %s to %s.".formatted(
+                message.getSender(),
+                commandName,
                 message.getUsername(),
                 Boolean.parseBoolean(bool))));
     }
@@ -140,33 +139,28 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             initializeAlts();
             initializeBlacklist();
             if (!message.getSender().equals("Startup")) {
-                state.sendingBlockingQueue.add(
-                        new SimpleMessage(message.getSender(), "Lists refreshed HACKERMANS"));
+                state.sendingBlockingQueue.add(new SimpleMessage(message.getSender(), "Lists refreshed HACKERMANS"));
             }
         }
     }
 
     private void namCommands(CommandMessage message) {
-        state.sendingBlockingQueue.add(message.setResponse(
-                "@" + message.getSender() + ", commands for this bot: " + website + "/commands"));
+        state.sendingBlockingQueue.add(message.setResponse("@%s, commands for this bot: %s/commands".formatted(message.getSender(), website)));
 
     }
 
     private void ban(CommandMessage message) {
         superbanned.put(message.getUsername(), Instant.now());
-        state.sendingBlockingQueue.add(
-                message.setResponse("Banned " + message.getUsername() + " from using the bot for 1h."));
+        state.sendingBlockingQueue.add(message.setResponse("Banned %s from using the bot for 1h.".formatted(message.getUsername())));
     }
 
     private void names(CommandMessage message) {
         StringBuilder names = new StringBuilder("@");
-        names.append(message.getSender()).append(", ").append(message.getUsername())
-                .append("'s other names are: ");
+        names.append(message.getSender()).append(", ").append(message.getUsername()).append("'s other names are: ");
 
         Optional<List<String>> optional = databaseHandler.getAlternateNames(message.getUsername());
         if (optional.isEmpty()) {
-            state.sendingBlockingQueue.add(
-                    message.setResponse("@" + message.getSender() + ", multiple users have had that name PepeSpin"));
+            state.sendingBlockingQueue.add(message.setResponse("@%s, multiple users have had that name PepeSpin".formatted(message.getSender())));
             return;
         }
         var nameList = optional.get();
@@ -177,8 +171,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             names.setLength(names.length() - 2);
             state.sendingBlockingQueue.add(message.setResponse(names.toString()));
         } else {
-            state.sendingBlockingQueue.add(
-                    message.setResponse("@" + message.getSender() + ", no alternate names found in logs PEEPERS"));
+            state.sendingBlockingQueue.add(message.setResponse("@%s, no alternate names found in logs PEEPERS".formatted(message.getSender())));
         }
     }
 
@@ -188,15 +181,13 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             return;
         }
         int choice = ThreadLocalRandom.current().nextInt(choices.length);
-        state.sendingBlockingQueue.add(
-                message.setResponse(String.format("@%s, I choose %s", message.getSender(), choices[choice])));
+        state.sendingBlockingQueue.add(message.setResponse(String.format("@%s, I choose %s", message.getSender(), choices[choice])));
     }
 
     private void ping(CommandMessage message) {
         state.sendingBlockingQueue.add(message.setResponse(String.format(
                 "NamBot online for %s | %d messages sent | %d messages logged | %d timeouts logged, of which %d were permabans.",
-                (Utils.convertTime((int) (Instant.now().minus(ConsoleMain.getStartTime().toEpochMilli(), ChronoUnit.MILLIS)
-                        .toEpochMilli() / 1000))),
+                (Utils.convertTime(Instant.now().minus(ConsoleMain.getStartTime().toEpochMilli(), ChronoUnit.MILLIS).toEpochMilli() / 1000)),
                 state.getSentMessageCount(), state.getMessageCount(), state.getTimeoutCount(),
                 state.getPermabanCount())));
 
@@ -208,8 +199,11 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         if (count == 0) {
             state.sendingBlockingQueue.add(message.setResponse("@%s, %s".formatted(message.getSender(), Response.NO_MESSAGES)));
         } else {
-            state.sendingBlockingQueue.add(message.setResponse("@%s, %s has used %s in %d messages".formatted(message.getSender(), message.getUsername(),
-                    Utils.getWordList(message.getMessageWithoutUsername()), count)));
+            state.sendingBlockingQueue.add(message.setResponse("@%s, %s has used %s in %d messages".formatted(
+                    message.getSender(),
+                    message.getUsername(),
+                    Utils.getWordList(message.getMessageWithoutUsername()),
+                    count)));
         }
     }
 
@@ -219,9 +213,10 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             state.sendingBlockingQueue.add(message.setResponse("@%s, %s".formatted(message.getSender(), Response.NO_MESSAGES)));
         } else {
             state.sendingBlockingQueue.add(message.setResponse(
-                    "@" + message.getSender() + " found " + Utils.getWordList(
-                            message.getMessageWithoutCommand()) + " in " + count
-                            + " rows."));
+                    "@%s found %s in %d rows.".formatted(
+                            message.getSender(),
+                            Utils.getWordList(message.getMessageWithoutCommand()),
+                            count)));
         }
     }
 
@@ -235,7 +230,6 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     }
 
     private void randomSearch(CommandMessage message) {
-
         String result = databaseHandler.randomSearch(message.getUsername(),
                 message.getMessageWithoutUsername()).orElse(Response.NO_MESSAGES.toString());
         if (!result.startsWith("[")) {
@@ -505,6 +499,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
                 //These commands have their own logic for cooldown.
                 && command != Command.ADDDISABLED && command != Command.REMDISABLED)
         {
+            log.info("Attempted to use {} while cooldown active", command);
             return false;
         }
 
@@ -537,7 +532,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         }
 
         //check database for user specific command permissions
-        HashMap<String, Boolean> userPermissionMap = databaseHandler.getPersonalPermissions(from);
+        Map<String, Boolean> userPermissionMap = databaseHandler.getPersonalPermissions(from);
         Boolean specified = command.isUserCommandSpecified(userPermissionMap);
         if (specified != null) {
             log.info("User {} command specific permission was {}.", from, specified);

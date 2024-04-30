@@ -19,8 +19,7 @@ public class SenderService extends AbstractExecutionThreadService {
   private final static Logger log = LogManager.getLogger(SenderService.class);
 
   private final SharedState state = SharedState.getInstance();
-  private final Config config = Config.getInstance();
-  private final String channel = config.getChannelToJoin();
+  private final String channel = Config.getChannelToJoin();
   private final MessageConnector messageConnector;
 
   public SenderService(MessageConnector messageConnector) {
@@ -81,7 +80,7 @@ public class SenderService extends AbstractExecutionThreadService {
     state.increaseSentMessageCount();
     //logs sent bot messages to database.
     state.messageLogBlockingQueue.add(
-        new LoggableMessage(config.getTwitchUsername().toLowerCase(), config.getTwitchUID(),
+        new LoggableMessage(Config.getTwitchUsername().toLowerCase(), Config.getTwitchUID(),
             uneditedMessage, true, false,
             "responding-to:" + message.getSender() + ",message:" + uneditedMessage, String.valueOf(Instant.now().toEpochMilli())));
   }
@@ -168,8 +167,8 @@ public class SenderService extends AbstractExecutionThreadService {
    */
   public void connect() throws IOException {
     log.info("Attempting to connect.");
-    sendToServer("PASS " + config.getTwitchOauth() + "\r\n");
-    sendToServer("NICK " + config.getTwitchUsername() + "\r\n");
+    sendToServer("PASS " + Config.getTwitchOauth() + "\r\n");
+    sendToServer("NICK " + Config.getTwitchUsername() + "\r\n");
     sendToServer("USER nambot\r\n");
     sendToServer("JOIN " + channel + "\r\n");
     sendToServer("CAP REQ :twitch.tv/membership\r\n");

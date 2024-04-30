@@ -15,8 +15,10 @@ private val queue: LinkedBlockingDeque<LoggableMessage> = LinkedBlockingDeque()
 
 class Maria : Database, Runnable {
     private var lastFailed: Boolean = false
+    private var running: Boolean = true
 
     private fun getConn(): Connection = mariaInstance.ds.connection
+
 
     override fun recordMessage(message: LoggableMessage) {
         queue.addLast(message)
@@ -25,7 +27,7 @@ class Maria : Database, Runnable {
     override fun run() {
         log.info("Started ${this.javaClass}")
 
-        while (SharedState.getInstance().isBotStillRunning && !Thread.currentThread().isInterrupted) {
+        while (SharedState.getInstance().isBotStillRunning && !Thread.currentThread().isInterrupted && running) {
             val message: LoggableMessage = queue.pollFirst(1, TimeUnit.SECONDS) ?: continue
 
             if (!logMessage(message)) {
@@ -125,5 +127,9 @@ class Maria : Database, Runnable {
         } catch (e: SQLException) {
             errorSql(e)
         }
+    }
+
+    override fun shutdown() {
+        running = false
     }
 }

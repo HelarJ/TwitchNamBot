@@ -2,6 +2,7 @@ package chatbot;
 
 import chatbot.connector.MessageConnector;
 import chatbot.connector.TwitchMessageConnector;
+import chatbot.singleton.Config;
 import chatbot.singleton.SharedState;
 
 import java.io.IOException;
@@ -21,6 +22,7 @@ public class ConsoleMain {
         log.info("Starting program.");
 
         while (SharedState.getInstance().isBotStillRunning()) {
+            Config.init();
             MessageConnector messageConnector;
             try {
                 messageConnector = new TwitchMessageConnector();

@@ -16,6 +16,7 @@ private val queue: LinkedBlockingDeque<LoggableMessage> = LinkedBlockingDeque()
 
 class Postgres : Database, Runnable {
     private var lastFailed: Boolean = false
+    private var running: Boolean = true
 
     private fun getConn(): Connection = postgresInstance.ds.connection
 
@@ -26,7 +27,7 @@ class Postgres : Database, Runnable {
     override fun run() {
         log.info("Started ${this.javaClass}")
 
-        while (SharedState.getInstance().isBotStillRunning && !Thread.currentThread().isInterrupted) {
+        while (SharedState.getInstance().isBotStillRunning && !Thread.currentThread().isInterrupted && running) {
             val message: LoggableMessage = queue.pollFirst(1, TimeUnit.SECONDS) ?: continue
 
             if (!logMessage(message)) {
@@ -89,5 +90,9 @@ class Postgres : Database, Runnable {
 
     override fun addNamListTimeout(timeout: TimeoutMessage) {
         // TODO
+    }
+
+    override fun shutdown() {
+        running = false
     }
 }

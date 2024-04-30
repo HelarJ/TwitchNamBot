@@ -23,7 +23,6 @@ public class SharedState {
 
     private final static Logger log = LogManager.getLogger(SharedState.class);
 
-    private final Config config = Config.getInstance();
     private static final AtomicBoolean running = new AtomicBoolean(true);
     private static boolean first = true;
     private static SharedState instance = new SharedState();
@@ -131,7 +130,7 @@ public class SharedState {
         if (!online.get() || first) {
             online.set(true);
             first = false;
-            log.info("{} is online. {}", config.getChannelToJoin(), reason);
+            log.info("{} is online. {}", Config.getChannelToJoin(), reason);
         }
     }
 
@@ -139,7 +138,7 @@ public class SharedState {
         if (online.get() || first) {
             online.set(false);
             first = false;
-            log.info("{} is offline. {}", config.getChannelToJoin(), reason);
+            log.info("{} is offline. {}", Config.getChannelToJoin(), reason);
         }
     }
 

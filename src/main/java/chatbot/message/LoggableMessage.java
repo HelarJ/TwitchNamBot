@@ -85,7 +85,7 @@ public class LoggableMessage implements Message {
     }
 
     public String uuidString() {
-        if (sender.equalsIgnoreCase(Config.getInstance().getTwitchUsername())) {
+        if (sender.equalsIgnoreCase(Config.getTwitchUsername())) {
             return sender + message + getTimestamp() + fullMsg;
         }
 

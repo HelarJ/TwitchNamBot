@@ -15,11 +15,11 @@ public class Utils {
      * @param seconds time in seconds
      * @return string representation of time
      */
-    public static String convertTime(final int seconds) {
-        int days = seconds / 86400;
-        int hours = (seconds % 86400) / 3600;
-        int minutes = (seconds % 3600) / 60;
-        int remainingSeconds = seconds % 60;
+    public static String convertTime(long seconds) {
+        long days = seconds / 86400L;
+        long hours = (seconds % 86400L) / 3600L;
+        long minutes = (seconds % 3600L) / 60L;
+        long remainingSeconds = seconds % 60L;
 
         String formattedTime = "";
         if (days > 0) {

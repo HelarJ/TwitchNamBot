@@ -5,6 +5,8 @@ import chatbot.singleton.SharedState;
 import chatbot.utils.Utils;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.net.URI;
@@ -12,24 +14,19 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 public class ApiHandler {
     private final static Logger log = LogManager.getLogger(ApiHandler.class);
 
-    private final Config config = Config.getInstance();
-    private final HttpClient httpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_2)
-            .build();
-    private final String clientID = config.getTwitchClientId();
-    private final String secret = config.getTwitchSecret();
+    private final HttpClient httpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_2).build();
+    private final String clientID = Config.getTwitchClientId();
+    private final String secret = Config.getTwitchSecret();
     private final String channel;
     private final SharedState state = SharedState.getInstance();
     public String oauth = null;
     private String channelUid;
 
     public ApiHandler() {
-        String channel = config.getChannelToJoin();
+        String channel = Config.getChannelToJoin();
         if (channel.startsWith("#")) {
             this.channel = channel.substring(1);
         } else {
@@ -49,8 +46,7 @@ public class ApiHandler {
                 .POST(HttpRequest.BodyPublishers.noBody())
                 .build();
         try {
-            HttpResponse<String> response = httpClient.send(request,
-                    HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             JsonNode jsonNode = new ObjectMapper().readTree(response.body());
             oauth = jsonNode.get("access_token").asText();
             int expires = jsonNode.get("expires_in").asInt();
@@ -70,8 +66,7 @@ public class ApiHandler {
                 .setHeader("Client-ID", clientID)
                 .build();
         try {
-            HttpResponse<String> response = httpClient.send(request,
-                    HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             ObjectMapper mapper = new ObjectMapper();
             String result = response.body();
 
@@ -102,8 +97,7 @@ public class ApiHandler {
                 .build();
 
         try {
-            HttpResponse<String> response = httpClient.send(request,
-                    HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             String result = response.body();
             if (result != null) {
                 if (result.length() == 27) {

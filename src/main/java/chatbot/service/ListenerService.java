@@ -22,7 +22,6 @@ public class ListenerService extends AbstractExecutionThreadService {
     private final static Logger log = LogManager.getLogger(ListenerService.class);
 
     private final SharedState state = SharedState.getInstance();
-    private final Config config = Config.getInstance();
     private final MessageConnector messageConnector;
 
     public ListenerService(MessageConnector messageConnector) {
@@ -135,7 +134,7 @@ public class ListenerService extends AbstractExecutionThreadService {
         state.messageLogBlockingQueue.add(
                 new LoggableMessage(name, "NULL", message, false, true, incomingMessage.original, twitchTimestamp));
 
-        if (name.equalsIgnoreCase(config.getBotAdmin())) {
+        if (name.equalsIgnoreCase(Config.getBotAdmin())) {
             String[] commandSplit = message.split(" ");
             if (commandSplit.length == 0) {
                 return;

@@ -4,9 +4,10 @@ import chatbot.message.LoggableMessage
 import chatbot.message.TimeoutMessage
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 class MultiDatabaseHandler(private vararg val loggers: Database) : Database {
-    private val executor: ExecutorService = Executors.newVirtualThreadPerTaskExecutor()
+    private val executor: ExecutorService = Executors.newThreadPerTaskExecutor(Executors.defaultThreadFactory())
 
     init {
         loggers.forEach {
@@ -24,7 +25,11 @@ class MultiDatabaseHandler(private vararg val loggers: Database) : Database {
 
     override fun addNamListTimeout(timeout: TimeoutMessage) = loggers.forEach { it.addNamListTimeout(timeout) }
 
+    override fun shutdown() = loggers.forEach { it.shutdown() }
+
     fun destroy() {
-        executor.shutdownNow()
+        this.shutdown()
+        executor.shutdown()
+        executor.awaitTermination(5, TimeUnit.SECONDS)
     }
 }

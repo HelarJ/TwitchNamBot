@@ -1,6 +1,6 @@
 package chatbot.enums;
 
-import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 
 public enum Command {
@@ -79,7 +79,7 @@ public enum Command {
     return super.toString().toLowerCase();
   }
 
-  public Boolean isUserCommandSpecified(HashMap<String, Boolean> userPermissionMap) {
+  public Boolean isUserCommandSpecified(Map<String, Boolean> userPermissionMap) {
     return userPermissionMap.getOrDefault(toString(), null);
   }
 }
