@@ -54,7 +54,7 @@ public class ProgramThread implements Runnable {
 
         DatabaseHandler databaseHandler = new SQLSolrHandler();
 
-        this.dbLogger = new MultiDatabaseHandler(new Maria(), new Postgres(), new Solr());
+        this.dbLogger = new MultiDatabaseHandler(new Maria(), new Solr());
         this.senderService = new SenderService(messageConnector);
         this.commandHandlerService = new CommandHandlerService(databaseHandler);
         this.onlineCheckerService = new OnlineCheckerService(new ApiHandler());

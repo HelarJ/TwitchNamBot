@@ -36,9 +36,9 @@ public class MessageLoggerService extends AbstractExecutionThreadService {
     @Override
     public void run() throws InterruptedException {
         while (state.isBotStillRunning()) {
-            Message message = state.messageLogBlockingQueue.poll(20, TimeUnit.MINUTES);
+            Message message = state.messageLogBlockingQueue.poll(5, TimeUnit.MINUTES);
             if (message == null) {
-                return;
+                continue;
             }
 
             if (message instanceof PoisonMessage) {

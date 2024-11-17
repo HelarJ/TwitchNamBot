@@ -13,41 +13,29 @@ import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.BaseHttpSolrClient;
-import org.apache.solr.client.solrj.impl.HttpSolrClient;
+import org.apache.solr.client.solrj.impl.HttpJdkSolrClient;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.TimeZone;
+import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 import static chatbot.dao.db.DatabaseKt.getMariaInstance;
 import static chatbot.enums.Response.INTERNAL_ERROR;
+import static chatbot.enums.Response.TIMEOUT;
 
 public class SQLSolrHandler implements DatabaseHandler {
 
     private final static Logger log = LogManager.getLogger(SQLSolrHandler.class);
-    private final String solrCredentials = Config.getSolrCredentials();
     private final SharedState state = SharedState.getInstance();
     private final BasicDataSource source = getMariaInstance().getDs();
 
@@ -59,9 +47,9 @@ public class SQLSolrHandler implements DatabaseHandler {
     }
 
     private SolrClient getSolrClient() {
-        return new HttpSolrClient.Builder(solrCredentials)
+        return new HttpJdkSolrClient.Builder(Config.getSolrCredentials())
                 .withConnectionTimeout(5, TimeUnit.SECONDS)
-                .withSocketTimeout(5, TimeUnit.SECONDS)
+                .withRequestTimeout(7, TimeUnit.SECONDS)
                 .build();
     }
 
@@ -284,7 +272,11 @@ public class SQLSolrHandler implements DatabaseHandler {
             return Optional.of(String.format("%s %s: %s", formatDate(date), msgName, message));
 
         } catch (IOException | BaseHttpSolrClient.RemoteSolrException | SolrServerException e) {
-            log.error(e.getMessage());
+            if (e.getMessage().contains("Timeout occurred")) {
+                log.warn("Solr timeout: {}", e.getMessage());
+                return Optional.of(TIMEOUT.toString());
+            }
+            log.error("Solr error: {}", e.getMessage(), e);
             return Optional.of(INTERNAL_ERROR.toString());
         }
     }
@@ -326,7 +318,11 @@ public class SQLSolrHandler implements DatabaseHandler {
                     username,
                     message));
         } catch (IOException | SolrServerException e) {
-            log.error("Solr error: {}", e.getMessage());
+            if (e.getMessage().contains("Timeout occurred")) {
+                log.warn("Solr timeout: {}", e.getMessage());
+                return Optional.of(TIMEOUT.toString());
+            }
+            log.error("Solr error: {}", e.getMessage(), e);
             return Optional.of(INTERNAL_ERROR.toString());
         }
     }

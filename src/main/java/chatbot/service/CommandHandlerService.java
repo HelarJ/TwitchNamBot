@@ -4,10 +4,7 @@ import chatbot.ConsoleMain;
 import chatbot.dao.db.DatabaseHandler;
 import chatbot.enums.Command;
 import chatbot.enums.Response;
-import chatbot.message.CommandMessage;
-import chatbot.message.Message;
-import chatbot.message.PoisonMessage;
-import chatbot.message.SimpleMessage;
+import chatbot.message.*;
 import chatbot.singleton.Config;
 import chatbot.singleton.SharedState;
 import chatbot.utils.Utils;
@@ -17,12 +14,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class CommandHandlerService extends AbstractExecutionThreadService {
@@ -30,7 +22,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     private final static Logger log = LogManager.getLogger(CommandHandlerService.class);
 
     private final HashMap<String, Instant> banned = new HashMap<>();
-    private final HashMap<String, Instant> superbanned = new HashMap<>();
+    private final HashMap<String, Instant> manualBanned = new HashMap<>();
     private final String website = Config.getBotWebsite();
     private final String botName = Config.getTwitchUsername();
     private final String admin = Config.getBotAdmin();
@@ -39,7 +31,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     private final DatabaseHandler databaseHandler;
     private final SharedState state = SharedState.getInstance();
     private Instant lastCommandTime = Instant.now().minus(30, ChronoUnit.SECONDS);
-    private HashSet<String> godUsers = new HashSet<>();
+    private HashSet<String> admins = new HashSet<>();
     private HashSet<String> mods = new HashSet<>();
     private String previousMessage = "";
 
@@ -80,8 +72,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             return;
         }
 
-        log.info(String.format("%s used %s with %s.", message.getSender(), command,
-                message.getStringMessage()));
+        log.info("{} used {} with {}.", message.getSender(), command, message.getStringMessage());
 
         if (!isAllowed(message)) {
             log.info("{} not allowed to use command {}", message.getSender(), command);
@@ -131,7 +122,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     }
 
     public void refreshLists(Message message) {
-        if (message.getSender().equals("Startup") || godUsers.stream()
+        if (message.getSender().equals("Startup") || admins.stream()
                 .anyMatch(message.getSender()::equalsIgnoreCase))
         {
             initializeMods();
@@ -150,7 +141,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     }
 
     private void ban(CommandMessage message) {
-        superbanned.put(message.getUsername(), Instant.now());
+        manualBanned.put(message.getUsername(), Instant.now());
         state.sendingBlockingQueue.add(message.setResponse("Banned %s from using the bot for 1h.".formatted(message.getUsername())));
     }
 
@@ -259,6 +250,11 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     }
 
     private void userNam(CommandMessage message) {
+        int count = getCount(message.getUsername());
+        if (count == 0) {
+            return;
+        }
+
         int timeout = databaseHandler.getTimeoutAmount(message.getUsername());
         if (timeout > 0) {
             String response;
@@ -337,12 +333,12 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
 
     private void initializeMods() {
         this.mods = new HashSet<>();
-        this.godUsers = new HashSet<>();
+        this.admins = new HashSet<>();
         mods.addAll(databaseHandler.getModList());
-        godUsers.add(admin);
-        godUsers.add("Autoban");
-        godUsers.add(channel.replace("#", ""));
-        log.info("Initialized mods list {} | god users {}.", mods, godUsers);
+        admins.add(admin);
+        admins.add("Autoban");
+        admins.add(channel.replace("#", ""));
+        log.info("Initialized mods list {} | admins {}.", mods, admins);
     }
 
     private void addAlt(CommandMessage message) {
@@ -479,8 +475,12 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         Command command = message.getCommand();
 
         //admins are not affected by any rules except optout rules.
-        if (godUsers.stream().anyMatch(from::equalsIgnoreCase) && !command.isOptedOut(username, state.disabledUsers)) {
+        if (admins.stream().anyMatch(from::equalsIgnoreCase) && !command.isOptedOut(username, state.disabledUsers)) {
             return true;
+        }
+
+        if (command.isAdminOnly()) {
+            return false;
         }
 
         if (isBanned(from)) {
@@ -495,7 +495,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
 
         //10 second cooldown
         if (lastCommandTime.plus(10, ChronoUnit.SECONDS).isAfter(Instant.now())
-                && godUsers.stream().noneMatch(from::equalsIgnoreCase)
+                && admins.stream().noneMatch(from::equalsIgnoreCase)
                 //These commands have their own logic for cooldown.
                 && command != Command.ADDDISABLED && command != Command.REMDISABLED)
         {
@@ -531,6 +531,10 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             return false;
         }
 
+        if (mods.stream().anyMatch(from::equalsIgnoreCase)) {
+            return true;
+        }
+
         //check database for user specific command permissions
         Map<String, Boolean> userPermissionMap = databaseHandler.getPersonalPermissions(from);
         Boolean specified = command.isUserCommandSpecified(userPermissionMap);
@@ -539,8 +543,8 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             return specified;
         }
 
-        if (mods.stream().anyMatch(from::equalsIgnoreCase)) {
-            return command.isModsAllowed();
+        if (command.isNoArgs()) {
+            return true;
         }
 
         if (from.equalsIgnoreCase(username)) {
@@ -562,12 +566,12 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         }
 
         //manually banned check
-        if (superbanned.containsKey(from.toLowerCase())) {
-            if (superbanned.get(from).plus(3600, ChronoUnit.SECONDS).isAfter(Instant.now())) {
-                log.info("superbanned user {} attempted to use a command.", from);
+        if (manualBanned.containsKey(from.toLowerCase())) {
+            if (manualBanned.get(from).plus(3600, ChronoUnit.SECONDS).isAfter(Instant.now())) {
+                log.info("Manually banned user {} attempted to use a command.", from);
                 return true;
             } else {
-                superbanned.remove(from);
+                manualBanned.remove(from);
             }
         }
         return false;

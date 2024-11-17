@@ -1,85 +1,98 @@
-package chatbot.enums;
+package chatbot.enums
 
-import java.util.Map;
-import java.util.Set;
+import chatbot.enums.Command.Feature.*
+import java.util.*
 
-public enum Command {
-  NAMMERS(false, true, true, true, false),
-  NAMPING(false, true, true, true, false),
-  NAMES(false, true, true, true, false),
-  NAMREFRESH(false, false, false, false, false),
-  NAMCOMMANDS(false, true, true, true, false),
-  NAMCHOOSE(false, true, true, true, false),
-  NAM(false, true, true, true, false),
-  LASTMESSAGE(false, false, true, true, true),
-  LM(false, false, true, true, true),
-  FIRSTMESSAGE(false, true, true, true, true),
-  FM(false, true, true, true, true),
-  LOG(true, true, true, true, false),
-  LOGS(true, true, true, true, false),
-  RQ(false, true, true, true, true),
-  RS(false, true, false, true, true),
-  ADDDISABLED(false, true, false, true, false),
-  REMDISABLED(false, true, false, true, false),
-  FS(false, false, false, false, false),
-  SEARCH(false, true, true, true, false),
-  SEARCHUSER(false, true, true, true, false),
-  ADDALT(false, false, false, true, false),
-  NAMBAN(false, false, false, true, false),
-  SC(false, false, false, true, false),
-  LASTSEEN(true, false, true, true, false),
-  LS(true, false, true, true, false),
-  MCOUNT(true, true, true, true, false)
-  ;
+public enum class Command {
+    NAMMERS(NO_ARGS),
+    NAMPING(NO_ARGS),
+
+    NAMES(ONLINE, SELF, OTHERS),
+
+    NAMREFRESH(ADMIN_ONLY),
+    NAMCOMMANDS(ADMIN_ONLY),
+
+    NAMCHOOSE(NO_ARGS),
+
+    NAM(SELF, OTHERS),
+
+    LASTMESSAGE(OTHERS, OPT_OUT),
+    LM(LASTMESSAGE),
+
+    FIRSTMESSAGE(SELF, OTHERS, OPT_OUT),
+    FM(FIRSTMESSAGE),
+
+    LOG(ONLINE, SELF, OTHERS),
+    LOGS(LOG),
+
+    RQ(SELF, OTHERS, OPT_OUT),
+    RS(SELF, OPT_OUT),
+
+    ADDDISABLED(SELF),
+    REMDISABLED(SELF),
+
+    FS,
+
+    SEARCH(NO_ARGS),
+    SEARCHUSER(SELF, OTHERS),
+
+    ADDALT,
+    NAMBAN,
+
+    SC(ADMIN_ONLY),
+
+    LASTSEEN(ONLINE, OTHERS),
+    LS(LASTSEEN),
+
+    MCOUNT(ONLINE, SELF, OTHERS),
+    ;
 
 
-  private final boolean onlineAllowed;
-  private final boolean selfAllowed;
-  private final boolean othersAllowed;
-  private final boolean modsAllowed;
-  private final boolean canOptOut;
+    val isOnlineAllowed: Boolean
+    val isSelfAllowed: Boolean
+    val isOthersAllowed: Boolean
+    val isAdminOnly: Boolean
+    val canOptOut: Boolean
+    val isNoArgs: Boolean
 
-  /**
-   * @param onlineAllowed command is allowed to be used in onlinechat.
-   * @param selfAllowed   command can be used with own name as argument.
-   * @param othersAllowed command can be used with others name as argument.
-   * @param modsAllowed   command can be used by mods.
-   */
-  Command(boolean onlineAllowed, boolean selfAllowed, boolean othersAllowed, boolean modsAllowed,
-      boolean canOptOut) {
-    this.onlineAllowed = onlineAllowed;
-    this.selfAllowed = selfAllowed;
-    this.othersAllowed = othersAllowed;
-    this.modsAllowed = modsAllowed;
-    this.canOptOut = canOptOut;
-  }
+    constructor(vararg features: Feature) {
+        var featureSet: EnumSet<Feature> = EnumSet.noneOf(Feature::class.java)
 
-  public boolean isOnlineAllowed() {
-    return onlineAllowed;
-  }
+        if (!features.isEmpty()) {
+            featureSet = EnumSet.copyOf<Feature>(listOf<Feature>(*features))
+        }
 
-  public boolean isSelfAllowed() {
-    return selfAllowed;
-  }
+        this.isOnlineAllowed = featureSet.contains(ONLINE)
+        this.isSelfAllowed = featureSet.contains(SELF)
+        this.isOthersAllowed = featureSet.contains(OTHERS)
+        this.isAdminOnly = featureSet.contains(ADMIN_ONLY)
+        this.canOptOut = featureSet.contains(OPT_OUT)
+        this.isNoArgs = featureSet.contains(NO_ARGS)
+    }
 
-  public boolean isOthersAllowed() {
-    return othersAllowed;
-  }
+    constructor(alias: Command) {
+        this.isOnlineAllowed = alias.isOnlineAllowed
+        this.isSelfAllowed = alias.isSelfAllowed
+        this.isOthersAllowed = alias.isOthersAllowed
+        this.isAdminOnly = alias.isAdminOnly
+        this.canOptOut = alias.canOptOut
+        this.isNoArgs = alias.isNoArgs
+    }
 
-  public boolean isModsAllowed() {
-    return modsAllowed;
-  }
+    fun isOptedOut(username: String, optOutList: MutableSet<String>): Boolean {
+        return canOptOut && optOutList.contains(username)
+    }
 
-  public boolean isOptedOut(String username, Set<String> optOutList) {
-    return canOptOut && optOutList.contains(username);
-  }
+    fun isUserCommandSpecified(userPermissionMap: MutableMap<String, Boolean>): Boolean? {
+        return userPermissionMap.getOrDefault(toString(), null)
+    }
 
-  @Override
-  public String toString() {
-    return super.toString().toLowerCase();
-  }
-
-  public Boolean isUserCommandSpecified(Map<String, Boolean> userPermissionMap) {
-    return userPermissionMap.getOrDefault(toString(), null);
-  }
+    internal enum class Feature {
+        ONLINE,
+        SELF,
+        OTHERS,
+        ADMIN_ONLY,
+        OPT_OUT,
+        NO_ARGS,
+    }
 }

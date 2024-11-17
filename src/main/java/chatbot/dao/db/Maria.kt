@@ -64,7 +64,7 @@ class Maria : Database, Runnable {
                     stmt.setBoolean(6, message.isSubscribed)
                     stmt.setString(7, message.fullMsg)
                     stmt.setString(8, message.uuid)
-                    stmt.executeQuery()
+                    stmt.executeUpdate()
                     return true
                 }
             }

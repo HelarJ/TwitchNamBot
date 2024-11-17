@@ -27,7 +27,7 @@ public class ConsoleMain {
             try {
                 messageConnector = new TwitchMessageConnector();
             } catch (IOException e) {
-                log.fatal("Error creating messageConnector");
+                log.fatal("Error creating messageConnector", e);
                 waitToReconnect();
                 continue;
             }

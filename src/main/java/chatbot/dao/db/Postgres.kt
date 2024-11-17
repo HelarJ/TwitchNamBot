@@ -80,18 +80,6 @@ class Postgres : Database, Runnable {
         return false
     }
 
-    override fun recordWhisper(message: LoggableMessage) {
-        // TODO
-    }
-
-    override fun addTimeout(timeout: TimeoutMessage) {
-        // TODO
-    }
-
-    override fun addNamListTimeout(timeout: TimeoutMessage) {
-        // TODO
-    }
-
     override fun shutdown() {
         running = false
     }
