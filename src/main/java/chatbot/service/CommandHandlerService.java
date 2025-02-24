@@ -1,6 +1,7 @@
 package chatbot.service;
 
 import chatbot.ConsoleMain;
+import chatbot.Metrics;
 import chatbot.dao.db.DatabaseHandler;
 import chatbot.enums.Command;
 import chatbot.enums.Response;
@@ -16,6 +17,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 
 public class CommandHandlerService extends AbstractExecutionThreadService {
 
@@ -73,9 +75,12 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         }
 
         log.info("{} used {} with {}.", message.getSender(), command, message.getStringMessage());
+        long start = System.nanoTime();
+
 
         if (!isAllowed(message)) {
             log.info("{} not allowed to use command {}", message.getSender(), command);
+            Metrics.COMMAND_NOT_ALLOWED_COUNTER.inc(command.name());
             return;
         }
 
@@ -104,6 +109,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             case MCOUNT -> messageCount(message);
         }
         lastCommandTime = Instant.now();
+        Metrics.COMMAND_COUNTER.inc(command.name(), TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
     }
 
     private void setCommandPermissionUser(CommandMessage message) {

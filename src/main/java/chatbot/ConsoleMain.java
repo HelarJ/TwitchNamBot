@@ -4,12 +4,11 @@ import chatbot.connector.MessageConnector;
 import chatbot.connector.TwitchMessageConnector;
 import chatbot.singleton.Config;
 import chatbot.singleton.SharedState;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.time.Instant;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 public class ConsoleMain {
 
@@ -20,9 +19,10 @@ public class ConsoleMain {
 
     public static void main(String[] args) {
         log.info("Starting program.");
+        Config.init();
+        registerMetrics();
 
         while (SharedState.getInstance().isBotStillRunning()) {
-            Config.init();
             MessageConnector messageConnector;
             try {
                 messageConnector = new TwitchMessageConnector();
@@ -44,7 +44,9 @@ public class ConsoleMain {
                 log.info("Attempting to reconnect in 1s...");
                 waitToReconnect();
             }
+            Config.init();
         }
+        Metrics.close();
         log.info("Program shutdown.");
     }
 
@@ -60,6 +62,12 @@ public class ConsoleMain {
     }
 
     public static void reconnect() {
+        Metrics.RECONNECT_COUNTER.inc();
         programThread.shutdown();
+    }
+
+    public static void registerMetrics() {
+        log.info("Registering metrics...");
+        Metrics.register();
     }
 }

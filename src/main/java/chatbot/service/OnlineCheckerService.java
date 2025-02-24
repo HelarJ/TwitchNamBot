@@ -55,10 +55,10 @@ public class OnlineCheckerService extends AbstractScheduledService {
         Instant lastMessage = state.lastMessageTime.get();
 
         if (lastPing != Instant.EPOCH
-                && Instant.now().minus(10, ChronoUnit.MINUTES).isAfter(lastPing)
-                && Instant.now().minus(10, ChronoUnit.MINUTES).isAfter(lastMessage)
+                && Instant.now().minus(6, ChronoUnit.MINUTES).isAfter(lastPing)
+                && Instant.now().minus(3, ChronoUnit.MINUTES).isAfter(lastMessage)
         ) {
-            log.error("10 minutes since Last ping: {}, or last message: {}", lastPing, lastMessage);
+            log.error("6 minutes since Last ping: {}, last message: {}", lastPing, lastMessage);
             ConsoleMain.reconnect();
         }
     }

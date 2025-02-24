@@ -84,7 +84,7 @@ public enum class Command {
     }
 
     fun isUserCommandSpecified(userPermissionMap: MutableMap<String, Boolean>): Boolean? {
-        return userPermissionMap.getOrDefault(toString(), null)
+        return userPermissionMap.getOrDefault(toString().lowercase(), null)
     }
 
     internal enum class Feature {

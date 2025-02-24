@@ -125,4 +125,16 @@ public class Config {
                 configMap.get(NAM_SOLR_PORT),
                 configMap.get(NAM_SOLR_CORE));
     }
+
+    public static boolean isTestMode() {
+        return Boolean.parseBoolean(configMap.get(TEST_MODE));
+    }
+
+    public static String getInfluxToken() {
+        return configMap.get(NAM_INFLUX_TOKEN);
+    }
+
+    public static String getInfluxAddress() {
+        return configMap.get(NAM_INFLUX_ADDRESS);
+    }
 }

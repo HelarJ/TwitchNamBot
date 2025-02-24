@@ -1,18 +1,18 @@
 package chatbot.service;
 
 import chatbot.ConsoleMain;
+import chatbot.Metrics;
 import chatbot.connector.MessageConnector;
 import chatbot.connector.container.IncomingMessage;
 import chatbot.message.*;
 import chatbot.singleton.Config;
 import chatbot.singleton.SharedState;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.time.Instant;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 public class ListenerService extends AbstractExecutionThreadService {
 
@@ -51,15 +51,17 @@ public class ListenerService extends AbstractExecutionThreadService {
                 case "WHISPER" -> handleWhisper(incomingMessage);
                 case "CLEARCHAT" -> handleTimeout(incomingMessage);
                 case "USERSTATE" -> log.info("Message sent successfully.");
-                case "001", "002", "003", "004", "353", "366", "372", "375", "376", "CAP" ->
-                        log.info(incomingMessage.original);
+                case "001", "002", "003", "004", "353", "366", "372", "375", "376", "CAP" -> log.info(incomingMessage.original);
                 case "USERNOTICE", "CLEARMSG", "PART", "JOIN" -> handleIgnored(incomingMessage);
                 case "RECONNECT" -> {
                     log.info("Reconnect issued.");
                     reconnect();
                     return;
                 }
-                default -> log.info("Unhandled: %s".formatted(incomingMessage));
+                default -> {
+                    log.info("Unhandled: %s".formatted(incomingMessage));
+                    Metrics.UNHANDLED_COUNTER.inc(incomingMessage.getCommand());
+                }
             }
         }
     }
@@ -93,10 +95,12 @@ public class ListenerService extends AbstractExecutionThreadService {
                             incomingMessage.original, twitchTimestamp));
             state.timeoutBlockingQueue.add(new TimeoutMessage(name, userid, 121059319));
             state.increasePermabanCount();
+            Metrics.PERMABAN_COUNTER.inc();
         } else {
             int banTime = Integer.parseInt(banString);
             log.debug("{} timed out for {}s", name, banTime);
             state.timeoutBlockingQueue.add(new TimeoutMessage(name, userid, banTime));
+            Metrics.TIMEOUT_COUNTER.inc();
         }
     }
 
@@ -119,13 +123,14 @@ public class ListenerService extends AbstractExecutionThreadService {
 
         //records a timeout with a 0-second duration to prevent timeoutlist exploting.
         state.timeoutBlockingQueue.add(new TimeoutMessage(name, userid, 0));
-
+        Metrics.MESSAGE_COUNTER.inc();
     }
 
     private void handleWhisper(IncomingMessage incomingMessage) {
         String name = incomingMessage.tagsMap.get("display-name");
         String message = incomingMessage.params;
         log.info("User {} whispered {}.", name, message);
+        Metrics.WHISPER_COUNTER.inc();
 
         String twitchTimestamp = incomingMessage.tagsMap.getOrDefault("tmi-sent-ts", String.valueOf(Instant.now().toEpochMilli()));
         state.messageLogBlockingQueue.add(
@@ -161,6 +166,7 @@ public class ListenerService extends AbstractExecutionThreadService {
         try {
             messageConnector.sendMessage("PONG :tmi.twitch.tv\r\n");
             state.lastPing.set(Instant.now());
+            Metrics.PING_COUNTER.inc();
         } catch (IOException e) {
             log.error("Error sending ping: {}", e.getMessage());
         }

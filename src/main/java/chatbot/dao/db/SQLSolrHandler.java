@@ -296,8 +296,7 @@ public class SQLSolrHandler implements DatabaseHandler {
             }
             int seed = ThreadLocalRandom.current().nextInt(0, 9999999);
             query.set("sort", "random_" + seed + " asc");
-            int amount = 50;
-            query.set("rows", amount);
+            query.set("rows", 1);
 
             long start = System.currentTimeMillis();
             QueryResponse response = solr.query(query);
