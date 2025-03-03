@@ -38,6 +38,7 @@ public class SQLSolrHandler implements DatabaseHandler {
     private final static Logger log = LogManager.getLogger(SQLSolrHandler.class);
     private final SharedState state = SharedState.getInstance();
     private final BasicDataSource source = getMariaInstance().getDs();
+    private final String EXCLUDED = " AND -message:\"!rs\" AND -message:\"!searchuser\" AND -message:\"!search\" AND -message:\"!rq\" AND -message:\"!chain\"";
 
     public SQLSolrHandler() {
     }
@@ -55,18 +56,32 @@ public class SQLSolrHandler implements DatabaseHandler {
 
     @Override
     public int getMessageCount(String username) {
+        try (SolrClient solr = getSolrClient()) {
+            SolrQuery query = new SolrQuery();
+            query.set("q", "username:" + username);
+            query.set("rows", 1);
+            log.debug(query.getQuery());
+            QueryResponse response = solr.query(query);
+            return (int) response.getResults().getNumFound();
+
+        } catch (IOException | BaseHttpSolrClient.RemoteSolrException | SolrServerException e) {
+            log.error(e.getMessage());
+            return 0;
+        }
+    }
+
+    @Override
+    public boolean userHasAnyMessages(String username) {
         try (Connection conn = getConn();
-             PreparedStatement stmt = conn.prepareStatement("call chat_stats.sp_get_message_count(?)"))
+             PreparedStatement stmt = conn.prepareStatement("SELECT id from chat_stats.messages where username = ? LIMIT 1"))
         {
             stmt.setString(1, username);
             ResultSet rs = stmt.executeQuery();
-            if (rs.next()) {
-                return rs.getInt("count");
-            }
+            return rs.next();
         } catch (SQLException e) {
             log.error("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
         }
-        return 0;
+        return false;
     }
 
     @Override
@@ -149,8 +164,7 @@ public class SQLSolrHandler implements DatabaseHandler {
 
         try (SolrClient solr = getSolrClient()) {
             SolrQuery query = new SolrQuery();
-            query.set("q", phrase
-                    + " AND -message:\"!rs\" AND -message:\"!searchuser\" AND -message:\"!search\" AND -message:\"!rq\"");
+            query.set("q", phrase + " AND -message:\"!fs\" AND -message:\"!searchuser\" AND -message:\"!search\"");
             query.set("sort", "time asc");
             query.set("rows", 1);
             log.debug(query.getQuery());
@@ -193,8 +207,7 @@ public class SQLSolrHandler implements DatabaseHandler {
             String convertedTime = Utils.convertTime(Instant.now().minus(rs.getTimestamp("time",
                             Calendar.getInstance(TimeZone.getTimeZone("UTC"))).getTime(),
                     ChronoUnit.MILLIS).toEpochMilli() / 1000);
-            return String.format("%s's first message %s ago was: %s",
-                    username,
+            return String.format("first message %s ago was: %s",
                     convertedTime,
                     rs.getString("message"));
         } catch (SQLException e) {
@@ -252,12 +265,10 @@ public class SQLSolrHandler implements DatabaseHandler {
         try (SolrClient solr = getSolrClient()) {
             SolrQuery query = new SolrQuery();
             String fullNameStr = state.getAltsSolrString(username);
-            query.set("q", fullNameStr);
-            query.set("fq", Utils.getSolrPattern(msg)
-                    + " AND -message:\"!rs\" AND -message:\"!searchuser\" AND -message:\"!search\" AND -message:\"!rq\"");
+            query.set("q", fullNameStr + " AND " + Utils.getSolrPattern(msg) + EXCLUDED);
             int seed = ThreadLocalRandom.current().nextInt(0, 999999999);
-            query.set("sort", "random_" + seed + " asc");
-            query.set("rows", 1);
+            query.set("sort", "random_" + seed + " desc");
+            query.set("rows", 10);
             log.debug(query.getQuery());
             long start = System.currentTimeMillis();
             QueryResponse response = solr.query(query);
@@ -286,17 +297,15 @@ public class SQLSolrHandler implements DatabaseHandler {
         try (SolrClient solr = getSolrClient()) {
             SolrQuery query = new SolrQuery();
             String fullNameStr = state.getAltsSolrString(username);
-            query.set("q", fullNameStr);
+            String additional = EXCLUDED;
             if (year != null) {
-                query.set("fq",
-                        "-message:\"!rq\" AND -message:\"!chain\" AND -message:\"!lastmessage\" AND time:"
-                                + year);
-            } else {
-                query.set("fq", "-message:\"!rq\" AND -message:\"!chain\" AND -message:\"!lastmessage\"");
+                additional = additional + " AND time:" + year;
             }
+            query.set("q", fullNameStr + additional);
+
             int seed = ThreadLocalRandom.current().nextInt(0, 9999999);
-            query.set("sort", "random_" + seed + " asc");
-            query.set("rows", 1);
+            query.set("sort", "random_" + seed + " desc");
+            query.set("rows", 10);
 
             long start = System.currentTimeMillis();
             QueryResponse response = solr.query(query);
@@ -316,7 +325,7 @@ public class SQLSolrHandler implements DatabaseHandler {
                     formatDate(date),
                     username,
                     message));
-        } catch (IOException | SolrServerException e) {
+        } catch (IOException | SolrServerException | BaseHttpSolrClient.RemoteSolrException e) {
             if (e.getMessage().contains("Timeout occurred")) {
                 log.warn("Solr timeout: {}", e.getMessage());
                 return Optional.of(TIMEOUT.toString());
@@ -331,8 +340,7 @@ public class SQLSolrHandler implements DatabaseHandler {
         String phrase = Utils.getSolrPattern(msg);
         try (SolrClient solr = getSolrClient()) {
             SolrQuery query = new SolrQuery();
-            query.set("q", phrase + " AND -username:" + Config.getTwitchUsername()
-                    + " AND -message:\"!search\" AND -message:\"!searchuser\" AND -message:\"!rs\"");
+            query.set("q", phrase + " AND -username:" + Config.getTwitchUsername());
             query.set("rows", 1);
             log.debug(query.getQuery());
             QueryResponse response = solr.query(query);
@@ -350,9 +358,7 @@ public class SQLSolrHandler implements DatabaseHandler {
         String phrase = Utils.getSolrPattern(msg);
         try (SolrClient solr = getSolrClient()) {
             SolrQuery query = new SolrQuery();
-            query.set("q",
-                    phrase + " AND username:" + username + " AND -username:" + Config.getTwitchUsername()
-                            + " AND -message:\"!search\" AND -message:\"!searchuser\" AND -message:\"!rs\"");
+            query.set("q", phrase + " AND username:" + username);
             query.set("rows", 1);
             log.debug(query.getQuery());
             QueryResponse response = solr.query(query);
@@ -467,7 +473,7 @@ public class SQLSolrHandler implements DatabaseHandler {
                 }
             }
         } catch (SQLException e) {
-            if (e.getErrorCode() == 1242) {
+            if (e.getErrorCode() == 1242) { // multiple rows returned. means multiple userids have had that name.
                 log.info("SQLException: {}, VendorError: {}", e.getMessage(), e.getErrorCode());
                 return Optional.empty();
             }

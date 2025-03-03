@@ -77,7 +77,6 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         log.info("{} used {} with {}.", message.getSender(), command, message.getStringMessage());
         long start = System.nanoTime();
 
-
         if (!isAllowed(message)) {
             log.info("{} not allowed to use command {}", message.getSender(), command);
             Metrics.COMMAND_NOT_ALLOWED_COUNTER.inc(command.name());
@@ -155,16 +154,15 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         StringBuilder names = new StringBuilder("@");
         names.append(message.getSender()).append(", ").append(message.getUsername()).append("'s other names are: ");
 
-        Optional<List<String>> optional = databaseHandler.getAlternateNames(message.getUsername());
-        if (optional.isEmpty()) {
+        Optional<List<String>> optionalNameList = databaseHandler.getAlternateNames(message.getUsername());
+        if (optionalNameList.isEmpty()) {
             state.sendingBlockingQueue.add(message.setResponse("@%s, multiple users have had that name PepeSpin".formatted(message.getSender())));
             return;
         }
-        var nameList = optional.get();
-        for (String name : nameList) {
-            names.append(name).append(", ");
-        }
-        if (!nameList.isEmpty()) {
+        if (!optionalNameList.get().isEmpty()) {
+            for (String name : optionalNameList.get()) {
+                names.append(name).append(", ");
+            }
             names.setLength(names.length() - 2);
             state.sendingBlockingQueue.add(message.setResponse(names.toString()));
         } else {
@@ -256,8 +254,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     }
 
     private void userNam(CommandMessage message) {
-        int count = getCount(message.getUsername());
-        if (count == 0) {
+        if (!databaseHandler.userHasAnyMessages(message.getUsername())) {
             return;
         }
 
@@ -275,7 +272,6 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             state.sendingBlockingQueue.add(message.setResponse(response));
 
         }
-        lastCommandTime = Instant.now();
     }
 
     private void firstMessage(CommandMessage message) {
@@ -283,7 +279,12 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
             return;
         }
 
-        state.sendingBlockingQueue.add(message.setResponse("@%s, %s".formatted(message.getSender(), databaseHandler.firstMessage(message.getUsername()))));
+        String messageString = databaseHandler.firstMessage(message.getUsername());
+        if (message.getSender().equalsIgnoreCase(message.getUsername())) {
+            state.sendingBlockingQueue.add(message.setResponse("@%s, your %s".formatted(message.getSender(), messageString)));
+        } else {
+            state.sendingBlockingQueue.add(message.setResponse("@%s, %s's %s".formatted(message.getSender(), message.getUsername(), messageString)));
+        }
     }
 
     private void lastMessage(CommandMessage message) {
@@ -305,8 +306,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     }
 
     private boolean sendIfNoMessages(CommandMessage message) {
-        int count = getCount(message.getUsername());
-        if (count == 0) {
+        if (!databaseHandler.userHasAnyMessages(message.getUsername())) {
             log.info("Did not find any messages for user {}", message.getUsername());
             state.sendingBlockingQueue.add(message.setResponse("@%s, %s".formatted(message.getSender(), Response.NO_MESSAGES)));
             return true;
@@ -321,7 +321,7 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
     }
 
     private void messageCount(CommandMessage message) {
-        int count = getCount(message.getUsername());
+        int count = databaseHandler.getMessageCount(message.getUsername());
         if (count == 0) {
             state.sendingBlockingQueue.add(message.setResponse("@%s, %s".formatted(message.getSender(), Response.NO_MESSAGES)));
             return;
@@ -331,10 +331,6 @@ public class CommandHandlerService extends AbstractExecutionThreadService {
         } else {
             state.sendingBlockingQueue.add(message.setResponse("@%s, %s has sent %s messages in this chat".formatted(message.getSender(), message.getUsername(), count)));
         }
-    }
-
-    private int getCount(String username) {
-        return databaseHandler.getMessageCount(username);
     }
 
     private void initializeMods() {

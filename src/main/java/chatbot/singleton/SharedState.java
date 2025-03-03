@@ -115,7 +115,7 @@ public class SharedState {
             return "username:" + username.toLowerCase();
         }
         StringBuilder sb = new StringBuilder();
-        sb.append("username:");
+        sb.append("(username:");
         sb.append(main);
 
         for (String alt : alts.get(main)) {
@@ -123,6 +123,7 @@ public class SharedState {
             sb.append("username:");
             sb.append(alt);
         }
+        sb.append(")");
         return sb.toString();
     }
 

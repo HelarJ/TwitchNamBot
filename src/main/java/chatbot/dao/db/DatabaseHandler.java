@@ -1,13 +1,12 @@
 package chatbot.dao.db;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 
 public interface DatabaseHandler {
 
     int getMessageCount(String username);
+
+    boolean userHasAnyMessages(String username);
 
     List<String> getModList();
 
